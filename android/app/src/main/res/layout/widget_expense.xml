@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_card_bg"
+    android:padding="12dp">
+
+    <!-- Top Header Row -->
+    <LinearLayout
+        android:id="@+id/layout_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/iv_widget_logo"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="Apex Spend Logo" />
+
+        <TextView
+            android:id="@+id/tv_widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Apex Spend"
+            android:textColor="#85F8C4"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <!-- Quick Add "+" Button -->
+        <ImageButton
+            android:id="@+id/btn_widget_quick_add"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/widget_add_btn"
+            android:src="@android:drawable/ic_input_add"
+            android:tint="#FFFFFF"
+            android:scaleType="centerInside"
+            android:contentDescription="Quick Add Expense" />
+    </LinearLayout>
+
+    <!-- Stat Boxes (Today & This Month) -->
+    <LinearLayout
+        android:id="@+id/layout_stats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/layout_header"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <!-- Today Spend Box -->
+        <LinearLayout
+            android:id="@+id/box_today"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/widget_stat_box"
+            android:padding="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TODAY"
+                android:textColor="#8C9BA2"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_widget_today"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="₹0.00"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Month Spend Box -->
+        <LinearLayout
+            android:id="@+id/box_month"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/widget_stat_box"
+            android:padding="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="THIS MONTH"
+                android:textColor="#8C9BA2"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_widget_month"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="₹0.00"
+                android:textColor="#85F8C4"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Recent Transactions Container -->
+    <LinearLayout
+        android:id="@+id/layout_recent_txns"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/layout_stats"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical">
+
+        <!-- Recent 1 -->
+        <LinearLayout
+            android:id="@+id/row_recent_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/tv_cat_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Food &amp; Dining"
+                android:textColor="#CBD5E1"
+                android:textSize="11sp"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/tv_amount_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-₹0.00"
+                android:textColor="#FF8A80"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Recent 2 -->
+        <LinearLayout
+            android:id="@+id/row_recent_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_cat_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Transport"
+                android:textColor="#CBD5E1"
+                android:textSize="11sp"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/tv_amount_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-₹0.00"
+                android:textColor="#FF8A80"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Empty State Label -->
+        <TextView
+            android:id="@+id/tv_widget_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tap + to quickly log an expense"
+            android:textColor="#64748B"
+            android:textSize="10sp"
+            android:gravity="center"
+            android:paddingTop="2dp" />
+    </LinearLayout>
+
+</RelativeLayout>
