@@ -1,41 +1,81 @@
 package com.manav.expense.expense_tracker
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Telephony
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import java.util.Locale
 import java.util.regex.Pattern
 
 class SmsReceiver : BroadcastReceiver() {
+
+    companion object {
+        const val CHANNEL_ID = "apex_tx_detection"
+        const val CHANNEL_NAME = "Transaction Detection"
+    }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
             for (sms in messages) {
-                val messageBody = sms.displayMessageBody
+                val messageBody = sms.displayMessageBody ?: continue
                 val sender = sms.displayOriginatingAddress ?: ""
                 Log.d("SmsReceiver", "SMS received from $sender: $messageBody")
                 
-                parseAndTriggerPopup(context, messageBody, sender)
+                parseAndProcessTransaction(context, messageBody, sender)
             }
         }
     }
 
-    private fun parseAndTriggerPopup(context: Context, messageBody: String, sender: String) {
-        var amount: Double? = null
+    private fun parseAndProcessTransaction(context: Context, messageBody: String, sender: String) {
         val lowerMsg = messageBody.lowercase()
 
-        // 1. Extract amount using regex
-        // Patterns to match: "INR 30,185.00", "Txn Rs.20.00", "Rs.600.00", "Sent Rs.80.00", "Rs.12000", "debited by 1000.00", "deposited in HDFC"
-        val amountPattern = Pattern.compile(
-            "(?:Rs\\.?|INR)\\s*([0-9,]+\\.?[0-9]*)|(?:debited|credited|deposited)\\s*(?:by|in|to)?\\s*(?:Rs\\.?|INR)?\\s*([0-9,]+\\.?[0-9]*)|spent Rs\\.?\\s*([0-9,]+\\.?[0-9]*)",
+        // 0. Exclude OTP / 2FA messages (Issue #12)
+        val otpKeywords = listOf("otp", "verification code", "security code", "auth code", "secret code", "do not share", "never share", "valid for", "is your code")
+        if (otpKeywords.any { lowerMsg.contains(it) }) {
+            Log.d("SmsReceiver", "Ignored OTP SMS: $messageBody")
+            return
+        }
+
+        // 0.1 Exclude Promotional / Marketing messages (Issue #13)
+        val promoKeywords = listOf("flat rs", "flat inr", "cashback", "off on", "discount", "coupon", "pre-approved", "loan", "win cash", "hurry", "apply now", "promocode")
+        if (promoKeywords.any { lowerMsg.contains(it) }) {
+            Log.d("SmsReceiver", "Ignored Promo SMS: $messageBody")
+            return
+        }
+
+        var amount: Double? = null
+
+        // 1. Extract amount using priority regex avoiding balance collision (Issue #11)
+        val verbAmountPattern = Pattern.compile(
+            "(?:debited|credited|spent|paid|withdrawn|deposited|sent|received|txn\\s*rs|charged)\\s*(?:by|with|for|in|of|to)?\\s*(?:Rs\\.?|INR)?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)",
             Pattern.CASE_INSENSITIVE
         )
-        val matcher = amountPattern.matcher(messageBody)
-        if (matcher.find()) {
-            val amountStr = matcher.group(1) ?: matcher.group(2) ?: matcher.group(3)
-            amount = amountStr?.replace(",", "")?.toDoubleOrNull()
+        val vMatcher = verbAmountPattern.matcher(messageBody)
+        if (vMatcher.find()) {
+            amount = vMatcher.group(1)?.replace(",", "")?.toDoubleOrNull()
+        }
+
+        if (amount == null) {
+            val amountPattern = Pattern.compile(
+                "(?:Rs\\.?|INR)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)",
+                Pattern.CASE_INSENSITIVE
+            )
+            val matcher = amountPattern.matcher(messageBody)
+            while (matcher.find()) {
+                val start = matcher.start()
+                val prefix = messageBody.substring(if (start > 20) start - 20 else 0, start).lowercase()
+                if (!prefix.contains("bal") && !prefix.contains("avl") && !prefix.contains("available") && !prefix.contains("limit")) {
+                    amount = matcher.group(1)?.replace(",", "")?.toDoubleOrNull()
+                    if (amount != null && amount > 0) break
+                }
+            }
         }
 
         if (amount == null || amount <= 0) return
@@ -50,10 +90,9 @@ class SmsReceiver : BroadcastReceiver() {
         val isBankTxn = lowerMsg.contains("a/c") || lowerMsg.contains("bank") || 
                         lowerMsg.contains("inr") || lowerMsg.contains("avl bal")
 
-        // Must be a recognized transaction or bank financial alert
         if (!isDebit && !isCredit && !isBankTxn) return
 
-        // 3. Smart payment method detection (UPI, Card, Transfer, Cash)
+        // 3. Smart payment method detection
         var paymentMethod = "UPI"
         if (lowerMsg.contains("credit card") || lowerMsg.contains("card") || lowerMsg.contains("cc ")) {
             paymentMethod = "Card"
@@ -110,24 +149,92 @@ class SmsReceiver : BroadcastReceiver() {
             suggestedCategory = "Bills & Utilities"
         }
 
-        // Open the QuickAddActivity popup with pre-filled details!
-        // If the user closes or dismisses it, QuickAddActivity's fallbackAutoSaveIfNeeded() will automatically log it with defaults!
-        try {
-            val popupIntent = Intent(context, QuickAddActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                putExtra("EXTRA_AMOUNT", amount)
-                putExtra("EXTRA_PAYMENT_METHOD", paymentMethod)
-                putExtra("EXTRA_COMMENT", comment)
-                putExtra("EXTRA_CATEGORY", suggestedCategory)
-                putExtra("EXTRA_IS_AUTO_DETECTED", true)
-            }
-            context.startActivity(popupIntent)
-            Log.d("SmsReceiver", "Opened QuickAddActivity popup for transaction of ₹$amount")
-        } catch (e: Exception) {
-            Log.e("SmsReceiver", "Failed to launch QuickAdd popup, saving default directly: ${e.message}")
-            val dbHelper = DatabaseHelper(context)
-            dbHelper.insertExpense(amount, suggestedCategory, paymentMethod, comment)
+        // 6. IMMEDIATELY auto-log into Database
+        val dbHelper = DatabaseHelper(context)
+        val expenseId = dbHelper.insertExpense(amount, suggestedCategory, paymentMethod, comment)
+        if (expenseId != -1L) {
             ExpenseWidgetProvider.sendUpdateBroadcast(context)
+            Log.d("SmsReceiver", "Auto-logged expense with ID: $expenseId")
+        }
+
+        val notificationId = (System.currentTimeMillis() % 100000).toInt()
+
+        // 7. Intent to EDIT the auto-logged expense
+        val editIntent = Intent(context, QuickAddActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or 
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            putExtra("EXTRA_EXPENSE_ID", expenseId)
+            putExtra("EXTRA_AMOUNT", amount)
+            putExtra("EXTRA_PAYMENT_METHOD", paymentMethod)
+            putExtra("EXTRA_COMMENT", comment)
+            putExtra("EXTRA_CATEGORY", suggestedCategory)
+            putExtra("EXTRA_IS_AUTO_DETECTED", true)
+            putExtra("EXTRA_IS_EDIT_MODE", true)
+            putExtra("EXTRA_NOTIFICATION_ID", notificationId)
+        }
+
+        val editPendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            editIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 8. Intent to DISCARD (Delete) the auto-logged expense
+        val discardIntent = Intent(context, NotificationDismissReceiver::class.java).apply {
+            putExtra("EXTRA_EXPENSE_ID", expenseId)
+            putExtra("EXTRA_NOTIFICATION_ID", notificationId)
+        }
+        val discardPendingIntent = PendingIntent.getBroadcast(
+            context,
+            notificationId + 1,
+            discardIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 9. Create Notification Channel
+        createNotificationChannel(context)
+
+        // 10. Show Notification with Edit & Discard actions
+        val formattedAmount = if (amount % 1.0 == 0.0) amount.toInt().toString() else String.format(Locale.US, "%.2f", amount)
+        val notifBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Transaction Logged: ₹$formattedAmount")
+            .setContentText("$comment · $suggestedCategory ($paymentMethod)")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("Logged ₹$formattedAmount in $suggestedCategory for $comment ($paymentMethod).\nTap to edit details, or tap Discard to delete."))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(editPendingIntent)
+            .setDeleteIntent(discardPendingIntent)
+            .setAutoCancel(true)
+            .addAction(android.R.drawable.ic_menu_edit, "Edit", editPendingIntent)
+            .addAction(android.R.drawable.ic_menu_delete, "Discard", discardPendingIntent)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        notificationManager?.notify(notificationId, notifBuilder.build())
+
+        // Notify running Flutter app if in foreground
+        MainActivity.notifyTransactionDetected(amount, suggestedCategory, paymentMethod, comment)
+    }
+
+    private fun createNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifies when a new bank or UPI transaction SMS is detected and logged"
+                enableVibration(true)
+                enableLights(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            }
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.createNotificationChannel(channel)
         }
     }
 }

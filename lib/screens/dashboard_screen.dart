@@ -4,10 +4,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/expense_provider.dart';
-import '../models/expense.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../providers/budget_provider.dart';
 import 'budget_screen.dart';
+import 'category_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -552,11 +552,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               itemCount: legendItems.length,
               itemBuilder: (context, i) {
                 final item = legendItems[i];
-                return _buildLegendTile(
-                  item['category'] as String,
-                  item['amount'] as String,
-                  item['pct'] as String,
-                  item['color'] as Color,
+                final categoryName = item['category'] as String;
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CategoryDetailScreen(initialCategory: categoryName),
+                      ),
+                    );
+                  },
+                  child: _buildLegendTile(
+                    categoryName,
+                    item['amount'] as String,
+                    item['pct'] as String,
+                    item['color'] as Color,
+                  ),
                 );
               },
             ),
@@ -619,35 +629,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final double totalOutflow = provider.totalExpenses;
     final now = DateTime.now();
     final todayLabel = DateFormat('MMM d').format(now);
+    final inrFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+    final inrFmtDecimal = NumberFormat.currency(symbol: '₹', decimalDigits: 2, locale: 'en_IN');
 
-    // Build real spots from expenses
+    // Build timeline points grouped by calendar day based on current month
+    final List<_TrajectoryDataPoint> points = [];
+    final monthlyExpenses = provider.getExpensesForMonth(now.year, now.month);
+    final validExpenses = monthlyExpenses.where((e) => e.amount > 0).toList();
+
+    if (validExpenses.isNotEmpty) {
+      validExpenses.sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
+
+      // Group spending by calendar day
+      final Map<DateTime, double> dailySpendMap = {};
+      for (final exp in validExpenses) {
+        final dt = exp.dateTime;
+        final dayKey = DateTime(dt.year, dt.month, dt.day);
+        dailySpendMap[dayKey] = (dailySpendMap[dayKey] ?? 0.0) + exp.amount;
+      }
+
+      final sortedDays = dailySpendMap.keys.toList()..sort();
+      final firstDay = sortedDays.first;
+      final lastDay = sortedDays.last;
+      final totalCalendarDays = lastDay.difference(firstDay).inDays + 1;
+
+      double runningTotal = 0.0;
+
+      if (sortedDays.length == 1 || totalCalendarDays <= 1) {
+        // Single day: start from 0 at start of day, step to total
+        points.add(_TrajectoryDataPoint(
+          date: firstDay,
+          cumulativeAmount: 0.0,
+          daySpend: 0.0,
+        ));
+        points.add(_TrajectoryDataPoint(
+          date: firstDay,
+          cumulativeAmount: dailySpendMap[firstDay] ?? 0.0,
+          daySpend: dailySpendMap[firstDay] ?? 0.0,
+        ));
+      } else if (totalCalendarDays <= 60) {
+        // Up to 2 months: continuous day-by-day progression
+        for (int i = 0; i < totalCalendarDays; i++) {
+          final currentDay = firstDay.add(Duration(days: i));
+          final spend = dailySpendMap[currentDay] ?? 0.0;
+          runningTotal += spend;
+          points.add(_TrajectoryDataPoint(
+            date: currentDay,
+            cumulativeAmount: runningTotal,
+            daySpend: spend,
+          ));
+        }
+      } else {
+        // For larger timeframes (> 60 days): sample ~40 points across the range
+        const int maxSamplePoints = 40;
+        final double stepDays = (totalCalendarDays - 1) / (maxSamplePoints - 1);
+        final Set<DateTime> sampledDates = {};
+        for (int i = 0; i < maxSamplePoints; i++) {
+          final dayOffset = (i * stepDays).round();
+          sampledDates.add(firstDay.add(Duration(days: dayOffset)));
+        }
+        sampledDates.add(lastDay);
+
+        final sampledList = sampledDates.toList()..sort();
+        for (final sampleDate in sampledList) {
+          double sumUntil = 0.0;
+          for (final entry in dailySpendMap.entries) {
+            if (!entry.key.isAfter(sampleDate)) {
+              sumUntil += entry.value;
+            }
+          }
+          points.add(_TrajectoryDataPoint(
+            date: sampleDate,
+            cumulativeAmount: sumUntil,
+            daySpend: dailySpendMap[sampleDate] ?? 0.0,
+          ));
+        }
+      }
+    }
+
+    // Spots for fl_chart
     List<FlSpot> spots = [];
-    if (provider.expenses.isEmpty) {
+    if (points.isEmpty) {
       spots = const [
         FlSpot(0, 0),
         FlSpot(1, 0),
         FlSpot(2, 0),
         FlSpot(3, 0),
-        FlSpot(4, 0),
       ];
     } else {
-      // Sort ascending by date
-      final sorted = List<Expense>.from(provider.expenses)
-        ..sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
-      
-      double running = 0.0;
-      if (sorted.length == 1) {
-        spots.add(const FlSpot(0, 0));
-        spots.add(FlSpot(1, sorted.first.amount));
+      spots = List.generate(
+        points.length,
+        (i) => FlSpot(i.toDouble(), points[i].cumulativeAmount),
+      );
+    }
+
+    // Determine target ceiling and range
+    final double maxCeiling = totalOutflow > 5000 ? totalOutflow * 1.2 : 5000.0;
+    final double chartMaxY = totalOutflow > 0 ? (totalOutflow * 1.15) : 5000.0;
+
+    // Milestone indices for X-axis: Pick at most 4 evenly spaced date labels so text NEVER overlaps
+    final List<int> milestoneIndices = [];
+    if (points.isNotEmpty) {
+      if (points.length <= 4) {
+        milestoneIndices.addAll(List.generate(points.length, (i) => i));
       } else {
-        for (int i = 0; i < sorted.length; i++) {
-          running += sorted[i].amount;
-          spots.add(FlSpot(i.toDouble(), running));
+        const int labelCount = 4;
+        for (int i = 0; i < labelCount; i++) {
+          final idx = ((points.length - 1) * i / (labelCount - 1)).round();
+          if (!milestoneIndices.contains(idx)) {
+            milestoneIndices.add(idx);
+          }
         }
       }
     }
-
-    final double maxCeiling = totalOutflow > 5000 ? totalOutflow * 1.2 : 5000.0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -671,12 +765,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.show_chart, size: 18, color: Color(0xFF006948)),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.show_chart, size: 20, color: Color(0xFF006948)),
+                  const SizedBox(width: 8),
                   const Text(
                     'Spend Escalation Trajectory',
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF131B2E),
                     ),
@@ -684,9 +778,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF85F8C4),
+                  color: const Color(0xFF85F8C4).withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -703,129 +797,211 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 2),
           Text(
             totalOutflow > 0
-                ? 'Cumulative spend to date: ₹${totalOutflow.toStringAsFixed(2)}'
+                ? 'Cumulative spend to date: ${inrFmtDecimal.format(totalOutflow)}'
                 : 'No spend accrued yet this period',
             style: const TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
           ),
           const SizedBox(height: 14),
-          // Interactive Glowing Milestone Card
+          // Interactive Glowing Milestone Card (Responsive, clean spacing)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: const Color(0xFF85F8C4).withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFF006948).withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.12)),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF006948),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$todayLabel Status',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-                    ),
-                  ],
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF006948),
+                    shape: BoxShape.circle,
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
-                  'Accrued: ₹${totalOutflow.toStringAsFixed(2)} | Target: ₹${maxCeiling.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
+                  '$todayLabel Status',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
                 ),
+                const Spacer(),
+                Text(
+                  'Accrued: ${inrFmt.format(totalOutflow)}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
+                ),
+                if (maxCeiling > totalOutflow) ...[
+                  Text(
+                    '  •  Target: ${inrFmt.format(maxCeiling)}',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6D7A72)),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 16),
-          // Spline Line Chart with Ceiling
+          // Spline Line Chart (Zero dots blob, zero date overlap, silky smooth)
           SizedBox(
-            height: 150,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: const Color(0xFFBCCAC0).withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                      dashArray: [4, 4],
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (val, meta) {
-                        return Text('Txn ${val.toInt() + 1}', style: const TextStyle(fontSize: 9, color: Color(0xFF6D7A72)));
-                      },
+            height: 155,
+            child: points.isEmpty
+                ? Center(
+                    child: Text(
+                      'Record transactions to view spending trajectory curve',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                     ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  // Actual Spending Spline
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    curveSmoothness: 0.35,
-                    color: const Color(0xFF006948),
-                    barWidth: 2.5,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        if (index == spots.length - 1) {
-                          // Glowing active milestone node
-                          return FlDotCirclePainter(
-                            radius: 5,
-                            color: const Color(0xFF006948),
-                            strokeWidth: 2.5,
-                            strokeColor: Colors.white,
-                          );
-                        }
-                        return FlDotCirclePainter(
-                          radius: 3.5,
-                          color: Colors.white,
-                          strokeWidth: 2,
-                          strokeColor: const Color(0xFF006948),
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF006948).withValues(alpha: 0.28),
-                          const Color(0xFF85F8C4).withValues(alpha: 0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                  )
+                : LineChart(
+                    LineChartData(
+                      maxY: chartMaxY,
+                      minY: 0,
+                      lineTouchData: LineTouchData(
+                        handleBuiltInTouches: true,
+                        touchTooltipData: LineTouchTooltipData(
+                          tooltipRoundedRadius: 10,
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          getTooltipItems: (touchedSpots) {
+                            return touchedSpots.map((spot) {
+                              final idx = spot.x.toInt();
+                              if (idx < 0 || idx >= points.length) return null;
+                              final pt = points[idx];
+                              final dateStr = DateFormat('d MMM yyyy').format(pt.date);
+                              final accStr = inrFmt.format(pt.cumulativeAmount);
+                              final dayStr = pt.daySpend > 0
+                                  ? '\nDay Outflow: +${inrFmt.format(pt.daySpend)}'
+                                  : '';
+                              return LineTooltipItem(
+                                '$dateStr\nCumulative: $accStr$dayStr',
+                                const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                              );
+                            }).toList();
+                          },
+                        ),
+                        getTouchedSpotIndicator: (barData, spotIndexes) {
+                          return spotIndexes.map((index) {
+                            return TouchedSpotIndicatorData(
+                              FlLine(
+                                color: const Color(0xFF006948).withValues(alpha: 0.35),
+                                strokeWidth: 1.5,
+                                dashArray: [4, 4],
+                              ),
+                              FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                                  radius: 5,
+                                  color: const Color(0xFF006948),
+                                  strokeWidth: 2.5,
+                                  strokeColor: Colors.white,
+                                ),
+                              ),
+                            );
+                          }).toList();
+                        },
                       ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: const Color(0xFFBCCAC0).withValues(alpha: 0.25),
+                            strokeWidth: 1,
+                            dashArray: [4, 4],
+                          );
+                        },
+                      ),
+                      titlesData: FlTitlesData(
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 26,
+                            interval: 1,
+                            getTitlesWidget: (val, meta) {
+                              final idx = val.toInt();
+                              if (!milestoneIndices.contains(idx) || idx < 0 || idx >= points.length) {
+                                return const SizedBox.shrink();
+                              }
+                              final pt = points[idx];
+                              final isLast = idx == points.length - 1;
+                              final isToday = pt.date.year == now.year &&
+                                  pt.date.month == now.month &&
+                                  pt.date.day == now.day;
+                              final label = (isLast && isToday)
+                                  ? 'Today'
+                                  : DateFormat('d MMM').format(pt.date);
+
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  label,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF6D7A72),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: spots,
+                          isCurved: true,
+                          curveSmoothness: 0.2,
+                          color: const Color(0xFF006948),
+                          barWidth: 2.5,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(
+                            show: true,
+                            checkToShowDot: (spot, barData) {
+                              // Only show single terminal milestone dot, no ugly blob of dots
+                              if (points.length <= 4) return true;
+                              return spot.x.toInt() == points.length - 1;
+                            },
+                            getDotPainter: (spot, percent, barData, index) {
+                              final isLast = spot.x.toInt() == points.length - 1;
+                              return FlDotCirclePainter(
+                                radius: isLast ? 4.5 : 2.5,
+                                color: const Color(0xFF006948),
+                                strokeWidth: 2,
+                                strokeColor: Colors.white,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF006948).withValues(alpha: 0.22),
+                                const Color(0xFF006948).withValues(alpha: 0.0),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           // Progress Chips
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _MilestoneChip('Entries: ${provider.expenses.length}'),
-              _MilestoneChip('Currency: INR (₹)'),
-              _MilestoneChip('Total: ₹${totalOutflow.toStringAsFixed(2)}', isPrimary: true),
+              _MilestoneChip('Entries: ${monthlyExpenses.length}'),
+              _MilestoneChip(points.length > 1 ? '${points.length} Days' : 'Currency: INR (₹)'),
+              _MilestoneChip('Total: ${inrFmt.format(totalOutflow)}', isPrimary: true),
             ],
           ),
         ],
@@ -1102,6 +1278,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
+}
+
+class _TrajectoryDataPoint {
+  final DateTime date;
+  final double cumulativeAmount;
+  final double daySpend;
+
+  const _TrajectoryDataPoint({
+    required this.date,
+    required this.cumulativeAmount,
+    required this.daySpend,
+  });
 }
 
 class _MilestoneChip extends StatelessWidget {

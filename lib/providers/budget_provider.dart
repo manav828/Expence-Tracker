@@ -78,14 +78,16 @@ class BudgetProvider with ChangeNotifier {
   }
 
   Future<void> deleteBudgetByCategory(String category) async {
+    final target = category.trim().toLowerCase();
     await DatabaseService.instance.deleteBudgetByCategory(category);
-    _budgets.removeWhere((b) => b.category == category);
+    _budgets.removeWhere((b) => b.category.trim().toLowerCase() == target);
     notifyListeners();
   }
 
   Budget? getBudgetForCategory(String category) {
+    final target = category.trim().toLowerCase();
     try {
-      return _budgets.firstWhere((b) => b.category == category);
+      return _budgets.firstWhere((b) => b.category.trim().toLowerCase() == target);
     } catch (_) {
       return null;
     }
@@ -93,9 +95,10 @@ class BudgetProvider with ChangeNotifier {
 
   double getMonthlySpentForCategory(String category, List<Expense> expenses) {
     final now = DateTime.now();
+    final target = category.trim().toLowerCase();
     return expenses.where((e) {
       final d = e.dateTime;
-      return e.category == category && d.year == now.year && d.month == now.month;
+      return e.category.trim().toLowerCase() == target && d.year == now.year && d.month == now.month;
     }).fold(0.0, (sum, item) => sum + item.amount);
   }
 

@@ -130,6 +130,30 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return id
     }
 
+    fun deleteExpense(id: Long): Int {
+        val db = this.writableDatabase
+        val count = db.delete(TABLE_EXPENSES, "$COLUMN_ID = ?", arrayOf(id.toString()))
+        db.close()
+        Log.d("DatabaseHelper", "Deleted expense: ID=$id, count=$count")
+        return count
+    }
+
+    fun updateExpense(id: Long, amount: Double, category: String, paymentMethod: String, comment: String?, expenseDate: Long): Int {
+        val db = this.writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_AMOUNT, amount)
+            put(COLUMN_CATEGORY, category)
+            put(COLUMN_PAYMENT_METHOD, paymentMethod)
+            put(COLUMN_COMMENT, comment)
+            put(COLUMN_EXPENSE_DATE, expenseDate)
+            put(COLUMN_UPDATED_AT, System.currentTimeMillis())
+        }
+        val count = db.update(TABLE_EXPENSES, values, "$COLUMN_ID = ?", arrayOf(id.toString()))
+        db.close()
+        Log.d("DatabaseHelper", "Updated expense: ID=$id, count=$count")
+        return count
+    }
+
     fun getCategories(): List<String> {
         val list = mutableListOf<String>()
         val db = this.readableDatabase

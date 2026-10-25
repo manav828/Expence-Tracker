@@ -34,7 +34,7 @@ class TransactionDetectionService {
 
   /// Opens the interactive popup with pre-filled amount and details.
   /// If the user confirms/saves, it saves with the chosen category.
-  /// If the user dismisses/closes the popup, it automatically logs by default.
+  /// If the user cancels or dismisses, the transaction is discarded and not recorded.
   static void showDetectedTransactionPopup(
     BuildContext context, {
     required double amount,
@@ -52,7 +52,7 @@ class TransactionDetectionService {
         initialPaymentMethod: paymentMethod,
         initialComment: comment,
         isAutoDetected: true,
-        autoSaveOnDismiss: true,
+        autoSaveOnDismiss: false,
       ),
     );
   }

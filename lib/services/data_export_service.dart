@@ -82,8 +82,19 @@ class DataExportService {
     );
   }
 
-  String _escapeCsv(String val) {
-    if (val.contains(',') || val.contains('"') || val.contains('\n')) {
+  String _escapeCsv(String raw) {
+    var val = raw;
+    // Prevent CSV Formula Injection (OWASP CWE-1236)
+    if (val.startsWith('=') ||
+        val.startsWith('+') ||
+        val.startsWith('-') ||
+        val.startsWith('@') ||
+        val.startsWith('\t') ||
+        val.startsWith('\r')) {
+      val = "'$val";
+    }
+
+    if (val.contains(',') || val.contains('"') || val.contains('\n') || val.contains("'")) {
       final replaced = val.replaceAll('"', '""');
       return '"$replaced"';
     }

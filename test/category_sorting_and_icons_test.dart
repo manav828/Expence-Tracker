@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:expense_tracker/main.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/providers/expense_provider.dart';
 import 'package:expense_tracker/utils/category_icons.dart';
+import 'package:expense_tracker/widgets/category_payment_manager_sheet.dart';
 import 'package:expense_tracker/widgets/searchable_selection_sheet.dart';
 
 void main() {

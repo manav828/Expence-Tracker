@@ -40,7 +40,6 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String? _category;
   String? _paymentMethod;
   late DateTime _selectedDate;
-  bool _isSavedByUser = false;
 
   bool get isEditing => widget.expenseToEdit != null;
 
@@ -289,46 +288,8 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     }
   }
 
-  void _handleAutoSaveFallback() {
-    if (_isSavedByUser) return;
-    _isSavedByUser = true;
-
-    final amount = double.tryParse(_amountController.text.trim()) ?? widget.initialAmount ?? 0.0;
-    if (amount <= 0) return;
-
-    final provider = Provider.of<ExpenseProvider>(context, listen: false);
-    final fallbackCat = _category ?? widget.initialCategory ?? (provider.categories.isNotEmpty ? provider.categories.first : 'Uncategorized');
-    final fallbackMethod = _paymentMethod ?? widget.initialPaymentMethod ?? 'UPI';
-    final fallbackComment = _commentController.text.trim().isNotEmpty
-        ? _commentController.text.trim()
-        : (widget.initialComment ?? 'Auto-detected transaction');
-
-    final fallbackExpense = Expense(
-      amount: amount,
-      category: fallbackCat,
-      paymentMethod: fallbackMethod,
-      comment: fallbackComment,
-      expenseDate: _selectedDate.millisecondsSinceEpoch,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-
-    provider.addExpense(fallbackExpense);
-    context.read<BudgetProvider>().checkForOverspend(fallbackExpense, provider.expenses);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Auto-logged: ₹${amount.toStringAsFixed(2)} in $fallbackCat by default'),
-        backgroundColor: const Color(0xFF006948),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
   void _submit() async {
     if (_formKey.currentState!.validate()) {
-      _isSavedByUser = true;
       final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
       final provider = Provider.of<ExpenseProvider>(context, listen: false);
       final finalCategory = _category ?? (provider.categories.isNotEmpty ? provider.categories.first : 'Food & Dining');
@@ -425,9 +386,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop && widget.autoSaveOnDismiss && !_isSavedByUser) {
-          _handleAutoSaveFallback();
-        }
+        // Discard without logging on cancel or dismiss
       },
       child: Container(
         padding: EdgeInsets.only(
@@ -488,7 +447,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               ),
                               SizedBox(height: 1),
                               Text(
-                                'Select category or dismiss popup to auto-log by default',
+                                'Tap Cancel to discard, or Save to confirm',
                                 style: TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
                               ),
                             ],
@@ -522,7 +481,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               ? 'Modify or update transaction details'
                               : widget.isAutoDetected
                                   ? 'Auto-filled from detected transaction'
-                                  : 'Record an outflow into Apex Private Ledger',
+                                  : 'Record an outflow into ExpenCircle Private Ledger',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
                         ),
                       ],
@@ -532,6 +491,21 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A)),
                       tooltip: 'Delete transaction',
                       onPressed: _confirmDelete,
+                    ),
+                  if (widget.isAutoDetected)
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF131B2E).withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 18, color: Color(0xFF131B2E)),
+                      ),
+                      tooltip: 'Discard',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
                     ),
                 ],
               ),
@@ -853,29 +827,77 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               ),
               const SizedBox(height: 24),
 
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF006948),
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shadowColor: const Color(0xFF006948).withValues(alpha: 0.4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: Text(
-                    isEditing ? 'Update Spend' : 'Save Spend',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+              // Cancel + Submit Buttons
+              if (widget.isAutoDetected) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFBA1A1A),
+                            side: const BorderSide(color: Color(0xFFBA1A1A), width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF006948),
+                            foregroundColor: Colors.white,
+                            elevation: 4,
+                            shadowColor: const Color(0xFF006948).withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text(
+                            'Save Spend',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                // Normal Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF006948),
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      shadowColor: const Color(0xFF006948).withValues(alpha: 0.4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Text(
+                      isEditing ? 'Update Spend' : 'Save Spend',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

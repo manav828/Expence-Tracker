@@ -45,6 +45,22 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> reloadForStorageMode() async {
+    await fetchExpenses();
+  }
+
+  Future<int> syncLocalToCloud() async {
+    final count = await DatabaseService.instance.syncLocalToCloud();
+    await fetchExpenses();
+    return count;
+  }
+
+  Future<int> syncCloudToLocal() async {
+    final count = await DatabaseService.instance.syncCloudToLocal();
+    await fetchExpenses();
+    return count;
+  }
+
   Future<void> addCategory(String name) async {
     await DatabaseService.instance.addCategory(name);
     _categories = await DatabaseService.instance.getCategories();
@@ -338,16 +354,18 @@ class ExpenseProvider with ChangeNotifier {
         break;
       case DateRangePreset.thisWeek:
         final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+        final sunday = monday.add(const Duration(days: 6));
         filterStart = DateTime(monday.year, monday.month, monday.day, 0, 0, 0);
-        filterEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+        filterEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59, 999);
         break;
       case DateRangePreset.thisMonth:
         filterStart = DateTime(now.year, now.month, 1, 0, 0, 0);
         filterEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
         break;
       case DateRangePreset.last30Days:
-        filterStart = now.subtract(const Duration(days: 30));
-        filterEnd = now;
+        final startDay = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 29));
+        filterStart = DateTime(startDay.year, startDay.month, startDay.day, 0, 0, 0);
+        filterEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
         break;
       case DateRangePreset.custom:
         if (filter.customStartDate != null) {
@@ -435,5 +453,80 @@ class ExpenseProvider with ChangeNotifier {
 
     return results;
   }
-}
 
+  // --- Category Detail Helpers ---
+
+  /// Get expenses for a specific category within a date range
+  List<Expense> getExpensesForCategory(String category, DateTime start, DateTime end) {
+    final lower = category.toLowerCase().trim();
+    return _expenses.where((e) {
+      if (e.category.toLowerCase().trim() != lower) return false;
+      final d = e.dateTime;
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList()
+      ..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+  }
+
+  /// Daily totals for a category in a specific month → {day: total}
+  Map<int, double> getCategoryDailyTotals(String category, int year, int month) {
+    final lower = category.toLowerCase().trim();
+    final map = <int, double>{};
+    for (var e in _expenses) {
+      final d = e.dateTime;
+      if (e.category.toLowerCase().trim() == lower && d.year == year && d.month == month) {
+        map[d.day] = (map[d.day] ?? 0.0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  /// Weekly totals for a category (current week, Mon=0 .. Sun=6)
+  List<double> getCategoryWeeklyTotals(String category) {
+    final lower = category.toLowerCase().trim();
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final result = List<double>.filled(7, 0.0);
+    for (var e in _expenses) {
+      if (e.category.toLowerCase().trim() != lower) continue;
+      final d = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
+      final diff = d.difference(monday).inDays;
+      if (diff >= 0 && diff < 7) {
+        result[diff] += e.amount;
+      }
+    }
+    return result;
+  }
+
+  /// Monthly totals for a category in a year → {month: total}
+  Map<int, double> getCategoryMonthlyTotals(String category, int year) {
+    final lower = category.toLowerCase().trim();
+    final map = <int, double>{};
+    for (var e in _expenses) {
+      final d = e.dateTime;
+      if (e.category.toLowerCase().trim() == lower && d.year == year) {
+        map[d.month] = (map[d.month] ?? 0.0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  /// Totals for a category over the last N months → {monthOffset: total}
+  /// monthOffset 0 = current month, 1 = last month, 2 = two months ago
+  Map<int, double> getCategoryRecentMonthsTotals(String category, int monthCount) {
+    final lower = category.toLowerCase().trim();
+    final now = DateTime.now();
+    final map = <int, double>{};
+    for (int i = 0; i < monthCount; i++) {
+      final target = DateTime(now.year, now.month - i, 1);
+      double total = 0.0;
+      for (var e in _expenses) {
+        final d = e.dateTime;
+        if (e.category.toLowerCase().trim() == lower && d.year == target.year && d.month == target.month) {
+          total += e.amount;
+        }
+      }
+      map[i] = total;
+    }
+    return map;
+  }
+}

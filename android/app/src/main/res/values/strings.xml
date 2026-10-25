@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Apex Spend</string>
-    <string name="widget_name">Apex Spend Glance</string>
+    <string name="app_name">ExpenCircle</string>
+    <string name="widget_name">ExpenCircle Glance</string>
     <string name="widget_description">Glance at today\'s and monthly spend, recent transactions, and quickly add expenses.</string>
     <string name="shortcut_short_label">Add Expense</string>
     <string name="shortcut_long_label">Quick Add Expense</string>
     <string name="quick_add_title">Quick Add Expense</string>
-    <string name="accessibility_service_description">Allows long-pressing the Volume Down button from any screen to instantly popup the Quick Add Expense dialog without opening the main app.</string>
 </resources>

@@ -14,6 +14,6 @@ Future<void> saveOrShareFile({
 
   await Share.shareXFiles(
     [XFile(file.path, mimeType: mimeType, name: filename)],
-    subject: 'Apex Spend Export - $filename',
+    subject: 'ExpenCircle Export - $filename',
   );
 }

@@ -3,20 +3,25 @@ package com.manav.expense.expense_tracker
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.app.NotificationManager
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.text.SimpleDateFormat
@@ -40,16 +45,30 @@ class QuickAddActivity : Activity() {
     private lateinit var categoryContainer: LinearLayout
     private lateinit var paymentContainer: LinearLayout
 
-    // Auto-detection tracking fields
+    // Auto-detection & Edit tracking fields
+    private var expenseId: Long = -1L
+    private var isEditMode = false
     private var isAutoDetected = false
     private var incomingAmount: Double = 0.0
     private var incomingCategory: String? = null
     private var incomingPaymentMethod: String? = null
     private var incomingComment: String? = null
-    private var isSavedByUser = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Wake screen and show over lock screen if phone is locked
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            )
+        }
 
         // Window & Dialog Setup
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -60,12 +79,17 @@ class QuickAddActivity : Activity() {
 
         dbHelper = DatabaseHelper(this)
 
-        // Parse incoming intent extras for auto-detected transactions
+        // Parse incoming intent extras
+        expenseId = intent.getLongExtra("EXTRA_EXPENSE_ID", -1L)
+        isEditMode = intent.getBooleanExtra("EXTRA_IS_EDIT_MODE", false) && expenseId != -1L
         isAutoDetected = intent.getBooleanExtra("EXTRA_IS_AUTO_DETECTED", false)
         incomingAmount = intent.getDoubleExtra("EXTRA_AMOUNT", 0.0)
         incomingCategory = intent.getStringExtra("EXTRA_CATEGORY")
         incomingPaymentMethod = intent.getStringExtra("EXTRA_PAYMENT_METHOD")
         incomingComment = intent.getStringExtra("EXTRA_COMMENT")
+
+        // Dismiss the alert notification since user opened the dialog
+        dismissNotificationIfPresent()
 
         // Load categories and payment methods from DB
         categories.clear()
@@ -80,27 +104,47 @@ class QuickAddActivity : Activity() {
             selectedPaymentMethod = incomingPaymentMethod?.takeIf { paymentMethods.contains(it) } ?: paymentMethods[0]
         }
 
+        val textTitle = findViewById<TextView>(R.id.textTitle)
         val editAmount = findViewById<EditText>(R.id.editAmount)
         val editComment = findViewById<EditText>(R.id.editComment)
         val btnSave = findViewById<Button>(R.id.btnSave)
         val btnCancel = findViewById<Button>(R.id.btnCancel)
         val btnClose = findViewById<ImageButton>(R.id.btnClose)
         val layoutAutoDetectNotice = findViewById<LinearLayout>(R.id.layoutAutoDetectNotice)
+        val textAutoDetectNotice = findViewById<TextView>(R.id.textAutoDetectNotice)
         categoryContainer = findViewById(R.id.categoryChipsContainer)
         paymentContainer = findViewById(R.id.paymentMethodContainer)
 
-        // Show auto-detect notice & prefill data if triggered automatically
-        if (isAutoDetected && incomingAmount > 0) {
+        // Configure UI according to mode (Edit auto-logged spend vs New quick spend)
+        if (isEditMode) {
+            textTitle?.text = "Edit Logged Spend"
             layoutAutoDetectNotice?.visibility = View.VISIBLE
+            textAutoDetectNotice?.text = "⚡ Transaction Auto-Logged: Modify category or notes, or tap DISCARD to remove"
+            btnSave.text = "UPDATE SPEND"
+            btnCancel.text = "DISCARD"
+        } else if (isAutoDetected && incomingAmount > 0) {
+            layoutAutoDetectNotice?.visibility = View.VISIBLE
+            textAutoDetectNotice?.text = "⚡ Transaction Detected: Select category & tap SAVE, or CANCEL to discard"
+            btnSave.text = "SAVE SPEND"
+            btnCancel.text = "CANCEL"
+        } else {
+            textTitle?.text = "Quick Add Spend"
+            layoutAutoDetectNotice?.visibility = View.GONE
+            btnSave.text = "SAVE SPEND"
+            btnCancel.text = "CANCEL"
+        }
+
+        // Prefill amount and comments
+        if (incomingAmount > 0) {
             val formattedAmount = if (incomingAmount % 1.0 == 0.0) {
                 incomingAmount.toInt().toString()
             } else {
                 String.format(Locale.US, "%.2f", incomingAmount)
             }
             editAmount.setText(formattedAmount)
-            if (!incomingComment.isNullOrEmpty()) {
-                editComment.setText(incomingComment)
-            }
+        }
+        if (!incomingComment.isNullOrEmpty()) {
+            editComment.setText(incomingComment)
         }
 
         // Setup Category Chips
@@ -129,12 +173,72 @@ class QuickAddActivity : Activity() {
             ).show()
         }
 
-        // Close handlers - closing triggers fallback auto-save if auto-detected
-        btnClose.setOnClickListener { finish() }
-        btnCancel.setOnClickListener { finish() }
+        val rootContainer = findViewById<View>(R.id.rootContainer)
+        val scrollView = findViewById<ScrollView>(R.id.quickAddScrollView)
 
-        // Keyboard Auto-Show for Amount if not auto-filled
-        if (!isAutoDetected) {
+        // Dismiss when tapping outside the dialog card
+        rootContainer?.setOnClickListener {
+            dismissNotificationIfPresent()
+            finish()
+        }
+        scrollView?.setOnClickListener {
+            // Absorb click inside the dialog card so it does not dismiss
+        }
+
+        // Close handlers
+        btnClose.setOnClickListener {
+            dismissNotificationIfPresent()
+            finish()
+        }
+
+        // Auto-scroll when editComment is focused so it is never hidden behind the keyboard
+        editComment.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                scrollView?.postDelayed({
+                    scrollView.fullScroll(View.FOCUS_DOWN)
+                }, 200)
+            }
+        }
+
+        // Auto-scroll when editAmount is focused
+        editAmount.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                scrollView?.postDelayed({
+                    scrollView.smoothScrollTo(0, editAmount.top)
+                }, 150)
+            }
+        }
+
+        // Hide keyboard when user taps 'Done' on the soft keyboard
+        editComment.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.hideSoftInputFromWindow(editComment.windowToken, 0)
+                editComment.clearFocus()
+                true
+            } else {
+                false
+            }
+        }
+
+        // Cancel / Discard Handler
+        btnCancel.setOnClickListener {
+            dismissNotificationIfPresent()
+            if (isEditMode) {
+                // Discard deletes the auto-logged record
+                val deleted = dbHelper.deleteExpense(expenseId)
+                if (deleted > 0) {
+                    ExpenseWidgetProvider.sendUpdateBroadcast(this)
+                    Toast.makeText(this, "Transaction discarded & removed", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Transaction discarded", Toast.LENGTH_SHORT).show()
+            }
+            finish()
+        }
+
+        // Focus keyboard if amount is empty
+        if (incomingAmount <= 0) {
             editAmount.postDelayed({
                 editAmount.requestFocus()
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
@@ -142,7 +246,7 @@ class QuickAddActivity : Activity() {
             }, 150)
         }
 
-        // Save Button Handler
+        // Save / Update Button Handler
         btnSave.setOnClickListener {
             val amountText = editAmount.text.toString().trim()
             if (amountText.isEmpty()) {
@@ -159,47 +263,38 @@ class QuickAddActivity : Activity() {
             val comment = editComment.text.toString().trim().ifEmpty { null }
             val expenseDate = selectedCalendar.timeInMillis
 
-            isSavedByUser = true // Prevent fallback auto-save
+            dismissNotificationIfPresent()
 
-            val id = dbHelper.insertExpense(amount, selectedCategory, selectedPaymentMethod, comment, expenseDate)
-            if (id != -1L) {
-                ExpenseWidgetProvider.sendUpdateBroadcast(this)
-                Toast.makeText(this, "₹${String.format(Locale.US, "%.2f", amount)} Recorded in $selectedCategory!", Toast.LENGTH_SHORT).show()
-                finish()
+            if (isEditMode) {
+                // Update the existing auto-logged entry
+                val rows = dbHelper.updateExpense(expenseId, amount, selectedCategory, selectedPaymentMethod, comment, expenseDate)
+                if (rows > 0) {
+                    ExpenseWidgetProvider.sendUpdateBroadcast(this)
+                    Toast.makeText(this, "Updated spend in $selectedCategory!", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this, "Error updating expense", Toast.LENGTH_SHORT).show()
+                }
             } else {
-                Toast.makeText(this, "Error saving expense", Toast.LENGTH_SHORT).show()
+                // Insert brand new expense
+                val id = dbHelper.insertExpense(amount, selectedCategory, selectedPaymentMethod, comment, expenseDate)
+                if (id != -1L) {
+                    ExpenseWidgetProvider.sendUpdateBroadcast(this)
+                    Toast.makeText(this, "₹${String.format(Locale.US, "%.2f", amount)} Recorded in $selectedCategory!", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this, "Error saving expense", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
 
-    private fun fallbackAutoSaveIfNeeded() {
-        if (isAutoDetected && !isSavedByUser && incomingAmount > 0) {
-            isSavedByUser = true // Prevent duplicate saves
-
-            val fallbackCategory = incomingCategory ?: if (categories.isNotEmpty()) categories[0] else "Uncategorized"
-            val fallbackMethod = incomingPaymentMethod ?: if (paymentMethods.isNotEmpty()) paymentMethods[0] else "UPI"
-            val fallbackComment = incomingComment ?: "Auto-logged from SMS"
-
-            val id = dbHelper.insertExpense(incomingAmount, fallbackCategory, fallbackMethod, fallbackComment, System.currentTimeMillis())
-            if (id != -1L) {
-                ExpenseWidgetProvider.sendUpdateBroadcast(this)
-                Toast.makeText(
-                    applicationContext,
-                    "Auto-logged: ₹${String.format(Locale.US, "%.2f", incomingAmount)} in $fallbackCategory",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+    private fun dismissNotificationIfPresent() {
+        val notifId = intent.getIntExtra("EXTRA_NOTIFICATION_ID", -1)
+        if (notifId != -1) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.cancel(notifId)
         }
-    }
-
-    override fun finish() {
-        fallbackAutoSaveIfNeeded()
-        super.finish()
-    }
-
-    override fun onDestroy() {
-        fallbackAutoSaveIfNeeded()
-        super.onDestroy()
     }
 
     private fun updateDateDisplay(textDate: TextView) {
@@ -217,15 +312,24 @@ class QuickAddActivity : Activity() {
         window.setBackgroundDrawableResource(android.R.color.transparent)
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         window.setDimAmount(0.55f)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
+        // Make window match parent so window insets and keyboard adjustResize work properly
+        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        window.setGravity(Gravity.CENTER)
+
+        // Constrain the dialog card to max 420dp width
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         val maxPx = (420 * displayMetrics.density).toInt()
         val calculatedWidth = (screenWidth * 0.90).toInt()
         val targetWidth = calculatedWidth.coerceAtMost(maxPx)
 
-        window.setLayout(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
-        window.setGravity(Gravity.CENTER)
+        val scrollView = findViewById<ScrollView>(R.id.quickAddScrollView)
+        scrollView?.layoutParams = (scrollView?.layoutParams as? FrameLayout.LayoutParams)?.apply {
+            width = targetWidth
+            gravity = Gravity.CENTER
+        } ?: FrameLayout.LayoutParams(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
     }
 
     private fun setupCategoryChips(container: LinearLayout) {

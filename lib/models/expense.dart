@@ -33,15 +33,19 @@ class Expense {
   }
 
   factory Expense.fromMap(Map<String, dynamic> map) {
+    final expDate = (map['expense_date'] as num).toInt();
+    final created = map['created_at'] != null ? (map['created_at'] as num).toInt() : expDate;
+    final updated = map['updated_at'] != null ? (map['updated_at'] as num).toInt() : created;
+
     return Expense(
-      id: map['id'],
-      amount: map['amount'],
-      category: map['category'],
-      paymentMethod: map['payment_method'],
-      comment: map['comment'],
-      expenseDate: map['expense_date'],
-      createdAt: map['created_at'],
-      updatedAt: map['updated_at'],
+      id: map['id'] is num ? (map['id'] as num).toInt() : (int.tryParse(map['id']?.toString() ?? '')),
+      amount: (map['amount'] as num).toDouble(),
+      category: map['category'] as String? ?? 'General',
+      paymentMethod: map['payment_method'] as String? ?? 'UPI',
+      comment: map['comment'] as String?,
+      expenseDate: expDate,
+      createdAt: created,
+      updatedAt: updated,
     );
   }
 

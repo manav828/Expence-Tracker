@@ -171,7 +171,7 @@ class GoogleSheetsService {
         'category': 'Test Connection',
         'amount': 0.0,
         'paymentMethod': 'System Ping',
-        'comment': 'Connection verification test from Apex Spend',
+        'comment': 'Connection verification test from ExpenCircle',
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 

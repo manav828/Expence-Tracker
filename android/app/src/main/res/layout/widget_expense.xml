@@ -19,7 +19,7 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@mipmap/ic_launcher"
-            android:contentDescription="Apex Spend Logo" />
+            android:contentDescription="ExpenCircle Logo" />
 
         <TextView
             android:id="@+id/tv_widget_title"
@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="Apex Spend"
+            android:text="ExpenCircle"
             android:textColor="#85F8C4"
             android:textSize="13sp"
             android:textStyle="bold" />

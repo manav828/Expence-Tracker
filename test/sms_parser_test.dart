@@ -60,5 +60,33 @@ Ref 126100685141''';
       expect(result.category, 'Food & Dining');
       expect(result.isExpense, true);
     });
+
+    test('Bug #11: Correctly parses debited amount when available balance is mentioned first', () {
+      const sms = 'Avl Bal is Rs 85,000.00 after debited by Rs 150.00 at Starbucks.';
+      final result = SmsParser.parse(sms);
+      expect(result, isNotNull);
+      expect(result!.amount, 150.00);
+      expect(result.isExpense, true);
+    });
+
+    test('Bug #12: Rejects OTP and 2FA authentication SMS', () {
+      const sms1 = 'Your OTP for transaction of Rs. 450.00 at Swiggy is 849201. Do not share this OTP with anyone.';
+      final result1 = SmsParser.parse(sms1);
+      expect(result1, isNull);
+
+      const sms2 = 'Use 948102 as your secret code for ICICI Netbanking. Valid for 5 mins.';
+      final result2 = SmsParser.parse(sms2);
+      expect(result2, isNull);
+    });
+
+    test('Bug #13: Rejects marketing and promotional offer SMS', () {
+      const sms1 = 'Get Flat Rs. 200 off on your next order on Myntra with code STYLE200!';
+      final result1 = SmsParser.parse(sms1);
+      expect(result1, isNull);
+
+      const sms2 = 'Pre-approved personal loan of Rs 5,00,000 available at 10.5% interest. Apply now!';
+      final result2 = SmsParser.parse(sms2);
+      expect(result2, isNull);
+    });
   });
 }

@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart' as p;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'storage_preference_service.dart';
 import '../models/expense.dart';
 import '../models/budget.dart';
 
@@ -41,6 +43,14 @@ class DatabaseService {
   }
 
   Future<void> clearAllExpenses() async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+      try {
+        await Supabase.instance.client.from('user_expenses').delete().neq('id', 0);
+      } catch (e) {
+        debugPrint('Cloud clearAllExpenses error: $e');
+      }
+    }
     if (kIsWeb) {
       _webExpenses.clear();
       return;
@@ -136,6 +146,26 @@ class DatabaseService {
   }
 
   Future<Expense> insertExpense(Expense expense) async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+      try {
+        final client = Supabase.instance.client;
+        final map = expense.toMap();
+        map.remove('id');
+        final res = await client.from('user_expenses').insert(map).select().single();
+        final cloudExpense = Expense.fromMap(res);
+        if (kIsWeb) {
+          _webExpenses.add(cloudExpense);
+        } else {
+          final db = await instance.database;
+          await db.insert('expenses', cloudExpense.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        }
+        return cloudExpense;
+      } catch (e) {
+        debugPrint('Cloud insert error, falling back to local: $e');
+      }
+    }
+
     if (kIsWeb) {
       final newExpense = Expense(
         id: _nextWebId++,
@@ -166,6 +196,18 @@ class DatabaseService {
   }
 
   Future<List<Expense>> getAllExpenses() async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+      try {
+        final client = Supabase.instance.client;
+        final res = await client.from('user_expenses').select().order('expense_date', ascending: false);
+        final list = (res as List).map((m) => Expense.fromMap(m)).toList();
+        return list;
+      } catch (e) {
+        debugPrint('Cloud getAllExpenses error, falling back to local: $e');
+      }
+    }
+
     if (kIsWeb) {
       final list = List<Expense>.from(_webExpenses);
       list.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
@@ -178,6 +220,18 @@ class DatabaseService {
   }
 
   Future<int> updateExpense(Expense expense) async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    if (isCloud && Supabase.instance.client.auth.currentUser != null && expense.id != null) {
+      try {
+        final client = Supabase.instance.client;
+        final map = expense.toMap();
+        map.remove('id');
+        await client.from('user_expenses').update(map).eq('id', expense.id!);
+      } catch (e) {
+        debugPrint('Cloud updateExpense error: $e');
+      }
+    }
+
     if (kIsWeb) {
       final idx = _webExpenses.indexWhere((e) => e.id == expense.id);
       if (idx != -1) {
@@ -197,6 +251,16 @@ class DatabaseService {
   }
 
   Future<int> deleteExpense(int id) async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+      try {
+        final client = Supabase.instance.client;
+        await client.from('user_expenses').delete().eq('id', id);
+      } catch (e) {
+        debugPrint('Cloud deleteExpense error: $e');
+      }
+    }
+
     if (kIsWeb) {
       _webExpenses.removeWhere((e) => e.id == id);
       return 1;
@@ -208,6 +272,85 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<int> syncLocalToCloud() async {
+    final client = Supabase.instance.client;
+    if (client.auth.currentUser == null) {
+      debugPrint('syncLocalToCloud aborted: User is not authenticated.');
+      return 0;
+    }
+
+    List<Expense> localList;
+    if (kIsWeb) {
+      localList = List<Expense>.from(_webExpenses);
+    } else {
+      final db = await instance.database;
+      final res = await db.query('expenses');
+      localList = res.map((m) => Expense.fromMap(m)).toList();
+    }
+    if (localList.isEmpty) return 0;
+
+    int count = 0;
+    try {
+      final existingRes = await client.from('user_expenses').select('created_at, expense_date, amount, category');
+      final existingSet = (existingRes as List).map((r) =>
+        '${r['created_at']}_${r['expense_date']}_${(r['amount'] as num).toDouble()}_${r['category']}').toSet();
+
+      for (final exp in localList) {
+        final key = '${exp.createdAt}_${exp.expenseDate}_${exp.amount}_${exp.category}';
+        if (existingSet.contains(key)) continue;
+
+        final map = exp.toMap();
+        map.remove('id');
+        await client.from('user_expenses').insert(map);
+        existingSet.add(key);
+        count++;
+      }
+    } catch (e) {
+      debugPrint('syncLocalToCloud error: $e');
+    }
+    return count;
+  }
+
+  Future<int> syncCloudToLocal() async {
+    final client = Supabase.instance.client;
+    if (client.auth.currentUser == null) {
+      debugPrint('syncCloudToLocal aborted: User is not authenticated.');
+      return 0;
+    }
+
+    final res = await client.from('user_expenses').select();
+    final cloudList = (res as List).map((m) => Expense.fromMap(m)).toList();
+    if (cloudList.isEmpty) return 0;
+
+    int imported = 0;
+    if (kIsWeb) {
+      for (final exp in cloudList) {
+        final exists = _webExpenses.any((e) =>
+          e.createdAt == exp.createdAt && e.amount == exp.amount && e.category == exp.category);
+        if (!exists) {
+          _webExpenses.add(exp);
+          imported++;
+        }
+      }
+    } else {
+      final db = await instance.database;
+      final localRes = await db.query('expenses');
+      final localList = localRes.map((m) => Expense.fromMap(m)).toList();
+
+      for (final exp in cloudList) {
+        final exists = localList.any((e) =>
+          e.createdAt == exp.createdAt && e.amount == exp.amount && e.category == exp.category);
+        if (!exists) {
+          final map = exp.toMap();
+          map.remove('id');
+          await db.insert('expenses', map);
+          imported++;
+        }
+      }
+    }
+    return imported;
   }
 
   // --- Category Management ---
