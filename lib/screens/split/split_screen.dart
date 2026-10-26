@@ -251,11 +251,44 @@ class _SplitScreenState extends State<SplitScreen> {
       onRefresh: sp.loadGroups,
       color: _primaryColor,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 200),
         children: [
           // 1. Hero Banner Card
           _buildHeroBannerCard(),
           const SizedBox(height: 16),
+
+          if (sp.hasPendingSync) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_sync_outlined, size: 18, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Offline changes saved locally. Will sync when online.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => sp.syncAll(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Sync Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
 
           // 2. Search & Sort Bar
           _buildSearchAndSortBar(),
@@ -696,31 +729,33 @@ class _SplitScreenState extends State<SplitScreen> {
   // ─── Group Thumbnail (Curated & Contextual) ────────────────────────────────
   Widget _buildGroupThumbnail(SplitGroup group) {
     final l = group.name.toLowerCase();
-    String? imageUrl;
+    String? imageUrl = group.imageUrl;
     IconData fallbackIcon = Icons.groups;
     Color iconColor = const Color(0xFF006948);
     Color bgColor = const Color(0xFFE6F4EA);
 
-    if (l.contains('trip') || l.contains('travel') || l.contains('tour') || l.contains('bali') || l.contains('goa') || l.contains('flight')) {
-      imageUrl = 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=200&q=80';
-      fallbackIcon = Icons.flight;
-      iconColor = const Color(0xFF0284C7);
-      bgColor = const Color(0xFFE0F2FE);
-    } else if (l.contains('flat') || l.contains('room') || l.contains('house') || l.contains('rent') || l.contains('home')) {
-      imageUrl = 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=200&q=80';
-      fallbackIcon = Icons.home;
-      iconColor = const Color(0xFFD97706);
-      bgColor = const Color(0xFFFEF3C7);
-    } else if (l.contains('office') || l.contains('work') || l.contains('commute') || l.contains('cab')) {
-      imageUrl = 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=200&q=80';
-      fallbackIcon = Icons.directions_car;
-      iconColor = const Color(0xFFDC2626);
-      bgColor = const Color(0xFFFEE2E2);
-    } else if (l.contains('food') || l.contains('dinner') || l.contains('lunch') || l.contains('cafe') || l.contains('restaurant')) {
-      imageUrl = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=200&q=80';
-      fallbackIcon = Icons.restaurant;
-      iconColor = const Color(0xFFE11D48);
-      bgColor = const Color(0xFFFFE4E6);
+    if (imageUrl == null || imageUrl.isEmpty) {
+      if (l.contains('trip') || l.contains('travel') || l.contains('tour') || l.contains('bali') || l.contains('goa') || l.contains('flight')) {
+        imageUrl = 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=200&q=80';
+        fallbackIcon = Icons.flight;
+        iconColor = const Color(0xFF0284C7);
+        bgColor = const Color(0xFFE0F2FE);
+      } else if (l.contains('flat') || l.contains('room') || l.contains('house') || l.contains('rent') || l.contains('home')) {
+        imageUrl = 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=200&q=80';
+        fallbackIcon = Icons.home;
+        iconColor = const Color(0xFFD97706);
+        bgColor = const Color(0xFFFEF3C7);
+      } else if (l.contains('office') || l.contains('work') || l.contains('commute') || l.contains('cab')) {
+        imageUrl = 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=200&q=80';
+        fallbackIcon = Icons.directions_car;
+        iconColor = const Color(0xFFDC2626);
+        bgColor = const Color(0xFFFEE2E2);
+      } else if (l.contains('food') || l.contains('dinner') || l.contains('lunch') || l.contains('cafe') || l.contains('restaurant')) {
+        imageUrl = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=200&q=80';
+        fallbackIcon = Icons.restaurant;
+        iconColor = const Color(0xFFE11D48);
+        bgColor = const Color(0xFFFFE4E6);
+      }
     }
 
     return Container(
@@ -818,36 +853,39 @@ class _SplitScreenState extends State<SplitScreen> {
 
   // ─── Floating Actions (Populated State) ────────────────────────────────────
   Widget _buildFloatingActions(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        FloatingActionButton.extended(
-          heroTag: 'join_group_fab',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const JoinGroupScreen()),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 86),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'join_group_fab',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const JoinGroupScreen()),
+            ),
+            label: const Text('Join Group', style: TextStyle(fontWeight: FontWeight.w700)),
+            icon: const Icon(Icons.link, size: 18),
+            backgroundColor: _secondaryColor,
+            foregroundColor: Colors.white,
+            elevation: 3,
           ),
-          label: const Text('Join Group', style: TextStyle(fontWeight: FontWeight.w700)),
-          icon: const Icon(Icons.link, size: 18),
-          backgroundColor: _secondaryColor,
-          foregroundColor: Colors.white,
-          elevation: 3,
-        ),
-        const SizedBox(height: 10),
-        FloatingActionButton.extended(
-          heroTag: 'create_group_fab',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+          const SizedBox(height: 10),
+          FloatingActionButton.extended(
+            heroTag: 'create_group_fab',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+            ),
+            label: const Text('Create Group', style: TextStyle(fontWeight: FontWeight.w800)),
+            icon: const Icon(Icons.add, size: 20),
+            backgroundColor: _primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 4,
           ),
-          label: const Text('Create Group', style: TextStyle(fontWeight: FontWeight.w800)),
-          icon: const Icon(Icons.add, size: 20),
-          backgroundColor: _primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 4,
-        ),
-      ],
+        ],
+      ),
     );
   }
 

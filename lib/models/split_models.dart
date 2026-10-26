@@ -5,6 +5,7 @@ class SplitGroup {
   final String id;
   final String name;
   final String? description;
+  final String? imageUrl;
   final String createdBy;
   final String inviteCode;
   final DateTime createdAt;
@@ -13,6 +14,7 @@ class SplitGroup {
     required this.id,
     required this.name,
     this.description,
+    this.imageUrl,
     required this.createdBy,
     required this.inviteCode,
     required this.createdAt,
@@ -22,6 +24,7 @@ class SplitGroup {
         'id': id,
         'name': name,
         'description': description,
+        'image_url': imageUrl,
         'created_by': createdBy,
         'invite_code': inviteCode,
         'created_at': createdAt.toIso8601String(),
@@ -31,15 +34,17 @@ class SplitGroup {
         id: m['id'] as String,
         name: m['name'] as String,
         description: m['description'] as String?,
+        imageUrl: m['image_url'] as String?,
         createdBy: m['created_by'] as String,
         inviteCode: m['invite_code'] as String,
         createdAt: DateTime.parse(m['created_at'] as String),
       );
 
-  SplitGroup copyWith({String? name, String? description}) => SplitGroup(
+  SplitGroup copyWith({String? name, String? description, String? imageUrl}) => SplitGroup(
         id: id,
         name: name ?? this.name,
         description: description ?? this.description,
+        imageUrl: imageUrl ?? this.imageUrl,
         createdBy: createdBy,
         inviteCode: inviteCode,
         createdAt: createdAt,
@@ -183,12 +188,22 @@ class SplitShare {
         'is_settled': isSettled,
       };
 
+  Map<String, dynamic> toSqliteMap() => {
+        'id': id,
+        'expense_id': expenseId,
+        'member_id': memberId,
+        'share_amount': shareAmount,
+        'is_settled': isSettled ? 1 : 0,
+      };
+
   factory SplitShare.fromMap(Map<String, dynamic> m) => SplitShare(
         id: m['id'] as String,
         expenseId: m['expense_id'] as String,
         memberId: m['member_id'] as String,
         shareAmount: (m['share_amount'] as num).toDouble(),
-        isSettled: m['is_settled'] as bool? ?? false,
+        isSettled: m['is_settled'] is bool
+            ? (m['is_settled'] as bool)
+            : (m['is_settled'] == 1 || m['is_settled'] == 'true'),
       );
 }
 

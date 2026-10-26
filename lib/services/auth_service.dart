@@ -114,10 +114,12 @@ class AuthService {
     required String password,
   }) async {
     await setGuestMode(false);
-    return await _client.auth.signInWithPassword(
+    final response = await _client.auth.signInWithPassword(
       email: email.trim(),
       password: password,
     );
+    await StoragePreferenceService.setMode(StorageMode.cloud);
+    return response;
   }
 
   Future<AuthResponse> signUpWithEmail({
@@ -131,6 +133,7 @@ class AuthService {
       password: password,
       data: {'full_name': fullName.trim()},
     );
+    await StoragePreferenceService.setMode(StorageMode.cloud);
 
     try {
       _cachedDisplayName = fullName.trim();
@@ -141,17 +144,25 @@ class AuthService {
     return response;
   }
 
-  /// Native In-App Google Sign-In using Google Play Services bottom sheet
-  /// Never opens Chrome; exchanges Google ID token directly with Supabase.
-  Future<AuthResponse> signInWithGoogle() async {
+  /// Native In-App Google Sign-In:
+  /// - On Web: Uses OAuth flow (`signInWithOAuth`), redirecting cleanly via Google
+  /// - On Mobile (Android/iOS): Uses native Google Play Services bottom sheet (`GoogleSignIn` + `signInWithIdToken`)
+  Future<dynamic> signInWithGoogle() async {
     try {
       await setGuestMode(false);
 
+      if (kIsWeb) {
+        await StoragePreferenceService.setMode(StorageMode.cloud);
+        final redirectUri = Uri.base.origin;
+        return await _client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: redirectUri,
+        );
+      }
+
       final GoogleSignIn googleSignIn = GoogleSignIn(
         serverClientId: _webClientId,
-        clientId: kIsWeb
-            ? _webClientId
-            : (defaultTargetPlatform == TargetPlatform.iOS ? _iosClientId : null),
+        clientId: defaultTargetPlatform == TargetPlatform.iOS ? _iosClientId : null,
       );
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
@@ -179,17 +190,19 @@ class AuthService {
 
       if (idToken == null) {
         throw Exception(
-          'Google Sign-In failed to retrieve ID token. Ensure the Web Client ID is authorized in Supabase.',
+          'Google Sign-In failed to authenticate. Please check your network and try again.',
         );
       }
 
-      return await _client.auth.signInWithIdToken(
+      final res = await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
+      await StoragePreferenceService.setMode(StorageMode.cloud);
+      return res;
     } catch (e) {
-      debugPrint('Native Google Sign-In Error: $e');
+      debugPrint('Google Sign-In Error: $e');
       rethrow;
     }
   }
@@ -204,13 +217,15 @@ class AuthService {
     } catch (e) {
       debugPrint('Supabase sign out error: $e');
     }
-    try {
-      final googleSignIn = GoogleSignIn();
-      if (await googleSignIn.isSignedIn()) {
-        await googleSignIn.signOut();
+    if (!kIsWeb) {
+      try {
+        final googleSignIn = GoogleSignIn();
+        if (await googleSignIn.isSignedIn()) {
+          await googleSignIn.signOut();
+        }
+      } catch (e) {
+        debugPrint('Google sign out error: $e');
       }
-    } catch (e) {
-      debugPrint('Google sign out error: $e');
     }
 
     try {

@@ -44,9 +44,13 @@ class DatabaseService {
 
   Future<void> clearAllExpenses() async {
     final isCloud = await StoragePreferenceService.isCloud();
-    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (isCloud && currentUser != null) {
       try {
-        await Supabase.instance.client.from('user_expenses').delete().neq('id', 0);
+        await Supabase.instance.client
+            .from('user_expenses')
+            .delete()
+            .eq('user_id', currentUser.id);
       } catch (e) {
         debugPrint('Cloud clearAllExpenses error: $e');
       }
@@ -83,6 +87,7 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE expenses (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT,
           amount REAL NOT NULL,
           category TEXT NOT NULL,
           payment_method TEXT NOT NULL,
@@ -100,6 +105,16 @@ class DatabaseService {
   }
 
   Future<void> _ensureMetaTables(sqflite.Database db) async {
+    try {
+      await db.execute('ALTER TABLE expenses ADD COLUMN user_id TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
+      await db.execute('ALTER TABLE split_groups ADD COLUMN image_url TEXT');
+    } catch (_) {
+      // Column already exists
+    }
     await db.execute('''
       CREATE TABLE IF NOT EXISTS categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,6 +134,72 @@ class DatabaseService {
           monthly_limit REAL NOT NULL,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Splitwise tables for offline persistence
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_groups (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          image_url TEXT,
+          created_by TEXT NOT NULL,
+          invite_code TEXT NOT NULL,
+          created_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_members (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT,
+          joined_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_expenses (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          total_amount REAL NOT NULL,
+          paid_by_member_id TEXT NOT NULL,
+          split_type TEXT NOT NULL,
+          category TEXT,
+          note TEXT,
+          added_by_member_id TEXT NOT NULL,
+          created_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_shares (
+          id TEXT PRIMARY KEY,
+          expense_id TEXT NOT NULL,
+          member_id TEXT NOT NULL,
+          share_amount REAL NOT NULL,
+          is_settled INTEGER DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS settlements (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          from_member_id TEXT NOT NULL,
+          to_member_id TEXT NOT NULL,
+          amount REAL NOT NULL,
+          settled_at TEXT NOT NULL,
+          note TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_sync_queue (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          action TEXT NOT NULL,
+          table_name TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          payload TEXT,
+          created_at INTEGER NOT NULL
       )
     ''');
 
@@ -147,11 +228,13 @@ class DatabaseService {
 
   Future<Expense> insertExpense(Expense expense) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (isCloud && currentUser != null) {
       try {
         final client = Supabase.instance.client;
         final map = expense.toMap();
         map.remove('id');
+        map['user_id'] = currentUser.id;
         final res = await client.from('user_expenses').insert(map).select().single();
         final cloudExpense = Expense.fromMap(res);
         if (kIsWeb) {
@@ -196,37 +279,126 @@ class DatabaseService {
   }
 
   Future<List<Expense>> getAllExpenses() async {
+    // 1. Always read local SQLite first (safe, instant, zero data loss)
+    List<Expense> localList = [];
+    if (kIsWeb) {
+      localList = List<Expense>.from(_webExpenses);
+    } else {
+      try {
+        final db = await instance.database;
+        final result = await db.query('expenses', orderBy: 'expense_date DESC');
+        localList = result.map((json) => Expense.fromMap(json)).toList();
+      } catch (e) {
+        debugPrint('Local SQLite query error: $e');
+      }
+    }
+
     final isCloud = await StoragePreferenceService.isCloud();
-    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (isCloud && currentUser != null) {
       try {
         final client = Supabase.instance.client;
-        final res = await client.from('user_expenses').select().order('expense_date', ascending: false);
-        final list = (res as List).map((m) => Expense.fromMap(m)).toList();
-        return list;
+        // Query user's expenses or legacy entries with null user_id
+        final res = await client
+            .from('user_expenses')
+            .select()
+            .or('user_id.eq.${currentUser.id},user_id.is.null')
+            .order('expense_date', ascending: false);
+        final cloudList = (res as List).map((m) => Expense.fromMap(m)).toList();
+
+        // If legacy rows had null user_id, claim them for this user
+        if (cloudList.any((e) => e.userId == null)) {
+          Future.microtask(() async {
+            try {
+              await client.from('user_expenses').update({'user_id': currentUser.id}).isFilter('user_id', null);
+            } catch (_) {}
+          });
+        }
+
+        // If cloud has entries, mirror to local SQLite and return cloud entries
+        if (cloudList.isNotEmpty) {
+          if (!kIsWeb) {
+            _syncLocalAndCloudInBackground(currentUser.id, cloudList);
+          }
+          return cloudList;
+        }
+
+        // If cloud is empty but we have local expenses:
+        // Return local expenses immediately so the user NEVER loses their view!
+        // And automatically push them to Cloud in the background!
+        if (localList.isNotEmpty) {
+          Future.microtask(() async {
+            try {
+              await syncLocalToCloud();
+            } catch (e) {
+              debugPrint('Auto sync local to cloud error: $e');
+            }
+          });
+          return localList;
+        }
       } catch (e) {
         debugPrint('Cloud getAllExpenses error, falling back to local: $e');
       }
     }
 
-    if (kIsWeb) {
-      final list = List<Expense>.from(_webExpenses);
-      list.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
-      return list;
-    }
+    localList.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+    return localList;
+  }
 
-    final db = await instance.database;
-    final result = await db.query('expenses', orderBy: 'expense_date DESC');
-    return result.map((json) => Expense.fromMap(json)).toList();
+  void _syncLocalAndCloudInBackground(String userId, List<Expense> cloudList) {
+    if (kIsWeb) return;
+    Future.microtask(() async {
+      try {
+        final db = await instance.database;
+
+        // 1. Mirror all cloud entries into local SQLite cache
+        final batch = db.batch();
+        for (final exp in cloudList) {
+          batch.insert(
+            'expenses',
+            exp.toMap(),
+            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+
+        // 2. Mirror any offline-created local entries to cloud
+        final localRes = await db.query('expenses');
+        final localList = localRes.map((m) => Expense.fromMap(m)).toList();
+        final cloudKeys = cloudList.map((r) =>
+          '${r.createdAt}_${r.expenseDate}_${r.amount}_${r.category}').toSet();
+
+        final client = Supabase.instance.client;
+        for (final exp in localList) {
+          final key = '${exp.createdAt}_${exp.expenseDate}_${exp.amount}_${exp.category}';
+          if (!cloudKeys.contains(key)) {
+            final map = exp.toMap();
+            map.remove('id');
+            map['user_id'] = userId;
+            await client.from('user_expenses').insert(map);
+            cloudKeys.add(key);
+          }
+        }
+      } catch (e) {
+        debugPrint('Background two-way mirror error: $e');
+      }
+    });
   }
 
   Future<int> updateExpense(Expense expense) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    if (isCloud && Supabase.instance.client.auth.currentUser != null && expense.id != null) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (isCloud && currentUser != null && expense.id != null) {
       try {
         final client = Supabase.instance.client;
         final map = expense.toMap();
         map.remove('id');
-        await client.from('user_expenses').update(map).eq('id', expense.id!);
+        map['user_id'] = currentUser.id;
+        await client
+            .from('user_expenses')
+            .update(map)
+            .eq('id', expense.id!)
+            .eq('user_id', currentUser.id);
       } catch (e) {
         debugPrint('Cloud updateExpense error: $e');
       }
@@ -252,10 +424,15 @@ class DatabaseService {
 
   Future<int> deleteExpense(int id) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    if (isCloud && Supabase.instance.client.auth.currentUser != null) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (isCloud && currentUser != null) {
       try {
         final client = Supabase.instance.client;
-        await client.from('user_expenses').delete().eq('id', id);
+        await client
+            .from('user_expenses')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', currentUser.id);
       } catch (e) {
         debugPrint('Cloud deleteExpense error: $e');
       }
@@ -276,7 +453,8 @@ class DatabaseService {
 
   Future<int> syncLocalToCloud() async {
     final client = Supabase.instance.client;
-    if (client.auth.currentUser == null) {
+    final currentUser = client.auth.currentUser;
+    if (currentUser == null) {
       debugPrint('syncLocalToCloud aborted: User is not authenticated.');
       return 0;
     }
@@ -293,7 +471,10 @@ class DatabaseService {
 
     int count = 0;
     try {
-      final existingRes = await client.from('user_expenses').select('created_at, expense_date, amount, category');
+      final existingRes = await client
+          .from('user_expenses')
+          .select('created_at, expense_date, amount, category')
+          .eq('user_id', currentUser.id);
       final existingSet = (existingRes as List).map((r) =>
         '${r['created_at']}_${r['expense_date']}_${(r['amount'] as num).toDouble()}_${r['category']}').toSet();
 
@@ -303,6 +484,7 @@ class DatabaseService {
 
         final map = exp.toMap();
         map.remove('id');
+        map['user_id'] = currentUser.id;
         await client.from('user_expenses').insert(map);
         existingSet.add(key);
         count++;
@@ -315,12 +497,16 @@ class DatabaseService {
 
   Future<int> syncCloudToLocal() async {
     final client = Supabase.instance.client;
-    if (client.auth.currentUser == null) {
+    final currentUser = client.auth.currentUser;
+    if (currentUser == null) {
       debugPrint('syncCloudToLocal aborted: User is not authenticated.');
       return 0;
     }
 
-    final res = await client.from('user_expenses').select();
+    final res = await client
+        .from('user_expenses')
+        .select()
+        .eq('user_id', currentUser.id);
     final cloudList = (res as List).map((m) => Expense.fromMap(m)).toList();
     if (cloudList.isEmpty) return 0;
 

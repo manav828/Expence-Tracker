@@ -32,6 +32,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String _searchQuery = '';
   String? _selectedCategoryFilter;
   String? _selectedPaymentFilter;
+  String _sortBy = 'date_desc';
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -82,6 +83,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   void _setDateRangePreset(String preset, {bool notify = true}) {
+    if (preset == 'Custom') {
+      _pickCustomDateOrRange(context);
+      return;
+    }
+
     final now = DateTime.now();
     DateTime start;
     DateTime end;
@@ -123,6 +129,170 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       _selectedSpecificDate = null;
       _selectedCalendarDay = newDay;
     }
+  }
+
+  int _calculateDaysPassed(DateTimeRange range) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final rangeStart = DateTime(range.start.year, range.start.month, range.start.day);
+    final rangeEnd = DateTime(range.end.year, range.end.month, range.end.day);
+
+    if (rangeStart.isAfter(today)) {
+      return 1;
+    }
+
+    // Effective end date is capped at today if the range extends into the future (e.g. current month)
+    final effectiveEnd = rangeEnd.isAfter(today) ? today : rangeEnd;
+    final days = effectiveEnd.difference(rangeStart).inDays + 1;
+    return days.clamp(1, 10000);
+  }
+
+  Future<void> _showMonthYearPicker(BuildContext context) async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _dateRange.start,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 5),
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: 'SELECT MONTH & YEAR',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF006948),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF131B2E),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        final start = DateTime(selected.year, selected.month, 1);
+        final end = DateTime(selected.year, selected.month + 1, 0, 23, 59, 59, 999);
+        _dateRange = DateTimeRange(start: start, end: end);
+        _activePreset = DateFormat('MMMM yyyy').format(start);
+        _selectedSpecificDate = null;
+        _selectedCalendarDay = (start.year == now.year && start.month == now.month) ? now.day : 1;
+      });
+    }
+  }
+
+  void _showFilterOptionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Filter & Sort Ledger',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedPaymentFilter = null;
+                              _sortBy = 'date_desc';
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Reset', style: TextStyle(color: Color(0xFF006948), fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('PAYMENT METHOD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: ['All', 'UPI', 'Credit Card', 'Debit Card', 'Cash', 'Net Banking'].map((method) {
+                        final isSel = method == 'All' ? _selectedPaymentFilter == null : _selectedPaymentFilter == method;
+                        return ChoiceChip(
+                          label: Text(method),
+                          selected: isSel,
+                          selectedColor: const Color(0xFF006948),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                            color: isSel ? Colors.white : const Color(0xFF334155),
+                          ),
+                          onSelected: (_) {
+                            setState(() {
+                              _selectedPaymentFilter = method == 'All' ? null : method;
+                            });
+                            setModalState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('SORT BY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        {'label': 'Newest First', 'value': 'date_desc'},
+                        {'label': 'Oldest First', 'value': 'date_asc'},
+                        {'label': 'Highest Amount', 'value': 'amount_desc'},
+                        {'label': 'Lowest Amount', 'value': 'amount_asc'},
+                      ].map((item) {
+                        final isSel = _sortBy == item['value'];
+                        return ChoiceChip(
+                          label: Text(item['label']!),
+                          selected: isSel,
+                          selectedColor: const Color(0xFF006948),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                            color: isSel ? Colors.white : const Color(0xFF334155),
+                          ),
+                          onSelected: (_) {
+                            setState(() {
+                              _sortBy = item['value']!;
+                            });
+                            setModalState(() {});
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _shiftMonth(int offset) {
@@ -303,8 +473,53 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
         final totalSpent = rangeExpenses.fold(0.0, (sum, e) => sum + e.amount);
         final filteredSpent = ledgerExpenses.fold(0.0, (sum, e) => sum + e.amount);
-        final daySpan = (_dateRange.end.difference(_dateRange.start).inDays + 1).clamp(1, 10000);
-        final dailyAvg = totalSpent / daySpan;
+
+        // Daily average formula: amount / total days passed so far (not full month)
+        final daysPassed = _selectedSpecificDate != null ? 1 : _calculateDaysPassed(_dateRange);
+        final dailyAvg = daysPassed > 0 ? (totalSpent / daysPassed) : 0.0;
+
+        // Group spend by day for stats and sparkline
+        final Map<DateTime, double> dayTotals = {};
+        for (var e in ledgerExpenses) {
+          final dayKey = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
+          dayTotals[dayKey] = (dayTotals[dayKey] ?? 0.0) + e.amount;
+        }
+
+        double highestDayAmount = 0.0;
+        DateTime? highestDayDate;
+        double lowestDayAmount = 0.0;
+        DateTime? lowestDayDate;
+
+        if (dayTotals.isNotEmpty) {
+          for (var entry in dayTotals.entries) {
+            if (entry.value > highestDayAmount) {
+              highestDayAmount = entry.value;
+              highestDayDate = entry.key;
+            }
+            if (lowestDayAmount == 0.0 || (entry.value > 0 && entry.value < lowestDayAmount)) {
+              lowestDayAmount = entry.value;
+              lowestDayDate = entry.key;
+            }
+          }
+        }
+
+        // Compare with previous month or equivalent duration
+        double vsLastMonthPercent = 0.0;
+        bool hasPrevComparison = false;
+        final rangeDuration = _dateRange.end.difference(_dateRange.start);
+        final prevRangeStart = _dateRange.start.subtract(Duration(days: rangeDuration.inDays + 1));
+        final prevRangeEnd = _dateRange.start.subtract(const Duration(milliseconds: 1));
+
+        final prevExpenses = provider.expenses.where((e) {
+          final d = e.dateTime;
+          return d.isAfter(prevRangeStart.subtract(const Duration(milliseconds: 1))) &&
+              d.isBefore(prevRangeEnd.add(const Duration(milliseconds: 1)));
+        });
+        final prevTotal = prevExpenses.fold(0.0, (s, e) => s + e.amount);
+        if (prevTotal > 0) {
+          vsLastMonthPercent = ((totalSpent - prevTotal) / prevTotal) * 100;
+          hasPrevComparison = true;
+        }
 
         // Group spend by category
         final Map<String, double> categorySpendMap = {};
@@ -315,13 +530,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         final hasActiveFilters = _selectedCategoryFilter != null ||
             _selectedPaymentFilter != null ||
             _selectedSpecificDate != null ||
-            _searchQuery.isNotEmpty;
+            _searchQuery.isNotEmpty ||
+            _sortBy != 'date_desc';
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FD),
           body: Column(
             children: [
-              // 1. Sleek Sticky Header (Date range, month shifter, presets)
+              // 1. Sleek Sticky Header (Date navigation, month dropdown, select date pill, presets)
               _buildHeaderControls(context),
 
               // 2. Main Scrollable Content
@@ -329,30 +545,42 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                   children: [
-                    // Summary Banner Card with 3-Way Mode Switcher
+                    // Hero Summary Card (Total Expenses, sparkline, 3 stat boxes)
                     _buildSummaryCard(
-                      totalSpent,
-                      filteredSpent,
-                      rangeExpenses.length,
-                      ledgerExpenses.length,
-                      dailyAvg,
-                      hasActiveFilters,
+                      totalSpent: totalSpent,
+                      filteredSpent: filteredSpent,
+                      totalCount: rangeExpenses.length,
+                      filteredCount: ledgerExpenses.length,
+                      dailyAvg: dailyAvg,
+                      daysPassed: daysPassed,
+                      highestDayAmount: highestDayAmount,
+                      highestDayDate: highestDayDate,
+                      lowestDayAmount: lowestDayAmount,
+                      lowestDayDate: lowestDayDate,
+                      vsLastMonthPercent: vsLastMonthPercent,
+                      hasPrevComparison: hasPrevComparison,
+                      dayTotals: dayTotals,
+                      hasActiveFilters: hasActiveFilters,
                     ),
                     const SizedBox(height: 12),
 
-                    if (_viewMode == 'list') ...[
-                      // Category Filter Chips (Instant in-place filter!)
-                      _buildCategoryChipsRow(categorySpendMap, rangeExpenses.length),
-                      const SizedBox(height: 12),
+                    // 3-Way Mode Switcher: Ledger | Calendar | Breakdown
+                    _buildModeSwitcher(),
+                    const SizedBox(height: 14),
 
-                      // Search & Quick Payment Method Filters Bar
+                    if (_viewMode == 'list') ...[
+                      // Search & Filter Bar
                       _buildSearchAndFilterBar(),
                       const SizedBox(height: 10),
+
+                      // Category Filter Chips
+                      _buildCategoryChipsRow(categorySpendMap, rangeExpenses.length),
+                      const SizedBox(height: 12),
 
                       // Active Filters Indicator (if any)
                       if (hasActiveFilters) _buildActiveFilterBanner(),
 
-                      // Grouped Transactions Ledger (Clean Column, Zero Ghost Whitespace!)
+                      // Grouped Transactions Ledger in Timeline View with Payment Time
                       _buildTransactionsLedger(ledgerExpenses, provider),
                     ] else if (_viewMode == 'calendar') ...[
                       // Interactive Calendar Grid & Day Outflow View
@@ -371,7 +599,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // --- 1. Sleek Sticky Header ---
+  // --- 1. Sleek Header with Month/Year dropdown, Select Date pill, and Presets ---
   Widget _buildHeaderControls(BuildContext context) {
     final isSingleMonth = _dateRange.start.year == _dateRange.end.year &&
         _dateRange.start.month == _dateRange.end.month &&
@@ -390,48 +618,69 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Month Shifter & Title (Base-Safe standard Icons.chevron_left & right!)
+              // Month Shifter & Month Dropdown (< October 2026 ˇ >)
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     onPressed: () => _shiftMonth(-1),
                     icon: const Icon(Icons.chevron_left, size: 24, color: Color(0xFF131B2E)),
                     visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     tooltip: 'Previous Month',
                   ),
-                  Text(
-                    monthTitle,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF131B2E),
-                      letterSpacing: -0.3,
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => _showMonthYearPicker(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            monthTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF131B2E),
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF64748B)),
+                        ],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: () => _shiftMonth(1),
                     icon: const Icon(Icons.chevron_right, size: 24, color: Color(0xFF131B2E)),
                     visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     tooltip: 'Next Month',
                   ),
                 ],
               ),
-              // Date Picker Icon Button (Base-safe Icons.calendar_today)
+              // Select Date Pill Button
               InkWell(
                 onTap: () => _pickCustomDateOrRange(context),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF006948).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.15)),
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.calendar_today, size: 14, color: Color(0xFF006948)),
-                      const SizedBox(width: 5),
+                      const Icon(Icons.calendar_month_outlined, size: 15, color: Color(0xFF475569)),
+                      const SizedBox(width: 6),
                       Text(
                         _selectedSpecificDate != null
                             ? DateFormat('d MMM').format(_selectedSpecificDate!)
@@ -439,7 +688,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF006948),
+                          color: Color(0xFF475569),
                         ),
                       ),
                     ],
@@ -448,7 +697,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           // Horizontal Preset Pills
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -458,23 +707,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 'Last Month',
                 'Last 30 Days',
                 'This Year',
+                'Custom',
               ].map((preset) {
-                final isSelected = _activePreset == preset && _selectedSpecificDate == null;
+                final isSelected = (_activePreset == preset && _selectedSpecificDate == null) ||
+                    (preset == 'Custom' && (_activePreset == 'Custom Range' || _selectedSpecificDate != null));
                 return Padding(
-                  padding: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.only(right: 8),
                   child: InkWell(
                     onTap: () => _setDateRangePreset(preset),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
                         color: isSelected ? const Color(0xFF006948) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                        ),
                       ),
                       child: Text(
                         preset,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 12,
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                           color: isSelected ? Colors.white : const Color(0xFF475569),
                         ),
@@ -490,20 +744,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // --- 2. Summary Card with Full-Width Non-Wrapping Amount & 3-Way Switcher ---
-  Widget _buildSummaryCard(
-    double totalSpent,
-    double filteredSpent,
-    int totalCount,
-    int filteredCount,
-    double dailyAvg,
-    bool hasActiveFilters,
-  ) {
+  // --- 2. Hero Summary Card (Matching Mockup with Sparkline & 3 Stat Cards) ---
+  Widget _buildSummaryCard({
+    required double totalSpent,
+    required double filteredSpent,
+    required int totalCount,
+    required int filteredCount,
+    required double dailyAvg,
+    required int daysPassed,
+    required double highestDayAmount,
+    required DateTime? highestDayDate,
+    required double lowestDayAmount,
+    required DateTime? lowestDayDate,
+    required double vsLastMonthPercent,
+    required bool hasPrevComparison,
+    required Map<DateTime, double> dayTotals,
+    required bool hasActiveFilters,
+  }) {
     final isShowingFiltered = hasActiveFilters && (filteredSpent != totalSpent || filteredCount != totalCount);
     final displayAmount = isShowingFiltered ? filteredSpent : totalSpent;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -519,88 +781,269 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Subtitle / Filter Status
+          // Header Row: Total Expenses title + transaction count badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 isShowingFiltered ? 'FILTERED EXPENSES' : 'TOTAL EXPENSES',
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.8,
                   color: Color(0xFF64748B),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF006948).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  isShowingFiltered
-                      ? '$filteredCount of $totalCount items'
-                      : '$totalCount transactions',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF006948),
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.receipt_long, size: 13, color: Color(0xFF006948)),
+                    const SizedBox(width: 4),
+                    Text(
+                      isShowingFiltered
+                          ? '$filteredCount of $totalCount items'
+                          : '$totalCount transactions',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF006948),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // Hero Amount (Full Width, Never Wraps, FittedBox with Non-breaking space)
+          // Main Row: Big Amount + Trend Badge on left, Mini Sparkline on right
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '₹\u00A0${NumberFormat('#,##,##0.00', 'en_IN').format(displayAmount)}',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF131B2E),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (hasPrevComparison)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: vsLastMonthPercent > 0 ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              vsLastMonthPercent > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                              size: 13,
+                              color: vsLastMonthPercent > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${vsLastMonthPercent.abs().toStringAsFixed(0)}% vs last month',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: vsLastMonthPercent > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        isShowingFiltered ? 'Filtered by active criteria' : 'Recorded in active period',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Mini vertical bar sparkline
+              _buildMiniBarSparkline(dayTotals, _dateRange),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // 3 Stat Cards: Avg. per day, Highest day, Lowest day
+          Row(
+            children: [
+              // 1. Avg. per day (amount / total days passed)
+              Expanded(
+                child: _buildHeroStatItem(
+                  label: 'Avg. per day',
+                  value: NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(dailyAvg),
+                  subtext: '$daysPassed days passed',
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 2. Highest day
+              Expanded(
+                child: _buildHeroStatItem(
+                  label: 'Highest day',
+                  value: highestDayAmount > 0
+                      ? NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(highestDayAmount)
+                      : '₹ 0',
+                  subtext: highestDayDate != null ? DateFormat('d MMM').format(highestDayDate) : '-',
+                  isHighlight: true,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 3. Lowest day
+              Expanded(
+                child: _buildHeroStatItem(
+                  label: 'Lowest day',
+                  value: lowestDayAmount > 0
+                      ? NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(lowestDayAmount)
+                      : '₹ 0',
+                  subtext: lowestDayDate != null ? DateFormat('d MMM').format(lowestDayDate) : '-',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Hero Stat Item Box ---
+  Widget _buildHeroStatItem({
+    required String label,
+    required String value,
+    required String subtext,
+    bool isHighlight = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              '₹\u00A0${NumberFormat('#,##,##0.00', 'en_IN').format(displayAmount)}',
-              maxLines: 1,
-              softWrap: false,
+              value,
               style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
                 color: Color(0xFF131B2E),
-                letterSpacing: -0.5,
               ),
             ),
           ),
-          const SizedBox(height: 4),
-
-          // Daily average / date context
+          const SizedBox(height: 2),
           Text(
-            isShowingFiltered
-                ? 'Filtered by active criteria'
-                : 'Avg. ${NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(dailyAvg)}/day',
-            style: const TextStyle(
-              fontSize: 12,
+            subtext,
+            style: TextStyle(
+              fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
+              color: isHighlight ? const Color(0xFF006948) : const Color(0xFF94A3B8),
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 14),
+        ],
+      ),
+    );
+  }
 
-          // 3-Way Segmented Control: Ledger | Calendar | Breakdown
-          Container(
-            padding: const EdgeInsets.all(4),
+  // --- Mini Bar Sparkline ---
+  Widget _buildMiniBarSparkline(Map<DateTime, double> dayTotals, DateTimeRange range) {
+    const numBars = 12;
+    final start = range.start;
+    final totalDurationMs = (range.end.millisecondsSinceEpoch - start.millisecondsSinceEpoch).clamp(1, 999999999999);
+    final bucketDurationMs = (totalDurationMs / numBars).round().clamp(1, totalDurationMs);
+
+    final bucketValues = List<double>.filled(numBars, 0.0);
+    for (var entry in dayTotals.entries) {
+      final offsetMs = entry.key.millisecondsSinceEpoch - start.millisecondsSinceEpoch;
+      if (offsetMs >= 0) {
+        int idx = (offsetMs / bucketDurationMs).floor().clamp(0, numBars - 1);
+        bucketValues[idx] += entry.value;
+      }
+    }
+
+    double maxVal = bucketValues.fold(0.0, (max, v) => v > max ? v : max);
+    if (maxVal <= 0) maxVal = 1.0;
+
+    return SizedBox(
+      height: 44,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(numBars, (i) {
+          final val = bucketValues[i];
+          final fraction = (val / maxVal).clamp(0.12, 1.0);
+          final barHeight = val > 0 ? (fraction * 40).clamp(8.0, 44.0) : 6.0;
+          final hasSpend = val > 0;
+
+          return Container(
+            width: 4.5,
+            height: barHeight,
+            margin: const EdgeInsets.symmetric(horizontal: 1.5),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
+              color: hasSpend ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(3),
             ),
-            child: Row(
-              children: [
-                Expanded(child: _buildViewTab('list', Icons.receipt_long, 'Ledger')),
-                const SizedBox(width: 4),
-                Expanded(child: _buildViewTab('calendar', Icons.calendar_month, 'Calendar')),
-                const SizedBox(width: 4),
-                Expanded(child: _buildViewTab('chart', Icons.pie_chart, 'Breakdown')),
-              ],
-            ),
-          ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // --- 3. 3-Way Mode Switcher: Ledger | Calendar | Breakdown ---
+  Widget _buildModeSwitcher() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildViewTab('list', Icons.receipt_long, 'Ledger')),
+          const SizedBox(width: 4),
+          Expanded(child: _buildViewTab('calendar', Icons.calendar_month, 'Calendar')),
+          const SizedBox(width: 4),
+          Expanded(child: _buildViewTab('chart', Icons.pie_chart, 'Breakdown')),
         ],
       ),
     );
@@ -615,10 +1058,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? const Color(0xFF006948) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           boxShadow: isSelected
-              ? const [BoxShadow(color: Color(0x0F000000), blurRadius: 4, offset: Offset(0, 1))]
+              ? const [BoxShadow(color: Color(0x1F006948), blurRadius: 4, offset: Offset(0, 1))]
               : null,
         ),
         child: Row(
@@ -627,7 +1070,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Icon(
               icon,
               size: 15,
-              color: isSelected ? const Color(0xFF006948) : const Color(0xFF64748B),
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
             ),
             const SizedBox(width: 5),
             Text(
@@ -635,7 +1078,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected ? const Color(0xFF006948) : const Color(0xFF64748B),
+                color: isSelected ? Colors.white : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -644,90 +1087,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // --- 3. Interactive Category Filter Chips ---
-  Widget _buildCategoryChipsRow(Map<String, double> categorySpendMap, int totalCount) {
-    final currencyFmt = NumberFormat.compactCurrency(locale: 'en_IN', symbol: '₹');
-    final sortedCategories = categorySpendMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              // "All" chip
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text('All ($totalCount)'),
-                  selected: _selectedCategoryFilter == null,
-                  onSelected: (_) => setState(() => _selectedCategoryFilter = null),
-                  selectedColor: const Color(0xFF006948),
-                  backgroundColor: Colors.white,
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: _selectedCategoryFilter == null ? FontWeight.bold : FontWeight.w600,
-                    color: _selectedCategoryFilter == null ? Colors.white : const Color(0xFF334155),
-                  ),
-                  side: BorderSide(
-                    color: _selectedCategoryFilter == null ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  showCheckmark: false,
-                ),
-              ),
-              // Category chips
-              ...sortedCategories.map((entry) {
-                final isSelected = _selectedCategoryFilter == entry.key;
-                final catIcon = CategoryIcons.get(entry.key);
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    avatar: Icon(
-                      catIcon,
-                      size: 14,
-                      color: isSelected ? Colors.white : _getCategoryColor(entry.key),
-                    ),
-                    label: Text('${entry.key} · ${currencyFmt.format(entry.value)}'),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedCategoryFilter = selected ? entry.key : null;
-                      });
-                    },
-                    selectedColor: const Color(0xFF006948),
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                      color: isSelected ? Colors.white : const Color(0xFF334155),
-                    ),
-                    side: BorderSide(
-                      color: isSelected ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
-                    ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    showCheckmark: false,
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- 4. Search & Payment Method Filter Bar ---
+  // --- 4. Search Bar & Filter Button ---
   Widget _buildSearchAndFilterBar() {
+    final hasFilterActive = _selectedPaymentFilter != null || _sortBy != 'date_desc';
+
     return Row(
       children: [
-        // Search Input Field (Base-Safe Icons.search & Icons.clear)
+        // Search Input Field
         Expanded(
           child: Container(
-            height: 42,
+            height: 44,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -738,7 +1107,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
               style: const TextStyle(fontSize: 13, color: Color(0xFF131B2E), fontWeight: FontWeight.w600),
               decoration: InputDecoration(
-                hintText: 'Search notes, merchant, amount...',
+                hintText: 'Search transactions, notes, merchant...',
                 hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
                 prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
                 suffixIcon: _searchQuery.isNotEmpty
@@ -751,69 +1120,47 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(vertical: 11),
               ),
             ),
           ),
         ),
         const SizedBox(width: 8),
-        // Payment Method Dropdown (Base-Safe icons)
-        PopupMenuButton<String?>(
-          initialValue: _selectedPaymentFilter,
-          onSelected: (val) => setState(() => _selectedPaymentFilter = val),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          itemBuilder: (ctx) => [
-            const PopupMenuItem<String?>(
-              value: null,
-              child: Text('All Payment Methods', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            const PopupMenuDivider(),
-            ...['UPI', 'Card', 'Cash', 'NetBanking'].map(
-              (m) => PopupMenuItem<String?>(
-                value: m,
-                child: Row(
-                  children: [
-                    Icon(
-                      m == 'UPI'
-                          ? Icons.qr_code_2
-                          : (m == 'Card' ? Icons.credit_card : Icons.payments),
-                      size: 16,
-                      color: const Color(0xFF006948),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(m),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        // Filter options button (opens bottom sheet for payment method & sorting)
+        InkWell(
+          onTap: () => _showFilterOptionsSheet(context),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 44,
+            width: 44,
             decoration: BoxDecoration(
-              color: _selectedPaymentFilter != null ? const Color(0xFF006948).withValues(alpha: 0.1) : Colors.white,
+              color: hasFilterActive ? const Color(0xFF006948).withValues(alpha: 0.1) : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _selectedPaymentFilter != null ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                color: hasFilterActive ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
                 Icon(
                   Icons.tune_rounded,
-                  size: 16,
-                  color: _selectedPaymentFilter != null ? const Color(0xFF006948) : const Color(0xFF64748B),
+                  size: 20,
+                  color: hasFilterActive ? const Color(0xFF006948) : const Color(0xFF64748B),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  _selectedPaymentFilter ?? 'Payment',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _selectedPaymentFilter != null ? const Color(0xFF006948) : const Color(0xFF475569),
+                if (hasFilterActive)
+                  Positioned(
+                    top: 9,
+                    right: 9,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF006948),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -822,10 +1169,81 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  // --- 5. Interactive Category Filter Chips ---
+  Widget _buildCategoryChipsRow(Map<String, double> categorySpendMap, int totalCount) {
+    final currencyFmt = NumberFormat.compactCurrency(locale: 'en_IN', symbol: '₹');
+    final sortedCategories = categorySpendMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          // "All" chip
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text('All ($totalCount)'),
+              selected: _selectedCategoryFilter == null,
+              onSelected: (_) => setState(() => _selectedCategoryFilter = null),
+              selectedColor: const Color(0xFF006948),
+              backgroundColor: Colors.white,
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: _selectedCategoryFilter == null ? FontWeight.bold : FontWeight.w600,
+                color: _selectedCategoryFilter == null ? Colors.white : const Color(0xFF334155),
+              ),
+              side: BorderSide(
+                color: _selectedCategoryFilter == null ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              showCheckmark: false,
+            ),
+          ),
+          // Category chips
+          ...sortedCategories.map((entry) {
+            final isSelected = _selectedCategoryFilter == entry.key;
+            final catIcon = CategoryIcons.get(entry.key);
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                avatar: Icon(
+                  catIcon,
+                  size: 14,
+                  color: isSelected ? Colors.white : _getCategoryColor(entry.key),
+                ),
+                label: Text('${entry.key} · ${currencyFmt.format(entry.value)}'),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedCategoryFilter = selected ? entry.key : null;
+                  });
+                },
+                selectedColor: const Color(0xFF006948),
+                backgroundColor: Colors.white,
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                ),
+                side: BorderSide(
+                  color: isSelected ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                showCheckmark: false,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   // --- Active Filters Banner ---
   Widget _buildActiveFilterBanner() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF006948).withValues(alpha: 0.06),
@@ -852,6 +1270,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
                   }),
+                if (_sortBy != 'date_desc')
+                  _buildTagBadge('Sort: ${_sortBy.replaceAll('_', ' ')}', () => setState(() => _sortBy = 'date_desc')),
               ],
             ),
           ),
@@ -893,7 +1313,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // --- 5. Grouped Transactions Ledger (Clean Column, Zero Extra Whitespace) ---
+  // --- 6. Grouped Transactions Ledger in Timeline View with Payment Time ---
   Widget _buildTransactionsLedger(List<Expense> expenses, ExpenseProvider provider) {
     if (expenses.isEmpty) {
       return Container(
@@ -935,8 +1355,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       );
     }
 
-    // Sort descending by date
-    final sorted = List<Expense>.from(expenses)..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+    // Sort expenses according to _sortBy
+    final sorted = List<Expense>.from(expenses);
+    if (_sortBy == 'date_desc') {
+      sorted.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+    } else if (_sortBy == 'date_asc') {
+      sorted.sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
+    } else if (_sortBy == 'amount_desc') {
+      sorted.sort((a, b) => b.amount.compareTo(a.amount));
+    } else if (_sortBy == 'amount_asc') {
+      sorted.sort((a, b) => a.amount.compareTo(b.amount));
+    }
 
     // Group by Day (YYYY-MM-DD)
     final Map<String, List<Expense>> grouped = {};
@@ -958,15 +1387,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
         String dayTitle;
         if (entry.key == todayKey) {
-          dayTitle = 'Today, ${DateFormat('d MMM').format(dayDate)}';
+          dayTitle = 'Today, ${DateFormat('d MMM yyyy').format(dayDate)}';
         } else if (entry.key == yesterdayKey) {
-          dayTitle = 'Yesterday, ${DateFormat('d MMM').format(dayDate)}';
+          dayTitle = 'Yesterday, ${DateFormat('d MMM yyyy').format(dayDate)}';
         } else {
-          dayTitle = DateFormat('EEEE, d MMMM').format(dayDate);
+          dayTitle = DateFormat('EEEE, d MMM yyyy').format(dayDate);
         }
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -993,15 +1422,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     Text(
                       dayTitle,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF475569),
+                        color: Color(0xFF334155),
                       ),
                     ),
                     Text(
-                      currencyFmt.format(dayTotal),
+                      '- ${currencyFmt.format(dayTotal)}',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF131B2E),
                       ),
@@ -1009,15 +1438,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ],
                 ),
               ),
-              // Day Items - Clean direct items (zero nested ListView padding!)
-              Column(
-                children: [
-                  for (int idx = 0; idx < dayExpenses.length; idx++) ...[
-                    if (idx > 0)
-                      const Divider(height: 1, indent: 64, color: Color(0xFFF1F5F9)),
-                    _buildTransactionRowItem(dayExpenses[idx], provider, currencyFmt),
+              // Day Items in Timeline View
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  children: [
+                    for (int idx = 0; idx < dayExpenses.length; idx++)
+                      _buildTimelineTransactionItem(dayExpenses[idx], idx, dayExpenses.length, provider, currencyFmt),
                   ],
-                ],
+                ),
               ),
             ],
           ),
@@ -1026,9 +1455,37 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildTransactionRowItem(Expense expense, ExpenseProvider provider, NumberFormat currencyFmt) {
-    final icon = CategoryIcons.get(expense.category);
-    final color = _getCategoryColor(expense.category);
+  // --- 7. Timeline Transaction Row with Vertical Connector, Dot, Brand Avatar & Payment Time ---
+  Widget _buildTimelineTransactionItem(
+    Expense expense,
+    int idx,
+    int totalInDay,
+    ExpenseProvider provider,
+    NumberFormat currencyFmt,
+  ) {
+    // Determine payment time
+    DateTime paymentTime = expense.dateTime;
+    if (paymentTime.hour == 0 && paymentTime.minute == 0 && expense.createdAt > 0) {
+      final createdDt = DateTime.fromMillisecondsSinceEpoch(expense.createdAt);
+      if (createdDt.hour != 0 || createdDt.minute != 0) {
+        paymentTime = createdDt;
+      }
+    }
+    final timeStr = DateFormat('h:mm a').format(paymentTime);
+
+    // Parse title & noteTag from comment
+    String title = expense.category;
+    String? noteTag;
+    if (expense.comment != null && expense.comment!.trim().isNotEmpty) {
+      final raw = expense.comment!.trim();
+      final parts = raw.split(RegExp(r'\s*[-–—|:]\s*'));
+      if (parts.length > 1) {
+        title = parts[0].trim();
+        noteTag = parts.sublist(1).join(' - ').trim();
+      } else {
+        title = raw;
+      }
+    }
 
     return InkWell(
       onTap: () {
@@ -1041,72 +1498,291 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       },
       onLongPress: () => _confirmDeleteExpense(context, expense, provider),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 19),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    expense.comment?.isNotEmpty == true ? expense.comment! : expense.category,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF131B2E),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      if (expense.comment?.isNotEmpty == true) ...[
-                        Text(
-                          expense.category,
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Vertical Timeline Guide with Green Bullet Dot
+              SizedBox(
+                width: 22,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Top vertical connector line
+                    if (idx > 0)
+                      Positioned(
+                        top: 0,
+                        bottom: 18,
+                        child: Container(
+                          width: 2,
+                          color: const Color(0xFFE2E8F0),
                         ),
-                        const Text(' · ', style: TextStyle(color: Color(0xFFCBD5E1))),
-                      ],
+                      ),
+                    // Bottom vertical connector line
+                    if (idx < totalInDay - 1)
+                      Positioned(
+                        top: 18,
+                        bottom: 0,
+                        child: Container(
+                          width: 2,
+                          color: const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                    // Vibrant Green Dot
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF006948),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x33006948),
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+
+              // Brand / Merchant Circular Avatar
+              _buildMerchantAvatar(expense),
+              const SizedBox(width: 10),
+
+              // Transaction details (Title, Category · Payment Method, Note Pill)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF131B2E),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${expense.category} · ${expense.paymentMethod}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (noteTag != null && noteTag.isNotEmpty) ...[
+                      const SizedBox(height: 3),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                        child: Text(
-                          expense.paymentMethod,
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.description_outlined, size: 10.5, color: Color(0xFF64748B)),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                noteTag,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF475569),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Payment Time & Formatted Amount
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    timeStr,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '- ${currencyFmt.format(expense.amount)}',
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF131B2E),
+                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '- ${currencyFmt.format(expense.amount)}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF131B2E),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  // --- Smart Merchant / Brand Avatar Helper ---
+  Widget _buildMerchantAvatar(Expense expense) {
+    final comment = (expense.comment ?? '').toLowerCase();
+    final cat = expense.category.toLowerCase();
+
+    // 1. Zudio
+    if (comment.contains('zudio')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E293B),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'Z',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            fontFamily: 'serif',
+          ),
+        ),
+      );
+    }
+
+    // 2. Domino's Pizza
+    if (comment.contains('domino') || comment.contains('pizza')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFF006491),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.local_pizza_rounded, color: Colors.white, size: 19),
+      );
+    }
+
+    // 3. Rent / Housing
+    if (comment.contains('rent') || cat.contains('rent') || cat.contains('hous')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFFEA580C),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.home_rounded, color: Colors.white, size: 19),
+      );
+    }
+
+    // 4. Uber / Ola / Cab / Transport
+    if (comment.contains('uber') || comment.contains('ola') || comment.contains('cab')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: comment.contains('ola') ? const Color(0xFF84CC16) : const Color(0xFF0F172A),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.local_taxi_rounded, color: Colors.white, size: 19),
+      );
+    }
+
+    // 5. Swiggy / Zomato / Food
+    if (comment.contains('swiggy')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFC8019),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.restaurant_rounded, color: Colors.white, size: 19),
+      );
+    }
+    if (comment.contains('zomato')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFFE23744),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.restaurant_rounded, color: Colors.white, size: 19),
+      );
+    }
+
+    // 6. Amazon / Flipkart / Shopping
+    if (comment.contains('amazon') || comment.contains('flipkart')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF59E0B),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.shopping_bag_rounded, color: Colors.white, size: 19),
+      );
+    }
+
+    // 7. Blinkit / Zepto / Grocery
+    if (comment.contains('blinkit') || comment.contains('zepto') || comment.contains('grocer') || cat.contains('grocer')) {
+      return Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFF006948),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.shopping_cart_rounded, color: Colors.white, size: 19),
+      );
+    }
+
+    // 8. Category-based fallback
+    final catColor = _getCategoryColor(expense.category);
+    final catIcon = CategoryIcons.get(expense.category);
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: catColor.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Icon(catIcon, color: catColor, size: 19),
     );
   }
 

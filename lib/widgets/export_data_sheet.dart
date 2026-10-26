@@ -308,7 +308,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Full raw JSON dump including internal IDs, timestamps, categories, and payee comments for database imports.',
+                      'Full raw JSON backup including dates, categories, accounts, and transaction notes for complete data portability.',
                       style: TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
                     ),
                     const SizedBox(height: 16),

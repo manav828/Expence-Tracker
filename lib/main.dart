@@ -24,6 +24,7 @@ import 'services/auth_service.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'widgets/storage_choice_dialog.dart';
+import 'services/storage_preference_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -139,6 +140,10 @@ class _AppRootState extends State<AppRoot> {
     final seen = await AuthService.instance.hasCompletedOnboarding();
     final isGuest = await AuthService.instance.isGuest();
     final isAuth = AuthService.instance.isAuthenticated;
+
+    if (isAuth) {
+      await StoragePreferenceService.setMode(StorageMode.cloud);
+    }
 
     if (mounted) {
       setState(() {

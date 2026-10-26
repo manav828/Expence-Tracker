@@ -8,10 +8,12 @@ CREATE TABLE IF NOT EXISTS public.split_groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
+    image_url TEXT,
     created_by TEXT NOT NULL,
     invite_code TEXT UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.split_groups ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- 2. Split Members Table
 CREATE TABLE IF NOT EXISTS public.split_members (
@@ -75,6 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_split_groups_invite_code ON public.split_groups(i
 CREATE INDEX IF NOT EXISTS idx_split_expenses_group_id ON public.split_expenses(group_id);
 CREATE INDEX IF NOT EXISTS idx_split_shares_expense_id ON public.split_shares(expense_id);
 CREATE INDEX IF NOT EXISTS idx_settlements_group_id ON public.settlements(group_id);
+CREATE INDEX IF NOT EXISTS idx_user_expenses_user_date ON public.user_expenses(user_id, expense_date DESC);
 CREATE INDEX IF NOT EXISTS idx_user_expenses_date ON public.user_expenses(expense_date DESC);
 
 -- Enable Row Level Security (RLS)
@@ -85,10 +88,18 @@ ALTER TABLE public.split_shares ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_expenses ENABLE ROW LEVEL SECURITY;
 
--- Allow anonymous / authenticated access for instant web and app sharing (no login friction)
+-- Splitwise tables: allow anonymous / authenticated access for instant web and app sharing by group invite code
 CREATE POLICY "Public read/write access for split_groups" ON public.split_groups FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public read/write access for split_members" ON public.split_members FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public read/write access for split_expenses" ON public.split_expenses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public read/write access for split_shares" ON public.split_shares FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public read/write access for settlements" ON public.settlements FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public read/write access for user_expenses" ON public.user_expenses FOR ALL USING (true) WITH CHECK (true);
+
+-- Personal expenses: STRICT multi-tenant user isolation (users can NEVER see or modify another user's expenses)
+DROP POLICY IF EXISTS "Public read/write access for user_expenses" ON public.user_expenses;
+DROP POLICY IF EXISTS "Users can only access their own expenses" ON public.user_expenses;
+CREATE POLICY "Users can only access their own expenses" ON public.user_expenses
+    FOR ALL
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);

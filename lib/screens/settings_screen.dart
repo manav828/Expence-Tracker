@@ -434,7 +434,7 @@ class SettingsScreen extends StatelessWidget {
         title: const Text('Security & Biometrics'),
         content: const Text(
           'ExpenCircle is protected by your system security lock (Fingerprint / Face ID / Screen Lock PIN). '
-          'Your offline SQLite database is stored securely in your app private sandbox.',
+          'Your data is stored securely in your private, encrypted app storage.',
         ),
         actions: [
           TextButton(
@@ -523,7 +523,7 @@ class _StorageModeTileState extends State<_StorageModeTile> {
       subtitle: Text(
         _loading
             ? 'Loading...'
-            : (isCloud ? 'Supabase Cloud Database (Synced)' : 'Device Local Storage (Offline SQLite)'),
+            : (isCloud ? 'Cloud Sync & Backup (Connected)' : 'Device Local Storage (Offline Mode)'),
         style: TextStyle(
           fontSize: 12,
           color: isCloud ? const Color(0xFF006948) : const Color(0xFF6D7A72),

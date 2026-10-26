@@ -10,6 +10,17 @@ class StorageChoiceDialog extends StatefulWidget {
   const StorageChoiceDialog({super.key, this.isDismissible = false});
 
   static Future<void> showIfNeeded(BuildContext context) async {
+    // If user is already authenticated (existing account user):
+    // Never ask them for storage choice; automatically activate Cloud storage!
+    if (AuthService.instance.isAuthenticated) {
+      final mode = await StoragePreferenceService.getMode();
+      if (mode != StorageMode.cloud) {
+        await StoragePreferenceService.setMode(StorageMode.cloud);
+      }
+      return;
+    }
+
+    // Only ask new / guest users who haven't selected a storage mode yet:
     final hasChosen = await StoragePreferenceService.hasChosenMode();
     if (!hasChosen && context.mounted) {
       await showDialog(
@@ -82,8 +93,8 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
         SnackBar(
           content: Text(
             _selectedMode == StorageMode.cloud
-                ? 'Cloud storage activated (Supabase Mumbai)!'
-                : 'Local offline storage activated (On-device SQLite)!',
+                ? 'Cloud storage & backup activated!'
+                : 'Device local storage activated!',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           backgroundColor: const Color(0xFF006948),
@@ -147,7 +158,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
             _buildOptionTile(
               mode: StorageMode.cloud,
               title: 'Cloud Storage',
-              subtitle: 'Encrypted sync & backup via Supabase. Real-time across devices.',
+              subtitle: 'Encrypted sync & backup. Access your expenses seamlessly across all your devices.',
               icon: Icons.cloud_upload_outlined,
               iconColor: const Color(0xFF006948),
               badge: 'RECOMMENDED',
@@ -157,7 +168,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
             _buildOptionTile(
               mode: StorageMode.local,
               title: 'Local Storage',
-              subtitle: 'Stored offline on this phone in SQLite. 100% private, never leaves device.',
+              subtitle: 'Stored offline on this phone. 100% private, never leaves your device.',
               icon: Icons.phone_android,
               iconColor: const Color(0xFF4B41E1),
               badge: 'OFFLINE',

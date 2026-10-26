@@ -1,5 +1,6 @@
 class Expense {
   final int? id;
+  final String? userId;
   final double amount;
   final String category;
   final String paymentMethod;
@@ -10,6 +11,7 @@ class Expense {
 
   Expense({
     this.id,
+    this.userId,
     required this.amount,
     required this.category,
     required this.paymentMethod,
@@ -20,7 +22,7 @@ class Expense {
   });
 
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'amount': amount,
       'category': category,
@@ -30,6 +32,10 @@ class Expense {
       'created_at': createdAt,
       'updated_at': updatedAt,
     };
+    if (userId != null) {
+      map['user_id'] = userId;
+    }
+    return map;
   }
 
   factory Expense.fromMap(Map<String, dynamic> map) {
@@ -39,6 +45,7 @@ class Expense {
 
     return Expense(
       id: map['id'] is num ? (map['id'] as num).toInt() : (int.tryParse(map['id']?.toString() ?? '')),
+      userId: map['user_id'] as String?,
       amount: (map['amount'] as num).toDouble(),
       category: map['category'] as String? ?? 'General',
       paymentMethod: map['payment_method'] as String? ?? 'UPI',
@@ -53,6 +60,7 @@ class Expense {
 
   Expense copyWith({
     int? id,
+    String? userId,
     double? amount,
     String? category,
     String? paymentMethod,
@@ -63,6 +71,7 @@ class Expense {
   }) {
     return Expense(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       amount: amount ?? this.amount,
       category: category ?? this.category,
       paymentMethod: paymentMethod ?? this.paymentMethod,

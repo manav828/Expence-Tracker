@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/split_models.dart';
 import '../services/split_service.dart';
+import '../services/pixabay_service.dart';
 
 class SplitProvider with ChangeNotifier {
   List<SplitGroup> _groups = [];
@@ -10,6 +11,7 @@ class SplitProvider with ChangeNotifier {
   final Map<String, List<Settlement>> _settlements = {};
   final Map<String, Map<String, double>> _balances = {};
   bool _isLoading = false;
+  bool _hasPendingSync = false;
   String? _error;
   String? _currentMemberName; // the name used by this device in groups
 
@@ -22,6 +24,7 @@ class SplitProvider with ChangeNotifier {
   Map<String, List<Settlement>> get settlements => _settlements;
   Map<String, Map<String, double>> get balances => _balances;
   bool get isLoading => _isLoading;
+  bool get hasPendingSync => _hasPendingSync;
   String? get error => _error;
   String? get currentMemberName => _currentMemberName;
 
@@ -47,10 +50,26 @@ class SplitProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadGroups() async {
-    _isLoading = true;
-    _error = null;
+  Future<void> _checkPendingSync() async {
+    _hasPendingSync = await SplitService.instance.hasPendingSync();
     notifyListeners();
+  }
+
+  Future<int> syncAll() async {
+    final synced = await SplitService.instance.syncPendingData();
+    await _checkPendingSync();
+    if (synced > 0) {
+      await loadGroups(isBackgroundRefresh: true);
+    }
+    return synced;
+  }
+
+  Future<void> loadGroups({bool isBackgroundRefresh = false}) async {
+    if (!isBackgroundRefresh) {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final ids = prefs.getStringList(_groupIdsKey) ?? [];
@@ -60,11 +79,26 @@ class SplitProvider with ChangeNotifier {
         _groups = await SplitService.instance.getGroupsByIds(ids);
         await Future.wait(_groups.map((g) => loadGroupDetail(g.id)));
       }
+      _checkPendingSync();
+
+      // Drain pending queue if online in background
+      SplitService.instance.syncPendingData().then((synced) {
+        if (synced > 0) {
+          _checkPendingSync();
+          for (final g in _groups) {
+            loadGroupDetail(g.id);
+          }
+        }
+      });
     } catch (e) {
-      _error = e.toString();
+      if (!isBackgroundRefresh) {
+        _error = e.toString();
+      }
     }
-    _isLoading = false;
-    notifyListeners();
+    if (!isBackgroundRefresh) {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> loadGroupDetail(String groupId) async {
@@ -87,11 +121,21 @@ class SplitProvider with ChangeNotifier {
   Future<SplitGroup> createGroup({
     required String name,
     String? description,
+    String? imageUrl,
     required String createdByName,
     required List<String> memberNames,
   }) async {
+    final finalImageUrl = imageUrl ??
+        await PixabayService.fetchImageForGroup(
+          name: name,
+          description: description,
+        );
+
     final group = await SplitService.instance.createGroup(
-      name: name, description: description, createdBy: createdByName,
+      name: name,
+      description: description,
+      imageUrl: finalImageUrl,
+      createdBy: createdByName,
     );
     // Add creator as first member
     await SplitService.instance.addMember(groupId: group.id, name: createdByName);
@@ -104,9 +148,13 @@ class SplitProvider with ChangeNotifier {
     // Save group id locally
     final prefs = await SharedPreferences.getInstance();
     final ids = prefs.getStringList(_groupIdsKey) ?? [];
-    ids.add(group.id);
-    await prefs.setStringList(_groupIdsKey, ids);
+    if (!ids.contains(group.id)) {
+      ids.add(group.id);
+      await prefs.setStringList(_groupIdsKey, ids);
+    }
     _groups.insert(0, group);
+    await loadGroupDetail(group.id);
+    _checkPendingSync();
     notifyListeners();
     return group;
   }
@@ -130,8 +178,20 @@ class SplitProvider with ChangeNotifier {
       await prefs.setStringList(_groupIdsKey, ids);
       _groups.insert(0, group);
     }
+    await loadGroupDetail(group.id);
+    _checkPendingSync();
     notifyListeners();
     return group;
+  }
+
+  Future<void> updateGroup(SplitGroup updated) async {
+    await SplitService.instance.updateGroup(updated);
+    final idx = _groups.indexWhere((g) => g.id == updated.id);
+    if (idx != -1) {
+      _groups[idx] = updated;
+    }
+    _checkPendingSync();
+    notifyListeners();
   }
 
   Future<void> deleteGroup(String groupId) async {
@@ -145,6 +205,7 @@ class SplitProvider with ChangeNotifier {
     final ids = prefs.getStringList(_groupIdsKey) ?? [];
     ids.remove(groupId);
     await prefs.setStringList(_groupIdsKey, ids);
+    _checkPendingSync();
     notifyListeners();
   }
 
@@ -160,11 +221,18 @@ class SplitProvider with ChangeNotifier {
     required String addedByMemberId,
   }) async {
     await SplitService.instance.addExpense(
-      groupId: groupId, title: title, totalAmount: totalAmount,
-      paidByMemberId: paidByMemberId, splitType: splitType, shares: shares,
-      category: category, note: note, addedByMemberId: addedByMemberId,
+      groupId: groupId,
+      title: title,
+      totalAmount: totalAmount,
+      paidByMemberId: paidByMemberId,
+      splitType: splitType,
+      shares: shares,
+      category: category,
+      note: note,
+      addedByMemberId: addedByMemberId,
     );
     await loadGroupDetail(groupId);
+    _checkPendingSync();
   }
 
   Future<void> updateExpense({
@@ -189,11 +257,13 @@ class SplitProvider with ChangeNotifier {
       note: note,
     );
     await loadGroupDetail(groupId);
+    _checkPendingSync();
   }
 
   Future<void> deleteExpense(String groupId, String expenseId) async {
     await SplitService.instance.deleteExpense(expenseId);
     await loadGroupDetail(groupId);
+    _checkPendingSync();
   }
 
   Future<void> recordSettlement({
@@ -204,20 +274,26 @@ class SplitProvider with ChangeNotifier {
     String? note,
   }) async {
     await SplitService.instance.recordSettlement(
-      groupId: groupId, fromMemberId: fromMemberId,
-      toMemberId: toMemberId, amount: amount, note: note,
+      groupId: groupId,
+      fromMemberId: fromMemberId,
+      toMemberId: toMemberId,
+      amount: amount,
+      note: note,
     );
     await loadGroupDetail(groupId);
+    _checkPendingSync();
   }
 
   Future<void> addMember(String groupId, String name) async {
     await SplitService.instance.addMember(groupId: groupId, name: name);
     await loadGroupDetail(groupId);
+    _checkPendingSync();
   }
 
   Future<void> removeMember(String groupId, String memberId) async {
     await SplitService.instance.removeMember(memberId);
     await loadGroupDetail(groupId);
+    _checkPendingSync();
   }
 
   Future<List<SplitShare>> getSharesForExpense(String expenseId) async {

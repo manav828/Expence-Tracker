@@ -14,7 +14,7 @@ class LegalSheets {
           _LegalSection(
             title: '1. Hybrid Data Storage & Privacy',
             content:
-                'ExpenCircle gives you complete control over your data. When you select Local Storage mode, 100% of your financial transactions remain exclusively on your device inside an offline SQLite database. In Cloud Storage mode, your data is securely stored in our encrypted Supabase database (Mumbai, India region) to enable cross-device backup.',
+                'ExpenCircle gives you complete control over your data. When you select Local Storage mode, 100% of your financial transactions remain exclusively on your device in secure local storage. In Cloud Storage mode, your data is securely stored with encrypted cloud backup to enable cross-device sync and restore.',
           ),
           _LegalSection(
             title: '2. On-Device SMS Transaction Parsing',
@@ -34,7 +34,7 @@ class LegalSheets {
           _LegalSection(
             title: '5. Data Deletion & Export',
             content:
-                'You may export your complete financial records as CSV or JSON at any time. You can also wipe your local database or delete your cloud account instantly from the app settings.',
+                'You may export your complete financial records as CSV or JSON at any time. You can also wipe your local records or delete your cloud account instantly from the app settings.',
           ),
         ],
       ),
