@@ -136,6 +136,16 @@ class DatabaseService {
     } catch (_) {
       // Column already exists
     }
+    try {
+      await db.execute('ALTER TABLE settlements ADD COLUMN from_settlement_group_id TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
+      await db.execute('ALTER TABLE settlements ADD COLUMN to_settlement_group_id TEXT');
+    } catch (_) {
+      // Column already exists
+    }
     await db.execute('''
       CREATE TABLE IF NOT EXISTS categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -213,7 +223,51 @@ class DatabaseService {
           to_member_id TEXT NOT NULL,
           amount REAL NOT NULL,
           settled_at TEXT NOT NULL,
-          note TEXT
+          note TEXT,
+          from_settlement_group_id TEXT,
+          to_settlement_group_id TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_expense_groups (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          icon TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_expense_group_members (
+          id TEXT PRIMARY KEY,
+          expense_group_id TEXT NOT NULL,
+          member_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(expense_group_id, member_id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_settlement_groups (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS split_settlement_group_members (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          settlement_group_id TEXT NOT NULL,
+          member_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(settlement_group_id, member_id),
+          UNIQUE(group_id, member_id)
       )
     ''');
     await db.execute('''

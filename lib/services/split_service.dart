@@ -500,6 +500,13 @@ class SplitService {
         }
         await db.delete('split_expenses', where: 'group_id = ?', whereArgs: [groupId]);
         await db.delete('settlements', where: 'group_id = ?', whereArgs: [groupId]);
+        await db.delete('split_settlement_group_members', where: 'group_id = ?', whereArgs: [groupId]);
+        await db.delete('split_settlement_groups', where: 'group_id = ?', whereArgs: [groupId]);
+        final expenseGroups = await db.query('split_expense_groups', columns: ['id'], where: 'group_id = ?', whereArgs: [groupId]);
+        for (final eg in expenseGroups) {
+          await db.delete('split_expense_group_members', where: 'expense_group_id = ?', whereArgs: [eg['id']]);
+        }
+        await db.delete('split_expense_groups', where: 'group_id = ?', whereArgs: [groupId]);
         await db.delete('split_members', where: 'group_id = ?', whereArgs: [groupId]);
         await db.delete('split_groups', where: 'id = ?', whereArgs: [groupId]);
       } catch (e) {
@@ -514,6 +521,13 @@ class SplitService {
       }
       await _db.from('split_expenses').delete().eq('group_id', groupId);
       await _db.from('settlements').delete().eq('group_id', groupId);
+      await _db.from('split_settlement_group_members').delete().eq('group_id', groupId);
+      await _db.from('split_settlement_groups').delete().eq('group_id', groupId);
+      final egs = await _db.from('split_expense_groups').select('id').eq('group_id', groupId);
+      for (final eg in egs as List) {
+        await _db.from('split_expense_group_members').delete().eq('expense_group_id', eg['id']);
+      }
+      await _db.from('split_expense_groups').delete().eq('group_id', groupId);
       await _db.from('split_members').delete().eq('group_id', groupId);
       await _db.from('split_groups').delete().eq('id', groupId);
     } catch (e) {
@@ -1033,6 +1047,8 @@ class SplitService {
     required String toMemberId,
     required double amount,
     String? note,
+    String? fromSettlementGroupId,
+    String? toSettlementGroupId,
   }) async {
     final s = Settlement(
       id: _uuid.v4(),
@@ -1042,6 +1058,8 @@ class SplitService {
       amount: amount,
       settledAt: DateTime.now(),
       note: note,
+      fromSettlementGroupId: fromSettlementGroupId,
+      toSettlementGroupId: toSettlementGroupId,
     );
 
     if (!kIsWeb) {
@@ -1118,6 +1136,433 @@ class SplitService {
     }
 
     return localSettlements;
+  }
+
+  // --- Module A: Expense Member Groups ---
+
+  Future<SplitExpenseGroup> createExpenseGroup({
+    required String groupId,
+    required String name,
+    String? description,
+    String? icon,
+    required List<String> memberIds,
+  }) async {
+    final now = DateTime.now();
+    final eg = SplitExpenseGroup(
+      id: _uuid.v4(),
+      groupId: groupId,
+      name: name.trim(),
+      description: description?.trim().isEmpty == true ? null : description?.trim(),
+      icon: icon,
+      createdBy: AuthService.instance.userDisplayName,
+      createdAt: now,
+      updatedAt: now,
+      memberIds: memberIds,
+    );
+
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.insert('split_expense_groups', eg.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        for (final mId in memberIds) {
+          await db.insert(
+            'split_expense_group_members',
+            {
+              'id': _uuid.v4(),
+              'expense_group_id': eg.id,
+              'member_id': mId,
+              'created_at': now.toIso8601String(),
+            },
+            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+          );
+        }
+      } catch (e) {
+        debugPrint('Local createExpenseGroup error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_expense_groups').insert(eg.toMap());
+      if (memberIds.isNotEmpty) {
+        final mappings = memberIds.map((mId) => {
+          'id': _uuid.v4(),
+          'expense_group_id': eg.id,
+          'member_id': mId,
+          'created_at': now.toIso8601String(),
+        }).toList();
+        await _db.from('split_expense_group_members').insert(mappings);
+      }
+    } catch (e) {
+      debugPrint('Cloud createExpenseGroup error, queued offline: $e');
+      await _enqueue('INSERT', 'split_expense_groups', eg.id, eg.toMap());
+      for (final mId in memberIds) {
+        final mappingId = _uuid.v4();
+        await _enqueue('INSERT', 'split_expense_group_members', mappingId, {
+          'id': mappingId,
+          'expense_group_id': eg.id,
+          'member_id': mId,
+          'created_at': now.toIso8601String(),
+        });
+      }
+    }
+
+    return eg;
+  }
+
+  Future<void> updateExpenseGroup({
+    required String expenseGroupId,
+    required String name,
+    String? description,
+    String? icon,
+    required List<String> memberIds,
+  }) async {
+    final now = DateTime.now();
+    final payload = {
+      'name': name.trim(),
+      'description': description?.trim().isEmpty == true ? null : description?.trim(),
+      'icon': icon,
+      'updated_at': now.toIso8601String(),
+    };
+
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.update('split_expense_groups', payload, where: 'id = ?', whereArgs: [expenseGroupId]);
+        await db.delete('split_expense_group_members', where: 'expense_group_id = ?', whereArgs: [expenseGroupId]);
+        for (final mId in memberIds) {
+          await db.insert(
+            'split_expense_group_members',
+            {
+              'id': _uuid.v4(),
+              'expense_group_id': expenseGroupId,
+              'member_id': mId,
+              'created_at': now.toIso8601String(),
+            },
+            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+          );
+        }
+      } catch (e) {
+        debugPrint('Local updateExpenseGroup error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_expense_groups').update(payload).eq('id', expenseGroupId);
+      await _db.from('split_expense_group_members').delete().eq('expense_group_id', expenseGroupId);
+      if (memberIds.isNotEmpty) {
+        final mappings = memberIds.map((mId) => {
+          'id': _uuid.v4(),
+          'expense_group_id': expenseGroupId,
+          'member_id': mId,
+          'created_at': now.toIso8601String(),
+        }).toList();
+        await _db.from('split_expense_group_members').insert(mappings);
+      }
+    } catch (e) {
+      debugPrint('Cloud updateExpenseGroup error, queued offline: $e');
+      await _enqueue('UPDATE', 'split_expense_groups', expenseGroupId, payload);
+    }
+  }
+
+  Future<void> deleteExpenseGroup(String expenseGroupId) async {
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.delete('split_expense_group_members', where: 'expense_group_id = ?', whereArgs: [expenseGroupId]);
+        await db.delete('split_expense_groups', where: 'id = ?', whereArgs: [expenseGroupId]);
+      } catch (e) {
+        debugPrint('Local deleteExpenseGroup error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_expense_group_members').delete().eq('expense_group_id', expenseGroupId);
+      await _db.from('split_expense_groups').delete().eq('id', expenseGroupId);
+    } catch (e) {
+      debugPrint('Cloud deleteExpenseGroup error, queued offline: $e');
+      await _enqueue('DELETE', 'split_expense_groups', expenseGroupId, null);
+    }
+  }
+
+  Future<List<SplitExpenseGroup>> getExpenseGroups(String groupId) async {
+    final Map<String, SplitExpenseGroup> groupMap = {};
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        final rows = await db.query(
+          'split_expense_groups',
+          where: 'group_id = ?',
+          whereArgs: [groupId],
+          orderBy: 'created_at ASC',
+        );
+        for (final row in rows) {
+          final egId = row['id'] as String;
+          final memberRows = await db.query(
+            'split_expense_group_members',
+            columns: ['member_id'],
+            where: 'expense_group_id = ?',
+            whereArgs: [egId],
+          );
+          final mIds = memberRows.map((r) => r['member_id'] as String).toList();
+          groupMap[egId] = SplitExpenseGroup.fromMap(row, memberIds: mIds);
+        }
+      } catch (e) {
+        debugPrint('Local getExpenseGroups error: $e');
+      }
+    }
+
+    try {
+      final rows = await _db
+          .from('split_expense_groups')
+          .select()
+          .eq('group_id', groupId)
+          .order('created_at', ascending: true);
+
+      final cloudGroups = (rows as List).map((r) => SplitExpenseGroup.fromMap(r)).toList();
+      for (final eg in cloudGroups) {
+        final memberRows = await _db
+            .from('split_expense_group_members')
+            .select('member_id')
+            .eq('expense_group_id', eg.id);
+        final mIds = (memberRows as List).map((r) => r['member_id'] as String).toList();
+        final fullGroup = eg.copyWith(memberIds: mIds);
+        groupMap[eg.id] = fullGroup;
+
+        if (!kIsWeb) {
+          try {
+            final db = await _localDb;
+            await db.insert('split_expense_groups', fullGroup.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+            for (final mid in mIds) {
+              await db.insert('split_expense_group_members', {
+                'id': '${eg.id}_$mid',
+                'expense_group_id': eg.id,
+                'member_id': mid,
+                'created_at': DateTime.now().toIso8601String(),
+              }, conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('Cloud getExpenseGroups error, returning cached: $e');
+    }
+
+    final list = groupMap.values.toList();
+    list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return list;
+  }
+
+  // --- Module B: Combined Settlement Groups ---
+
+  Future<SplitSettlementGroup> createSettlementGroup({
+    required String groupId,
+    required String name,
+    required List<String> memberIds,
+  }) async {
+    final now = DateTime.now();
+    final sg = SplitSettlementGroup(
+      id: _uuid.v4(),
+      groupId: groupId,
+      name: name.trim(),
+      createdBy: AuthService.instance.userDisplayName,
+      createdAt: now,
+      updatedAt: now,
+      memberIds: memberIds,
+    );
+
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.insert('split_settlement_groups', sg.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        for (final mId in memberIds) {
+          await db.insert(
+            'split_settlement_group_members',
+            {
+              'id': _uuid.v4(),
+              'group_id': groupId,
+              'settlement_group_id': sg.id,
+              'member_id': mId,
+              'created_at': now.toIso8601String(),
+            },
+            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+          );
+        }
+      } catch (e) {
+        debugPrint('Local createSettlementGroup error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_settlement_groups').insert(sg.toMap());
+      if (memberIds.isNotEmpty) {
+        final mappings = memberIds.map((mId) => {
+          'id': _uuid.v4(),
+          'group_id': groupId,
+          'settlement_group_id': sg.id,
+          'member_id': mId,
+          'created_at': now.toIso8601String(),
+        }).toList();
+        await _db.from('split_settlement_group_members').insert(mappings);
+      }
+    } catch (e) {
+      debugPrint('Cloud createSettlementGroup error, queued offline: $e');
+      await _enqueue('INSERT', 'split_settlement_groups', sg.id, sg.toMap());
+      for (final mId in memberIds) {
+        final mappingId = _uuid.v4();
+        await _enqueue('INSERT', 'split_settlement_group_members', mappingId, {
+          'id': mappingId,
+          'group_id': groupId,
+          'settlement_group_id': sg.id,
+          'member_id': mId,
+          'created_at': now.toIso8601String(),
+        });
+      }
+    }
+
+    return sg;
+  }
+
+  Future<void> updateSettlementGroup({
+    required String settlementGroupId,
+    required String groupId,
+    required String name,
+    required List<String> memberIds,
+  }) async {
+    final now = DateTime.now();
+    final payload = {
+      'name': name.trim(),
+      'updated_at': now.toIso8601String(),
+    };
+
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.update('split_settlement_groups', payload, where: 'id = ?', whereArgs: [settlementGroupId]);
+        await db.delete('split_settlement_group_members', where: 'settlement_group_id = ?', whereArgs: [settlementGroupId]);
+        for (final mId in memberIds) {
+          await db.insert(
+            'split_settlement_group_members',
+            {
+              'id': _uuid.v4(),
+              'group_id': groupId,
+              'settlement_group_id': settlementGroupId,
+              'member_id': mId,
+              'created_at': now.toIso8601String(),
+            },
+            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+          );
+        }
+      } catch (e) {
+        debugPrint('Local updateSettlementGroup error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_settlement_groups').update(payload).eq('id', settlementGroupId);
+      await _db.from('split_settlement_group_members').delete().eq('settlement_group_id', settlementGroupId);
+      if (memberIds.isNotEmpty) {
+        final mappings = memberIds.map((mId) => {
+          'id': _uuid.v4(),
+          'group_id': groupId,
+          'settlement_group_id': settlementGroupId,
+          'member_id': mId,
+          'created_at': now.toIso8601String(),
+        }).toList();
+        await _db.from('split_settlement_group_members').insert(mappings);
+      }
+    } catch (e) {
+      debugPrint('Cloud updateSettlementGroup error, queued offline: $e');
+      await _enqueue('UPDATE', 'split_settlement_groups', settlementGroupId, payload);
+    }
+  }
+
+  Future<void> deleteSettlementGroup(String settlementGroupId) async {
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.delete('split_settlement_group_members', where: 'settlement_group_id = ?', whereArgs: [settlementGroupId]);
+        await db.delete('split_settlement_groups', where: 'id = ?', whereArgs: [settlementGroupId]);
+      } catch (e) {
+        debugPrint('Local deleteSettlementGroup error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_settlement_group_members').delete().eq('settlement_group_id', settlementGroupId);
+      await _db.from('split_settlement_groups').delete().eq('id', settlementGroupId);
+    } catch (e) {
+      debugPrint('Cloud deleteSettlementGroup error, queued offline: $e');
+      await _enqueue('DELETE', 'split_settlement_groups', settlementGroupId, null);
+    }
+  }
+
+  Future<List<SplitSettlementGroup>> getSettlementGroups(String groupId) async {
+    final Map<String, SplitSettlementGroup> groupMap = {};
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        final rows = await db.query(
+          'split_settlement_groups',
+          where: 'group_id = ?',
+          whereArgs: [groupId],
+          orderBy: 'created_at ASC',
+        );
+        for (final row in rows) {
+          final sgId = row['id'] as String;
+          final memberRows = await db.query(
+            'split_settlement_group_members',
+            columns: ['member_id'],
+            where: 'settlement_group_id = ?',
+            whereArgs: [sgId],
+          );
+          final mIds = memberRows.map((r) => r['member_id'] as String).toList();
+          groupMap[sgId] = SplitSettlementGroup.fromMap(row, memberIds: mIds);
+        }
+      } catch (e) {
+        debugPrint('Local getSettlementGroups error: $e');
+      }
+    }
+
+    try {
+      final rows = await _db
+          .from('split_settlement_groups')
+          .select()
+          .eq('group_id', groupId)
+          .order('created_at', ascending: true);
+
+      final cloudGroups = (rows as List).map((r) => SplitSettlementGroup.fromMap(r)).toList();
+      for (final sg in cloudGroups) {
+        final memberRows = await _db
+            .from('split_settlement_group_members')
+            .select('member_id')
+            .eq('settlement_group_id', sg.id);
+        final mIds = (memberRows as List).map((r) => r['member_id'] as String).toList();
+        final fullGroup = sg.copyWith(memberIds: mIds);
+        groupMap[sg.id] = fullGroup;
+
+        if (!kIsWeb) {
+          try {
+            final db = await _localDb;
+            await db.insert('split_settlement_groups', fullGroup.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+            for (final mid in mIds) {
+              await db.insert('split_settlement_group_members', {
+                'id': '${sg.id}_$mid',
+                'group_id': groupId,
+                'settlement_group_id': sg.id,
+                'member_id': mid,
+                'created_at': DateTime.now().toIso8601String(),
+              }, conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('Cloud getSettlementGroups error, returning cached: $e');
+    }
+
+    final list = groupMap.values.toList();
+    list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return list;
   }
 
   // --- Balance Calculation (pure math, 100% offline & local) ---

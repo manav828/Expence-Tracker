@@ -13,6 +13,8 @@ class SplitProvider with ChangeNotifier {
   final Map<String, List<Settlement>> _settlements = {};
   final Map<String, Map<String, double>> _balances = {};
   final Map<String, List<SplitShare>> _shares = {};
+  final Map<String, List<SplitExpenseGroup>> _expenseGroups = {};
+  final Map<String, List<SplitSettlementGroup>> _settlementGroups = {};
   final Map<String, bool> _simplifyDebts = {};
   bool _isLoading = false;
   bool _hasPendingSync = false;
@@ -28,6 +30,8 @@ class SplitProvider with ChangeNotifier {
   Map<String, List<SplitExpense>> get expenses => _expenses;
   Map<String, List<Settlement>> get settlements => _settlements;
   Map<String, Map<String, double>> get balances => _balances;
+  Map<String, List<SplitExpenseGroup>> get expenseGroups => _expenseGroups;
+  Map<String, List<SplitSettlementGroup>> get settlementGroups => _settlementGroups;
   bool get isLoading => _isLoading;
   bool get hasPendingSync => _hasPendingSync;
   String? get error => _error;
@@ -37,6 +41,8 @@ class SplitProvider with ChangeNotifier {
   List<SplitExpense> getExpensesForGroup(String groupId) => _expenses[groupId] ?? [];
   List<Settlement> getSettlementsForGroup(String groupId) => _settlements[groupId] ?? [];
   Map<String, double> getBalancesForGroup(String groupId) => _balances[groupId] ?? {};
+  List<SplitExpenseGroup> getExpenseGroupsForGroup(String groupId) => _expenseGroups[groupId] ?? [];
+  List<SplitSettlementGroup> getSettlementGroupsForGroup(String groupId) => _settlementGroups[groupId] ?? [];
 
   SplitProvider() {
     _init();
@@ -137,6 +143,8 @@ class SplitProvider with ChangeNotifier {
       final setts = await SplitService.instance.getSettlements(groupId);
       final shares = await SplitService.instance.getAllSharesForGroup(groupId);
       final bals = await SplitService.instance.computeBalances(groupId);
+      final egs = await SplitService.instance.getExpenseGroups(groupId);
+      final sgs = await SplitService.instance.getSettlementGroups(groupId);
 
       final prefs = await SharedPreferences.getInstance();
       _simplifyDebts[groupId] = prefs.getBool('split_simplify_debts_$groupId') ?? true;
@@ -146,6 +154,8 @@ class SplitProvider with ChangeNotifier {
       _settlements[groupId] = setts;
       _shares[groupId] = shares;
       _balances[groupId] = bals;
+      _expenseGroups[groupId] = egs;
+      _settlementGroups[groupId] = sgs;
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -339,6 +349,8 @@ class SplitProvider with ChangeNotifier {
     required String toMemberId,
     required double amount,
     String? note,
+    String? fromSettlementGroupId,
+    String? toSettlementGroupId,
   }) async {
     await SplitService.instance.recordSettlement(
       groupId: groupId,
@@ -346,9 +358,111 @@ class SplitProvider with ChangeNotifier {
       toMemberId: toMemberId,
       amount: amount,
       note: note,
+      fromSettlementGroupId: fromSettlementGroupId,
+      toSettlementGroupId: toSettlementGroupId,
     );
     await loadGroupDetail(groupId);
     _checkPendingSync();
+  }
+
+  // --- Module A: Expense Member Groups Management ---
+
+  Future<SplitExpenseGroup> createExpenseGroup({
+    required String groupId,
+    required String name,
+    String? description,
+    String? icon,
+    required List<String> memberIds,
+  }) async {
+    final eg = await SplitService.instance.createExpenseGroup(
+      groupId: groupId,
+      name: name,
+      description: description,
+      icon: icon,
+      memberIds: memberIds,
+    );
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+    return eg;
+  }
+
+  Future<void> updateExpenseGroup({
+    required String expenseGroupId,
+    required String groupId,
+    required String name,
+    String? description,
+    String? icon,
+    required List<String> memberIds,
+  }) async {
+    await SplitService.instance.updateExpenseGroup(
+      expenseGroupId: expenseGroupId,
+      name: name,
+      description: description,
+      icon: icon,
+      memberIds: memberIds,
+    );
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
+  Future<void> deleteExpenseGroup({
+    required String expenseGroupId,
+    required String groupId,
+  }) async {
+    await SplitService.instance.deleteExpenseGroup(expenseGroupId);
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
+  // --- Module B: Combined Settlement Groups Management ---
+
+  Future<SplitSettlementGroup> createSettlementGroup({
+    required String groupId,
+    required String name,
+    required List<String> memberIds,
+  }) async {
+    final sg = await SplitService.instance.createSettlementGroup(
+      groupId: groupId,
+      name: name,
+      memberIds: memberIds,
+    );
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+    return sg;
+  }
+
+  Future<void> updateSettlementGroup({
+    required String settlementGroupId,
+    required String groupId,
+    required String name,
+    required List<String> memberIds,
+  }) async {
+    await SplitService.instance.updateSettlementGroup(
+      settlementGroupId: settlementGroupId,
+      groupId: groupId,
+      name: name,
+      memberIds: memberIds,
+    );
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
+  Future<void> deleteSettlementGroup({
+    required String settlementGroupId,
+    required String groupId,
+  }) async {
+    await SplitService.instance.deleteSettlementGroup(settlementGroupId);
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
+  CombinedBalancesResult getCombinedBalancesResult(String groupId) {
+    final individualBalances = _balances[groupId] ?? {};
+    final settlementGroups = _settlementGroups[groupId] ?? [];
+    return aggregateCombinedBalances(
+      individualBalances: individualBalances,
+      settlementGroups: settlementGroups,
+    );
   }
 
   Future<void> addMember(String groupId, String name) async {
@@ -395,18 +509,23 @@ class SplitProvider with ChangeNotifier {
 
   List<Debt> getDebtsForGroup(String groupId, {bool? forceSimplify}) {
     final simplify = forceSimplify ?? isSimplifyDebtsEnabled(groupId);
+    final settlementGroups = _settlementGroups[groupId] ?? [];
     if (simplify) {
       final bals = _balances[groupId];
       if (bals == null || bals.isEmpty) return [];
-      return simplifyDebts(bals);
+      return simplifyDebtsWithGroups(
+        individualBalances: bals,
+        settlementGroups: settlementGroups,
+      );
     } else {
       final exps = _expenses[groupId] ?? [];
       final shares = _shares[groupId] ?? [];
       final setts = _settlements[groupId] ?? [];
-      return calculateDirectDebts(
+      return calculateDirectDebtsWithGroups(
         expenses: exps,
         shares: shares,
         settlements: setts,
+        settlementGroups: settlementGroups,
       );
     }
   }
