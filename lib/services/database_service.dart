@@ -92,6 +92,7 @@ class DatabaseService {
           category TEXT NOT NULL,
           payment_method TEXT NOT NULL,
           comment TEXT,
+          receipt_url TEXT,
           expense_date INTEGER NOT NULL,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
@@ -111,7 +112,27 @@ class DatabaseService {
       // Column already exists
     }
     try {
+      await db.execute('ALTER TABLE expenses ADD COLUMN receipt_url TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
       await db.execute('ALTER TABLE split_groups ADD COLUMN image_url TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
+      await db.execute('ALTER TABLE split_expenses ADD COLUMN receipt_url TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
+      await db.execute('ALTER TABLE split_groups ADD COLUMN user_id TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
+      await db.execute('ALTER TABLE split_members ADD COLUMN user_id TEXT');
     } catch (_) {
       // Column already exists
     }
@@ -141,6 +162,7 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS split_groups (
           id TEXT PRIMARY KEY,
+          user_id TEXT,
           name TEXT NOT NULL,
           description TEXT,
           image_url TEXT,
@@ -153,6 +175,7 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS split_members (
           id TEXT PRIMARY KEY,
           group_id TEXT NOT NULL,
+          user_id TEXT,
           name TEXT NOT NULL,
           phone TEXT,
           joined_at TEXT NOT NULL
@@ -168,6 +191,7 @@ class DatabaseService {
           split_type TEXT NOT NULL,
           category TEXT,
           note TEXT,
+          receipt_url TEXT,
           added_by_member_id TEXT NOT NULL,
           created_at TEXT NOT NULL
       )
@@ -256,6 +280,7 @@ class DatabaseService {
         category: expense.category,
         paymentMethod: expense.paymentMethod,
         comment: expense.comment,
+        receiptUrl: expense.receiptUrl,
         expenseDate: expense.expenseDate,
         createdAt: expense.createdAt,
         updatedAt: expense.updatedAt,
@@ -272,6 +297,7 @@ class DatabaseService {
       category: expense.category,
       paymentMethod: expense.paymentMethod,
       comment: expense.comment,
+      receiptUrl: expense.receiptUrl,
       expenseDate: expense.expenseDate,
       createdAt: expense.createdAt,
       updatedAt: expense.updatedAt,

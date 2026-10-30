@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/add_expense_sheet.dart';
+import '../widgets/receipt_attachment_sheet.dart';
 import '../providers/budget_provider.dart';
 import 'budget_screen.dart';
 import 'category_detail_screen.dart';
@@ -1107,6 +1108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 time: '$dateStr • ${expense.paymentMethod}',
                 amount: '-₹${expense.amount.toStringAsFixed(2)}',
                 status: 'Cleared',
+                receiptUrl: expense.receiptUrl,
                 onTap: () {
                   showModalBottomSheet(
                     context: context,
@@ -1160,6 +1162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String time,
     required String amount,
     required String status,
+    String? receiptUrl,
     VoidCallback? onTap,
   }) {
     return Container(
@@ -1243,6 +1246,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ],
                       ),
+                      if (receiptUrl != null && receiptUrl.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        GestureDetector(
+                          onTap: () => FullScreenReceiptViewer.show(
+                            context,
+                            imageUrl: receiptUrl,
+                            title: '$title Receipt',
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF006948).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.25)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.receipt_long, size: 11, color: Color(0xFF006948)),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Bill Attached',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF006948),
+                                  ),
+                                ),
+                                SizedBox(width: 2),
+                                Icon(Icons.zoom_in, size: 11, color: Color(0xFF006948)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -105,6 +105,94 @@ class PixabayService {
     return 'travel vacation landscape';
   }
 
+  /// Curated preset banners for instant selection
+  static const List<Map<String, String>> curatedPresets = [
+    {
+      'label': 'Goa Beach',
+      'url': 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Mountains',
+      'url': 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Dinner & Food',
+      'url': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Flat & Rent',
+      'url': 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Rajasthan Palace',
+      'url': 'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Party & Night',
+      'url': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Road Trip',
+      'url': 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Office & Work',
+      'url': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Bali Indonesia',
+      'url': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Cafe & Coffee',
+      'url': 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'Tropical Vacation',
+      'url': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      'label': 'City Skyline',
+      'url': 'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=1200&q=80',
+    },
+  ];
+
+  /// Search images on Pixabay by query keyword
+  static Future<List<String>> searchImages(String query, {int perPage = 18}) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return [];
+
+    try {
+      if (ApiKeys.pixabayApiKey.isNotEmpty && ApiKeys.pixabayApiKey != 'YOUR_PIXABAY_API_KEY_HERE') {
+        final encoded = Uri.encodeComponent(cleanQuery);
+        final url = Uri.parse(
+          '$_baseUrl?key=${ApiKeys.pixabayApiKey}&q=$encoded&image_type=photo&orientation=horizontal&safesearch=true&per_page=$perPage',
+        );
+
+        final res = await http.get(url).timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final data = json.decode(res.body) as Map<String, dynamic>;
+          final hits = data['hits'] as List<dynamic>?;
+          if (hits != null) {
+            final results = <String>[];
+            for (final h in hits) {
+              final map = h as Map<String, dynamic>;
+              final url = (map['largeImageURL'] ?? map['webformatURL']) as String?;
+              if (url != null && url.isNotEmpty) {
+                results.add(url);
+              }
+            }
+            if (results.isNotEmpty) return results;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('PixabayService search error: $e');
+    }
+
+    return [];
+  }
+
   /// Curated fallback images if Pixabay API has 0 hits or is unreachable
   static String getCuratedFallback(String name) {
     final lower = name.toLowerCase();

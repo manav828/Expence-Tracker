@@ -59,20 +59,30 @@ void main() {
 
     // Verify Total Expenses Card
     expect(find.text('TOTAL EXPENSES'), findsOneWidget);
-    expect(find.text('₹2950.00'), findsOneWidget);
-    expect(find.text('2 Transactions'), findsOneWidget);
+    expect(find.textContaining('2,950.00'), findsWidgets);
+    expect(find.textContaining('2 transactions'), findsOneWidget);
 
-    // Verify Where Your Money Went Section
-    expect(find.text('Where Your Money Went'), findsOneWidget);
-    expect(find.text('Food & Dining'), findsWidgets);
-    expect(find.text('Tech & Gear'), findsWidgets);
+    // Verify 3-Way Mode Switcher
+    expect(find.text('Ledger'), findsOneWidget);
+    expect(find.text('Calendar'), findsOneWidget);
+    expect(find.text('Breakdown'), findsOneWidget);
 
-    // Verify Daily Spending Calendar is preserved
-    expect(find.text('Daily Spending Calendar'), findsOneWidget);
+    // Verify Category filter chips are present in Ledger view
+    expect(find.textContaining('Food & Dining'), findsWidgets);
+    expect(find.textContaining('Tech & Gear'), findsWidgets);
 
     // Verify Transactions Ledger & record entries
-    expect(find.text('Transactions Ledger'), findsOneWidget);
     expect(find.text('Lunch with team'), findsOneWidget);
     expect(find.text('Mechanical Keyboard'), findsOneWidget);
+
+    // Switch to Calendar mode
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+    expect(find.text('<₹2000'), findsOneWidget);
+
+    // Switch to Breakdown mode
+    await tester.tap(find.text('Breakdown'));
+    await tester.pumpAndSettle();
+    expect(find.text('Categories'), findsOneWidget);
   });
 }

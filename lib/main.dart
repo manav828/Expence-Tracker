@@ -589,7 +589,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _currentIndex == index;
     return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        setState(() => _currentIndex = index);
+        if (index == 2) {
+          context.read<SplitProvider>().loadGroups(isBackgroundRefresh: true);
+        }
+      },
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

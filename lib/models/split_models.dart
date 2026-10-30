@@ -3,6 +3,7 @@
 // ─── Group ────────────────────────────────────────────────────────────────────
 class SplitGroup {
   final String id;
+  final String? userId;
   final String name;
   final String? description;
   final String? imageUrl;
@@ -12,6 +13,7 @@ class SplitGroup {
 
   SplitGroup({
     required this.id,
+    this.userId,
     required this.name,
     this.description,
     this.imageUrl,
@@ -22,6 +24,7 @@ class SplitGroup {
 
   Map<String, dynamic> toMap() => {
         'id': id,
+        'user_id': userId,
         'name': name,
         'description': description,
         'image_url': imageUrl,
@@ -32,6 +35,7 @@ class SplitGroup {
 
   factory SplitGroup.fromMap(Map<String, dynamic> m) => SplitGroup(
         id: m['id'] as String,
+        userId: m['user_id'] as String?,
         name: m['name'] as String,
         description: m['description'] as String?,
         imageUrl: m['image_url'] as String?,
@@ -40,8 +44,14 @@ class SplitGroup {
         createdAt: DateTime.parse(m['created_at'] as String),
       );
 
-  SplitGroup copyWith({String? name, String? description, String? imageUrl}) => SplitGroup(
+  SplitGroup copyWith({
+    String? name,
+    String? description,
+    String? imageUrl,
+    String? userId,
+  }) => SplitGroup(
         id: id,
+        userId: userId ?? this.userId,
         name: name ?? this.name,
         description: description ?? this.description,
         imageUrl: imageUrl ?? this.imageUrl,
@@ -55,6 +65,7 @@ class SplitGroup {
 class SplitMember {
   final String id;
   final String groupId;
+  final String? userId;
   final String name;
   final String? phone;
   final DateTime joinedAt;
@@ -62,6 +73,7 @@ class SplitMember {
   SplitMember({
     required this.id,
     required this.groupId,
+    this.userId,
     required this.name,
     this.phone,
     required this.joinedAt,
@@ -70,6 +82,7 @@ class SplitMember {
   Map<String, dynamic> toMap() => {
         'id': id,
         'group_id': groupId,
+        'user_id': userId,
         'name': name,
         'phone': phone,
         'joined_at': joinedAt.toIso8601String(),
@@ -78,6 +91,7 @@ class SplitMember {
   factory SplitMember.fromMap(Map<String, dynamic> m) => SplitMember(
         id: m['id'] as String,
         groupId: m['group_id'] as String,
+        userId: m['user_id'] as String?,
         name: m['name'] as String,
         phone: m['phone'] as String?,
         joinedAt: DateTime.parse(m['joined_at'] as String),
@@ -121,6 +135,7 @@ class SplitExpense {
   final SplitType splitType;
   final String? category;
   final String? note;
+  final String? receiptUrl;
   final String addedByMemberId;
   final DateTime createdAt;
 
@@ -133,6 +148,7 @@ class SplitExpense {
     required this.splitType,
     this.category,
     this.note,
+    this.receiptUrl,
     required this.addedByMemberId,
     required this.createdAt,
   });
@@ -146,6 +162,7 @@ class SplitExpense {
         'split_type': splitType.name,
         'category': category,
         'note': note,
+        'receipt_url': receiptUrl,
         'added_by_member_id': addedByMemberId,
         'created_at': createdAt.toIso8601String(),
       };
@@ -159,8 +176,33 @@ class SplitExpense {
         splitType: SplitTypeExt.fromString(m['split_type'] as String),
         category: m['category'] as String?,
         note: m['note'] as String?,
+        receiptUrl: m['receipt_url'] as String?,
         addedByMemberId: m['added_by_member_id'] as String,
         createdAt: DateTime.parse(m['created_at'] as String),
+      );
+
+  SplitExpense copyWith({
+    String? title,
+    double? totalAmount,
+    String? paidByMemberId,
+    SplitType? splitType,
+    String? category,
+    String? note,
+    String? receiptUrl,
+    String? addedByMemberId,
+  }) =>
+      SplitExpense(
+        id: id,
+        groupId: groupId,
+        title: title ?? this.title,
+        totalAmount: totalAmount ?? this.totalAmount,
+        paidByMemberId: paidByMemberId ?? this.paidByMemberId,
+        splitType: splitType ?? this.splitType,
+        category: category ?? this.category,
+        note: note ?? this.note,
+        receiptUrl: receiptUrl ?? this.receiptUrl,
+        addedByMemberId: addedByMemberId ?? this.addedByMemberId,
+        createdAt: createdAt,
       );
 }
 
@@ -298,3 +340,73 @@ List<Debt> simplifyDebts(Map<String, double> balances) {
 
   return debts;
 }
+
+/// Direct (unsimplified) pairwise debts:
+/// Calculates direct who-owes-whom balances based purely on pairwise expenses and settlements,
+/// without rerouting payments through intermediaries.
+List<Debt> calculateDirectDebts({
+  required List<SplitExpense> expenses,
+  required List<SplitShare> shares,
+  required List<Settlement> settlements,
+}) {
+  if (expenses.isEmpty && settlements.isEmpty) return [];
+
+  // Map of expenseId -> SplitExpense for quick lookup
+  final expMap = {for (final e in expenses) e.id: e};
+
+  // pairwiseOwed[debtorId][creditorId] = amount debtor owes creditor
+  final pairwiseOwed = <String, Map<String, double>>{};
+
+  void addDebt(String debtor, String creditor, double amount) {
+    if (debtor == creditor || amount == 0) return;
+    pairwiseOwed.putIfAbsent(debtor, () => {});
+    pairwiseOwed[debtor]![creditor] = (pairwiseOwed[debtor]![creditor] ?? 0.0) + amount;
+  }
+
+  // 1. Accumulate pairwise debts from expense shares
+  for (final share in shares) {
+    final exp = expMap[share.expenseId];
+    if (exp == null) continue;
+    final payerId = exp.paidByMemberId;
+    final consumerId = share.memberId;
+    if (consumerId != payerId && share.shareAmount > 0) {
+      addDebt(consumerId, payerId, share.shareAmount);
+    }
+  }
+
+  // 2. Reduce pairwise debts when settlements occur between members
+  for (final s in settlements) {
+    // fromMemberId paid toMemberId, reducing fromMemberId's debt to toMemberId
+    addDebt(s.fromMemberId, s.toMemberId, -s.amount);
+  }
+
+  // 3. Net between every unique pair of members
+  final debts = <Debt>[];
+  final allMembers = <String>{};
+  for (final d in pairwiseOwed.keys) {
+    allMembers.add(d);
+    allMembers.addAll(pairwiseOwed[d]!.keys);
+  }
+
+  final memberList = allMembers.toList()..sort();
+  for (int i = 0; i < memberList.length; i++) {
+    for (int j = i + 1; j < memberList.length; j++) {
+      final a = memberList[i];
+      final b = memberList[j];
+      final aOwesB = pairwiseOwed[a]?[b] ?? 0.0;
+      final bOwesA = pairwiseOwed[b]?[a] ?? 0.0;
+      final net = double.parse((aOwesB - bOwesA).toStringAsFixed(2));
+
+      if (net > 0.009) {
+        debts.add(Debt(fromMemberId: a, toMemberId: b, amount: net));
+      } else if (net < -0.009) {
+        debts.add(Debt(fromMemberId: b, toMemberId: a, amount: net.abs()));
+      }
+    }
+  }
+
+  // Sort descending by amount for clean presentation
+  debts.sort((x, y) => y.amount.compareTo(x.amount));
+  return debts;
+}
+

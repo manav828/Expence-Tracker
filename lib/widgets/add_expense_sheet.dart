@@ -7,6 +7,7 @@ import '../providers/budget_provider.dart';
 import '../utils/category_icons.dart';
 import 'searchable_selection_sheet.dart';
 import 'category_icon_picker_dialog.dart';
+import 'receipt_attachment_sheet.dart';
 
 class AddExpenseSheet extends StatefulWidget {
   final Expense? expenseToEdit;
@@ -39,6 +40,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
   String? _category;
   String? _paymentMethod;
+  String? _receiptUrl;
   late DateTime _selectedDate;
 
   bool get isEditing => widget.expenseToEdit != null;
@@ -54,6 +56,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
       _category = e.category;
       _paymentMethod = e.paymentMethod;
       _commentController.text = e.comment ?? '';
+      _receiptUrl = e.receiptUrl;
       _selectedDate = DateTime.fromMillisecondsSinceEpoch(e.expenseDate);
     } else {
       if (widget.initialAmount != null && widget.initialAmount! > 0) {
@@ -302,6 +305,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           category: finalCategory,
           paymentMethod: finalPaymentMethod,
           comment: comment,
+          receiptUrl: _receiptUrl,
           expenseDate: _selectedDate.millisecondsSinceEpoch,
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         );
@@ -325,6 +329,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           category: finalCategory,
           paymentMethod: finalPaymentMethod,
           comment: comment,
+          receiptUrl: _receiptUrl,
           expenseDate: _selectedDate.millisecondsSinceEpoch,
           createdAt: DateTime.now().millisecondsSinceEpoch,
           updatedAt: DateTime.now().millisecondsSinceEpoch,
@@ -825,6 +830,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Bill & Receipt Attachment
+              _buildReceiptSection(),
               const SizedBox(height: 24),
 
               // Cancel + Submit Buttons
@@ -905,4 +914,165 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     ),
   );
 }
+
+  Widget _buildReceiptSection() {
+    const primaryColor = Color(0xFF006948);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Bill & Receipt (Optional)',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF131B2E)),
+            ),
+            if (_receiptUrl != null)
+              TextButton(
+                onPressed: () => setState(() => _receiptUrl = null),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Remove Bill', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_receiptUrl == null)
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () async {
+              final chosen = await showModalBottomSheet<String>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const ReceiptAttachmentSheet(),
+              );
+              if (chosen != null && chosen.isNotEmpty) {
+                setState(() => _receiptUrl = chosen);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.receipt_long_outlined, color: primaryColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Attach Bill or Invoice',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: primaryColor),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Upload photo to Cloudflare R2 or paste receipt link',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.add_circle_outline, color: primaryColor, size: 20),
+                ],
+              ),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: primaryColor.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => FullScreenReceiptViewer.show(
+                    context,
+                    imageUrl: _receiptUrl!,
+                    title: _commentController.text.trim().isNotEmpty
+                        ? _commentController.text.trim()
+                        : '$_category Bill',
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      width: 54,
+                      height: 54,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            _receiptUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.broken_image, size: 20, color: Colors.grey),
+                            ),
+                          ),
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            child: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: primaryColor, size: 15),
+                          SizedBox(width: 4),
+                          Text(
+                            'Receipt Attached',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF131B2E)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Stored securely on Cloudflare',
+                        style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => FullScreenReceiptViewer.show(
+                    context,
+                    imageUrl: _receiptUrl!,
+                    title: _commentController.text.trim().isNotEmpty
+                        ? _commentController.text.trim()
+                        : '$_category Bill',
+                  ),
+                  child: const Text('View', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: primaryColor)),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }

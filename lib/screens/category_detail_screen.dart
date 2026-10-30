@@ -1039,9 +1039,22 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    '${expense.paymentMethod} · $dateStr',
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF6D7A72)),
+                  Row(
+                    children: [
+                      Text(
+                        '${expense.paymentMethod} · $dateStr',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF6D7A72)),
+                      ),
+                      if (expense.receiptUrl != null && expense.receiptUrl!.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.receipt_long, size: 12, color: Color(0xFF006948)),
+                        const SizedBox(width: 2),
+                        const Text(
+                          'Bill',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

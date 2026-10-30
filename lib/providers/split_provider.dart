@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/split_models.dart';
 import '../services/split_service.dart';
 import '../services/pixabay_service.dart';
@@ -10,10 +12,13 @@ class SplitProvider with ChangeNotifier {
   final Map<String, List<SplitExpense>> _expenses = {};
   final Map<String, List<Settlement>> _settlements = {};
   final Map<String, Map<String, double>> _balances = {};
+  final Map<String, List<SplitShare>> _shares = {};
+  final Map<String, bool> _simplifyDebts = {};
   bool _isLoading = false;
   bool _hasPendingSync = false;
   String? _error;
   String? _currentMemberName; // the name used by this device in groups
+  StreamSubscription<AuthState>? _authSub;
 
   static const _groupIdsKey = 'split_group_ids_v1';
   static const _memberNameKey = 'split_member_name_v1';
@@ -37,10 +42,27 @@ class SplitProvider with ChangeNotifier {
     _init();
   }
 
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _currentMemberName = prefs.getString(_memberNameKey);
     await loadGroups();
+
+    // Listen to Supabase auth events (e.g. session restored from disk, login, user switch)
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.userUpdated) {
+        loadGroups(isBackgroundRefresh: true);
+      }
+    });
   }
 
   Future<void> setCurrentMemberName(String name) async {
@@ -73,12 +95,19 @@ class SplitProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final ids = prefs.getStringList(_groupIdsKey) ?? [];
-      if (ids.isEmpty) {
-        _groups = [];
-      } else {
-        _groups = await SplitService.instance.getGroupsByIds(ids);
-        await Future.wait(_groups.map((g) => loadGroupDetail(g.id)));
+      final localIds = await SplitService.instance.getAllLocalGroupIds();
+      final allLocalIds = {...ids, ...localIds}.toList();
+
+      // FETCH FROM DB (Supabase cloud first, with local SQLite offline fallback)
+      _groups = await SplitService.instance.fetchUserGroups(localKnownIds: allLocalIds);
+
+      // Keep local preferences updated with all discovered group IDs
+      final discoveredIds = _groups.map((g) => g.id).toList();
+      if (discoveredIds.isNotEmpty) {
+        await prefs.setStringList(_groupIdsKey, discoveredIds);
       }
+
+      await Future.wait(_groups.map((g) => loadGroupDetail(g.id)));
       _checkPendingSync();
 
       // Drain pending queue if online in background
@@ -106,10 +135,16 @@ class SplitProvider with ChangeNotifier {
       final members = await SplitService.instance.getMembers(groupId);
       final exps = await SplitService.instance.getExpenses(groupId);
       final setts = await SplitService.instance.getSettlements(groupId);
+      final shares = await SplitService.instance.getAllSharesForGroup(groupId);
       final bals = await SplitService.instance.computeBalances(groupId);
+
+      final prefs = await SharedPreferences.getInstance();
+      _simplifyDebts[groupId] = prefs.getBool('split_simplify_debts_$groupId') ?? true;
+
       _members[groupId] = members;
       _expenses[groupId] = exps;
       _settlements[groupId] = setts;
+      _shares[groupId] = shares;
       _balances[groupId] = bals;
       notifyListeners();
     } catch (e) {
@@ -137,8 +172,13 @@ class SplitProvider with ChangeNotifier {
       imageUrl: finalImageUrl,
       createdBy: createdByName,
     );
-    // Add creator as first member
-    await SplitService.instance.addMember(groupId: group.id, name: createdByName);
+    // Add creator as first member with their auth user_id
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    await SplitService.instance.addMember(
+      groupId: group.id,
+      name: createdByName,
+      userId: currentUser?.id,
+    );
     // Add other members
     for (final mn in memberNames) {
       if (mn.trim().isNotEmpty) {
@@ -152,6 +192,7 @@ class SplitProvider with ChangeNotifier {
       ids.add(group.id);
       await prefs.setStringList(_groupIdsKey, ids);
     }
+    _groups.removeWhere((g) => g.id == group.id);
     _groups.insert(0, group);
     await loadGroupDetail(group.id);
     _checkPendingSync();
@@ -162,13 +203,35 @@ class SplitProvider with ChangeNotifier {
   Future<SplitGroup?> joinGroupByInviteCode(String code, String memberName) async {
     final group = await SplitService.instance.getGroupByInviteCode(code);
     if (group == null) return null;
-    // Add this user as member if not already present
     final existingMembers = await SplitService.instance.getMembers(group.id);
-    final alreadyMember = existingMembers.any(
-      (m) => m.name.toLowerCase().trim() == memberName.toLowerCase().trim(),
-    );
-    if (!alreadyMember) {
-      await SplitService.instance.addMember(groupId: group.id, name: memberName);
+    final currentUser = Supabase.instance.client.auth.currentUser;
+
+    // 1. Check if there is an existing manual member with matching name
+    SplitMember? matchedManual;
+    for (final m in existingMembers) {
+      if ((m.userId == null || m.userId!.isEmpty) &&
+          m.name.trim().toLowerCase() == memberName.trim().toLowerCase()) {
+        matchedManual = m;
+        break;
+      }
+    }
+
+    if (matchedManual != null && currentUser?.id != null) {
+      // Auto-assign / claim: links account to existing member so all previous expenses & shares are immediately theirs!
+      await SplitService.instance.claimMember(matchedManual.id, currentUser!.id);
+    } else {
+      // 2. Check if already member
+      final alreadyMember = existingMembers.any(
+        (m) => (currentUser?.id != null && m.userId == currentUser!.id) ||
+               m.name.trim().toLowerCase() == memberName.trim().toLowerCase(),
+      );
+      if (!alreadyMember) {
+        await SplitService.instance.addMember(
+          groupId: group.id,
+          name: memberName,
+          userId: currentUser?.id,
+        );
+      }
     }
     // Save locally
     final prefs = await SharedPreferences.getInstance();
@@ -218,6 +281,7 @@ class SplitProvider with ChangeNotifier {
     required Map<String, double> shares,
     String? category,
     String? note,
+    String? receiptUrl,
     required String addedByMemberId,
   }) async {
     await SplitService.instance.addExpense(
@@ -229,6 +293,7 @@ class SplitProvider with ChangeNotifier {
       shares: shares,
       category: category,
       note: note,
+      receiptUrl: receiptUrl,
       addedByMemberId: addedByMemberId,
     );
     await loadGroupDetail(groupId);
@@ -245,6 +310,7 @@ class SplitProvider with ChangeNotifier {
     required Map<String, double> shares,
     String? category,
     String? note,
+    String? receiptUrl,
   }) async {
     await SplitService.instance.updateExpense(
       expenseId: expenseId,
@@ -255,6 +321,7 @@ class SplitProvider with ChangeNotifier {
       shares: shares,
       category: category,
       note: note,
+      receiptUrl: receiptUrl,
     );
     await loadGroupDetail(groupId);
     _checkPendingSync();
@@ -296,13 +363,59 @@ class SplitProvider with ChangeNotifier {
     _checkPendingSync();
   }
 
+  Future<void> updateMemberName(String groupId, String memberId, String newName) async {
+    await SplitService.instance.updateMemberName(memberId, newName);
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
+  Future<void> mergeMembers(String groupId, String fromMemberId, String toMemberId) async {
+    await SplitService.instance.mergeMembers(groupId, fromMemberId, toMemberId);
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
   Future<List<SplitShare>> getSharesForExpense(String expenseId) async {
     return SplitService.instance.getSharesForExpense(expenseId);
   }
 
-  List<Debt> getDebtsForGroup(String groupId) {
-    final bals = _balances[groupId];
-    if (bals == null || bals.isEmpty) return [];
-    return simplifyDebts(bals);
+  bool isSimplifyDebtsEnabled(String groupId) => _simplifyDebts[groupId] ?? true;
+
+  Future<void> setSimplifyDebts(String groupId, bool enabled) async {
+    _simplifyDebts[groupId] = enabled;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('split_simplify_debts_$groupId', enabled);
+  }
+
+  Future<void> toggleSimplifyDebts(String groupId) async {
+    final current = isSimplifyDebtsEnabled(groupId);
+    await setSimplifyDebts(groupId, !current);
+  }
+
+  List<Debt> getDebtsForGroup(String groupId, {bool? forceSimplify}) {
+    final simplify = forceSimplify ?? isSimplifyDebtsEnabled(groupId);
+    if (simplify) {
+      final bals = _balances[groupId];
+      if (bals == null || bals.isEmpty) return [];
+      return simplifyDebts(bals);
+    } else {
+      final exps = _expenses[groupId] ?? [];
+      final shares = _shares[groupId] ?? [];
+      final setts = _settlements[groupId] ?? [];
+      return calculateDirectDebts(
+        expenses: exps,
+        shares: shares,
+        settlements: setts,
+      );
+    }
+  }
+
+  /// Calculates how many transactions are eliminated when Simplify Debts is turned ON.
+  int getSavedPaymentsCount(String groupId) {
+    final direct = getDebtsForGroup(groupId, forceSimplify: false);
+    final simplified = getDebtsForGroup(groupId, forceSimplify: true);
+    final diff = direct.length - simplified.length;
+    return diff > 0 ? diff : 0;
   }
 }

@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/split_models.dart';
 import 'database_service.dart';
+import 'auth_service.dart';
 
 class SplitService {
   static final SplitService instance = SplitService._();
@@ -72,11 +73,34 @@ class SplitService {
         try {
           if (action == 'INSERT' || action == 'UPSERT') {
             if (payload != null) {
-              await _db.from(table).upsert(payload);
+              try {
+                await _db.from(table).upsert(payload);
+              } catch (e) {
+                if (table == 'split_groups' && (payload.containsKey('image_url') || payload.containsKey('user_id'))) {
+                  final clean = Map<String, dynamic>.from(payload)
+                    ..remove('image_url')
+                    ..remove('user_id');
+                  await _db.from(table).upsert(clean);
+                } else if (table == 'split_members' && payload.containsKey('user_id')) {
+                  final clean = Map<String, dynamic>.from(payload)..remove('user_id');
+                  await _db.from(table).upsert(clean);
+                } else {
+                  rethrow;
+                }
+              }
             }
           } else if (action == 'UPDATE') {
             if (payload != null) {
-              await _db.from(table).update(payload).eq('id', recordId);
+              try {
+                await _db.from(table).update(payload).eq('id', recordId);
+              } catch (e) {
+                if (table == 'split_groups' && payload.containsKey('image_url')) {
+                  final clean = Map<String, dynamic>.from(payload)..remove('image_url');
+                  await _db.from(table).update(clean).eq('id', recordId);
+                } else {
+                  rethrow;
+                }
+              }
             }
           } else if (action == 'DELETE') {
             await _db.from(table).delete().eq('id', recordId);
@@ -94,6 +118,18 @@ class SplitService {
       _isSyncing = false;
     }
     return syncedCount;
+  }
+
+  /// Get all group IDs that exist in the local SQLite database
+  Future<List<String>> getAllLocalGroupIds() async {
+    if (kIsWeb) return [];
+    try {
+      final db = await _localDb;
+      final res = await db.query('split_groups', columns: ['id']);
+      return res.map((r) => r['id'] as String).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Check if there are any pending offline items waiting to sync
@@ -120,8 +156,10 @@ class SplitService {
   }) async {
     final id = _uuid.v4();
     final inviteCode = _uuid.v4().substring(0, 8).toUpperCase();
+    final currentUser = Supabase.instance.client.auth.currentUser;
     final group = SplitGroup(
       id: id,
+      userId: currentUser?.id,
       name: name,
       description: description,
       imageUrl: imageUrl,
@@ -144,11 +182,151 @@ class SplitService {
     try {
       await _db.from('split_groups').insert(group.toMap());
     } catch (e) {
-      debugPrint('Cloud createGroup error, queued offline: $e');
-      await _enqueue('INSERT', 'split_groups', group.id, group.toMap());
+      debugPrint('Cloud createGroup initial error: $e');
+      bool cloudSuccess = false;
+      try {
+        final clean = Map<String, dynamic>.from(group.toMap())..remove('image_url');
+        await _db.from('split_groups').insert(clean);
+        cloudSuccess = true;
+      } catch (e2) {
+        debugPrint('Cloud createGroup without image_url error: $e2');
+        try {
+          final cleanNoUser = Map<String, dynamic>.from(group.toMap())
+            ..remove('image_url')
+            ..remove('user_id');
+          await _db.from('split_groups').insert(cleanNoUser);
+          cloudSuccess = true;
+        } catch (e3) {
+          debugPrint('Cloud createGroup without user_id error: $e3');
+        }
+      }
+      if (!cloudSuccess) {
+        await _enqueue('INSERT', 'split_groups', group.id, group.toMap());
+      }
     }
 
     return group;
+  }
+
+  /// Fetches all groups for the authenticated user from Supabase DB,
+  /// with automatic local SQLite offline caching.
+  Future<List<SplitGroup>> fetchUserGroups({List<String>? localKnownIds}) async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final userId = currentUser?.id;
+    final displayName = AuthService.instance.userDisplayName;
+
+    List<SplitGroup> localGroups = [];
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        final res = await db.query('split_groups', orderBy: 'created_at DESC');
+        localGroups = res.map((m) => SplitGroup.fromMap(m)).toList();
+      } catch (e) {
+        debugPrint('Local fetchUserGroups error: $e');
+      }
+    }
+
+    try {
+      final Map<String, SplitGroup> cloudGroupsMap = {};
+      final Set<String> groupIdsToFetch = {};
+
+      if (localKnownIds != null) {
+        groupIdsToFetch.addAll(localKnownIds);
+      }
+      for (final g in localGroups) {
+        groupIdsToFetch.add(g.id);
+      }
+
+      // 1. Fetch groups created by this user_id in Supabase
+      if (userId != null && userId.isNotEmpty) {
+        try {
+          final res = await _db.from('split_groups').select().eq('user_id', userId);
+          for (final item in res as List) {
+            final g = SplitGroup.fromMap(item);
+            cloudGroupsMap[g.id] = g;
+            groupIdsToFetch.add(g.id);
+          }
+        } catch (e) {
+          debugPrint('fetchUserGroups by user_id error: $e');
+        }
+
+        // 2. Fetch groups where this user is registered as a member
+        try {
+          final memberRows = await _db.from('split_members').select('group_id').eq('user_id', userId);
+          for (final r in memberRows as List) {
+            groupIdsToFetch.add(r['group_id'] as String);
+          }
+        } catch (e) {
+          debugPrint('fetchUserGroups by member user_id error: $e');
+        }
+      }
+
+      // 3. Fallback for older groups: match creator display name
+      if (displayName.trim().isNotEmpty) {
+        try {
+          final res = await _db.from('split_groups').select().ilike('created_by', displayName.trim());
+          for (final item in res as List) {
+            final g = SplitGroup.fromMap(item);
+            cloudGroupsMap[g.id] = g;
+            groupIdsToFetch.add(g.id);
+          }
+        } catch (e) {
+          debugPrint('fetchUserGroups by display name error: $e');
+        }
+      }
+
+      // 4. Fetch any remaining IDs (from invite joins, local prefs, etc.)
+      final remainingIds = groupIdsToFetch.where((id) => !cloudGroupsMap.containsKey(id)).toList();
+      if (remainingIds.isNotEmpty) {
+        try {
+          final res = await _db.from('split_groups').select().inFilter('id', remainingIds);
+          for (final item in res as List) {
+            final g = SplitGroup.fromMap(item);
+            cloudGroupsMap[g.id] = g;
+          }
+        } catch (e) {
+          debugPrint('fetchUserGroups remaining IDs error: $e');
+        }
+      }
+
+      // Cache all discovered cloud groups into local SQLite (isolated try-catch so it never drops cloud data)
+      if (!kIsWeb && cloudGroupsMap.isNotEmpty) {
+        try {
+          final db = await _localDb;
+          final batch = db.batch();
+          for (final g in cloudGroupsMap.values) {
+            batch.insert('split_groups', g.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        } catch (e) {
+          debugPrint('Local SQLite cache error in fetchUserGroups: $e');
+        }
+      }
+
+      // Merge local and cloud groups
+      final map = <String, SplitGroup>{};
+      for (final g in localGroups) {
+        map[g.id] = g;
+      }
+      for (final g in cloudGroupsMap.values) {
+        final local = map[g.id];
+        if (local != null && local.imageUrl != null && g.imageUrl == null) {
+          map[g.id] = g.copyWith(imageUrl: local.imageUrl);
+        } else {
+          map[g.id] = g;
+        }
+      }
+
+      if (map.isNotEmpty) {
+        final list = map.values.toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      }
+    } catch (e) {
+      debugPrint('Cloud fetchUserGroups error: $e');
+    }
+
+    return localGroups;
   }
 
   Future<List<SplitGroup>> getGroupsByIds(List<String> groupIds) async {
@@ -187,7 +365,25 @@ class SplitService {
         }
         await batch.commit(noResult: true);
       }
-      return cloudGroups;
+
+      // MERGE: Combine local and cloud groups so local groups are never dropped
+      final map = <String, SplitGroup>{};
+      for (final g in localGroups) {
+        map[g.id] = g;
+      }
+      for (final g in cloudGroups) {
+        final local = map[g.id];
+        if (local != null && local.imageUrl != null && g.imageUrl == null) {
+          map[g.id] = g.copyWith(imageUrl: local.imageUrl);
+        } else {
+          map[g.id] = g;
+        }
+      }
+      if (map.isNotEmpty) {
+        final list = map.values.toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      }
     } catch (e) {
       debugPrint('Cloud getGroupsByIds error, returning local cached: $e');
     }
@@ -277,8 +473,20 @@ class SplitService {
     try {
       await _db.from('split_groups').update(updatePayload).eq('id', group.id);
     } catch (e) {
-      debugPrint('Cloud updateGroup error, queued offline: $e');
-      await _enqueue('UPDATE', 'split_groups', group.id, updatePayload);
+      debugPrint('Cloud updateGroup initial error: $e');
+      bool cloudSuccess = false;
+      if (updatePayload.containsKey('image_url')) {
+        try {
+          final clean = Map<String, dynamic>.from(updatePayload)..remove('image_url');
+          await _db.from('split_groups').update(clean).eq('id', group.id);
+          cloudSuccess = true;
+        } catch (e2) {
+          debugPrint('Cloud updateGroup without image_url error: $e2');
+        }
+      }
+      if (!cloudSuccess) {
+        await _enqueue('UPDATE', 'split_groups', group.id, updatePayload);
+      }
     }
   }
 
@@ -316,10 +524,16 @@ class SplitService {
 
   // --- Members ---
 
-  Future<SplitMember> addMember({required String groupId, required String name, String? phone}) async {
+  Future<SplitMember> addMember({
+    required String groupId,
+    required String name,
+    String? phone,
+    String? userId,
+  }) async {
     final member = SplitMember(
       id: _uuid.v4(),
       groupId: groupId,
+      userId: userId,
       name: name,
       phone: phone,
       joinedAt: DateTime.now(),
@@ -335,10 +549,24 @@ class SplitService {
     }
 
     try {
-      await _db.from('split_members').insert(member.toMap());
+      final payload = Map<String, dynamic>.from(member.toMap());
+      if (member.userId == null || member.userId!.isEmpty) {
+        payload.remove('user_id');
+      }
+      await _db.from('split_members').insert(payload);
     } catch (e) {
-      debugPrint('Cloud addMember error, queued offline: $e');
-      await _enqueue('INSERT', 'split_members', member.id, member.toMap());
+      debugPrint('Cloud addMember error: $e');
+      bool cloudSuccess = false;
+      try {
+        final clean = Map<String, dynamic>.from(member.toMap())..remove('user_id');
+        await _db.from('split_members').insert(clean);
+        cloudSuccess = true;
+      } catch (e2) {
+        debugPrint('Cloud addMember without user_id error: $e2');
+      }
+      if (!cloudSuccess) {
+        await _enqueue('INSERT', 'split_members', member.id, member.toMap());
+      }
     }
     return member;
   }
@@ -368,14 +596,31 @@ class SplitService {
           .order('joined_at', ascending: true);
       final cloudMembers = (res as List).map((m) => SplitMember.fromMap(m)).toList();
       if (!kIsWeb && cloudMembers.isNotEmpty) {
-        final db = await _localDb;
-        final batch = db.batch();
-        for (final m in cloudMembers) {
-          batch.insert('split_members', m.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        try {
+          final db = await _localDb;
+          final batch = db.batch();
+          for (final m in cloudMembers) {
+            batch.insert('split_members', m.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        } catch (e) {
+          debugPrint('Local SQLite cache error in getMembers: $e');
         }
-        await batch.commit(noResult: true);
       }
-      return cloudMembers;
+
+      // MERGE: Combine local and cloud members so members are never dropped
+      final map = <String, SplitMember>{};
+      for (final m in localMembers) {
+        map[m.id] = m;
+      }
+      for (final m in cloudMembers) {
+        map[m.id] = m;
+      }
+      if (map.isNotEmpty) {
+        final list = map.values.toList();
+        list.sort((a, b) => a.joinedAt.compareTo(b.joinedAt));
+        return list;
+      }
     } catch (e) {
       debugPrint('Cloud getMembers error, returning local cached: $e');
     }
@@ -424,6 +669,54 @@ class SplitService {
     }
   }
 
+  Future<void> claimMember(String memberId, String userId) async {
+    final payload = {'user_id': userId};
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.update('split_members', payload, where: 'id = ?', whereArgs: [memberId]);
+      } catch (e) {
+        debugPrint('Local claimMember error: $e');
+      }
+    }
+    try {
+      await _db.from('split_members').update(payload).eq('id', memberId);
+    } catch (e) {
+      debugPrint('Cloud claimMember error: $e');
+      await _enqueue('UPDATE', 'split_members', memberId, payload);
+    }
+  }
+
+  Future<void> mergeMembers(String groupId, String fromMemberId, String toMemberId) async {
+    if (fromMemberId == toMemberId) return;
+
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.update('split_expenses', {'paid_by_member_id': toMemberId}, where: 'paid_by_member_id = ?', whereArgs: [fromMemberId]);
+        await db.update('split_expenses', {'added_by_member_id': toMemberId}, where: 'added_by_member_id = ?', whereArgs: [fromMemberId]);
+        await db.update('split_shares', {'member_id': toMemberId}, where: 'member_id = ?', whereArgs: [fromMemberId]);
+        await db.update('settlements', {'from_member_id': toMemberId}, where: 'from_member_id = ?', whereArgs: [fromMemberId]);
+        await db.update('settlements', {'to_member_id': toMemberId}, where: 'to_member_id = ?', whereArgs: [fromMemberId]);
+        await db.delete('split_members', where: 'id = ?', whereArgs: [fromMemberId]);
+      } catch (e) {
+        debugPrint('Local mergeMembers error: $e');
+      }
+    }
+
+    try {
+      await _db.from('split_expenses').update({'paid_by_member_id': toMemberId}).eq('paid_by_member_id', fromMemberId);
+      await _db.from('split_expenses').update({'added_by_member_id': toMemberId}).eq('added_by_member_id', fromMemberId);
+      await _db.from('split_shares').update({'member_id': toMemberId}).eq('member_id', fromMemberId);
+      await _db.from('settlements').update({'from_member_id': toMemberId}).eq('from_member_id', fromMemberId);
+      await _db.from('settlements').update({'to_member_id': toMemberId}).eq('to_member_id', fromMemberId);
+      await _db.from('split_members').delete().eq('id', fromMemberId);
+    } catch (e) {
+      debugPrint('Cloud mergeMembers error: $e');
+      await _enqueue('DELETE', 'split_members', fromMemberId, null);
+    }
+  }
+
   // --- Expenses ---
 
   Future<SplitExpense> addExpense({
@@ -435,6 +728,7 @@ class SplitService {
     required Map<String, double> shares,
     String? category,
     String? note,
+    String? receiptUrl,
     required String addedByMemberId,
   }) async {
     final expense = SplitExpense(
@@ -446,6 +740,7 @@ class SplitService {
       splitType: splitType,
       category: category,
       note: note,
+      receiptUrl: receiptUrl,
       addedByMemberId: addedByMemberId,
       createdAt: DateTime.now(),
     );
@@ -499,6 +794,7 @@ class SplitService {
     required Map<String, double> shares,
     String? category,
     String? note,
+    String? receiptUrl,
   }) async {
     final updateData = {
       'title': title,
@@ -507,6 +803,7 @@ class SplitService {
       'split_type': splitType.name,
       'category': category,
       'note': note,
+      'receipt_url': receiptUrl,
     };
 
     final sharesObjects = shares.entries.map((e) => SplitShare(
@@ -573,14 +870,31 @@ class SplitService {
           .order('created_at', ascending: false);
       final cloudExpenses = (res as List).map((m) => SplitExpense.fromMap(m)).toList();
       if (!kIsWeb && cloudExpenses.isNotEmpty) {
-        final db = await _localDb;
-        final batch = db.batch();
-        for (final exp in cloudExpenses) {
-          batch.insert('split_expenses', exp.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        try {
+          final db = await _localDb;
+          final batch = db.batch();
+          for (final exp in cloudExpenses) {
+            batch.insert('split_expenses', exp.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        } catch (e) {
+          debugPrint('Local SQLite cache error in getExpenses: $e');
         }
-        await batch.commit(noResult: true);
       }
-      return cloudExpenses;
+
+      // MERGE: Combine local and cloud expenses
+      final map = <String, SplitExpense>{};
+      for (final exp in localExpenses) {
+        map[exp.id] = exp;
+      }
+      for (final exp in cloudExpenses) {
+        map[exp.id] = exp;
+      }
+      if (map.isNotEmpty) {
+        final list = map.values.toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      }
     } catch (e) {
       debugPrint('Cloud getExpenses error, returning local cached: $e');
     }
@@ -629,12 +943,16 @@ class SplitService {
       final res = await _db.from('split_shares').select().eq('expense_id', expenseId);
       final cloudShares = (res as List).map((m) => SplitShare.fromMap(m)).toList();
       if (!kIsWeb && cloudShares.isNotEmpty) {
-        final db = await _localDb;
-        final batch = db.batch();
-        for (final s in cloudShares) {
-          batch.insert('split_shares', s.toSqliteMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        try {
+          final db = await _localDb;
+          final batch = db.batch();
+          for (final s in cloudShares) {
+            batch.insert('split_shares', s.toSqliteMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        } catch (e) {
+          debugPrint('Local SQLite cache error in getAllSharesForGroup: $e');
         }
-        await batch.commit(noResult: true);
       }
       return cloudShares;
     } catch (e) {
@@ -677,14 +995,29 @@ class SplitService {
       final res = await _db.from('split_shares').select().inFilter('expense_id', ids);
       final cloudShares = (res as List).map((m) => SplitShare.fromMap(m)).toList();
       if (!kIsWeb && cloudShares.isNotEmpty) {
-        final db = await _localDb;
-        final batch = db.batch();
-        for (final s in cloudShares) {
-          batch.insert('split_shares', s.toSqliteMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        try {
+          final db = await _localDb;
+          final batch = db.batch();
+          for (final s in cloudShares) {
+            batch.insert('split_shares', s.toSqliteMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        } catch (e) {
+          debugPrint('Local SQLite cache error in getAllSharesForGroup: $e');
         }
-        await batch.commit(noResult: true);
       }
-      return cloudShares;
+
+      // MERGE: Combine local and cloud shares
+      final map = <String, SplitShare>{};
+      for (final s in localShares) {
+        map[s.id] = s;
+      }
+      for (final s in cloudShares) {
+        map[s.id] = s;
+      }
+      if (map.isNotEmpty) {
+        return map.values.toList();
+      }
     } catch (e) {
       debugPrint('Cloud getAllSharesForGroup error, returning local cached: $e');
     }
@@ -755,14 +1088,31 @@ class SplitService {
           .order('settled_at', ascending: false);
       final cloudSettlements = (res as List).map((m) => Settlement.fromMap(m)).toList();
       if (!kIsWeb && cloudSettlements.isNotEmpty) {
-        final db = await _localDb;
-        final batch = db.batch();
-        for (final sett in cloudSettlements) {
-          batch.insert('settlements', sett.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+        try {
+          final db = await _localDb;
+          final batch = db.batch();
+          for (final sett in cloudSettlements) {
+            batch.insert('settlements', sett.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        } catch (e) {
+          debugPrint('Local SQLite cache error in getSettlements: $e');
         }
-        await batch.commit(noResult: true);
       }
-      return cloudSettlements;
+
+      // MERGE: Combine local and cloud settlements
+      final map = <String, Settlement>{};
+      for (final sett in localSettlements) {
+        map[sett.id] = sett;
+      }
+      for (final sett in cloudSettlements) {
+        map[sett.id] = sett;
+      }
+      if (map.isNotEmpty) {
+        final list = map.values.toList();
+        list.sort((a, b) => b.settledAt.compareTo(a.settledAt));
+        return list;
+      }
     } catch (e) {
       debugPrint('Cloud getSettlements error, returning local cached: $e');
     }

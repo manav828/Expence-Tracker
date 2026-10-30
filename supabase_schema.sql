@@ -6,6 +6,7 @@
 -- 1. Split Groups Table
 CREATE TABLE IF NOT EXISTS public.split_groups (
     id TEXT PRIMARY KEY,
+    user_id TEXT,
     name TEXT NOT NULL,
     description TEXT,
     image_url TEXT,
@@ -13,16 +14,19 @@ CREATE TABLE IF NOT EXISTS public.split_groups (
     invite_code TEXT UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.split_groups ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE public.split_groups ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- 2. Split Members Table
 CREATE TABLE IF NOT EXISTS public.split_members (
     id TEXT PRIMARY KEY,
     group_id TEXT NOT NULL REFERENCES public.split_groups(id) ON DELETE CASCADE,
+    user_id TEXT,
     name TEXT NOT NULL,
     phone TEXT,
     joined_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.split_members ADD COLUMN IF NOT EXISTS user_id TEXT;
 
 -- 3. Split Expenses Table (Anyone can add on behalf of anyone)
 CREATE TABLE IF NOT EXISTS public.split_expenses (
@@ -34,6 +38,7 @@ CREATE TABLE IF NOT EXISTS public.split_expenses (
     split_type TEXT NOT NULL DEFAULT 'equal', -- 'equal', 'unequal', 'percentage'
     category TEXT,
     note TEXT,
+    receipt_url TEXT,
     added_by_member_id TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -66,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.user_expenses (
     category TEXT NOT NULL,
     payment_method TEXT NOT NULL,
     comment TEXT,
+    receipt_url TEXT,
     expense_date BIGINT NOT NULL, -- Epoch millis
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
@@ -89,10 +95,19 @@ ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_expenses ENABLE ROW LEVEL SECURITY;
 
 -- Splitwise tables: allow anonymous / authenticated access for instant web and app sharing by group invite code
+DROP POLICY IF EXISTS "Public read/write access for split_groups" ON public.split_groups;
 CREATE POLICY "Public read/write access for split_groups" ON public.split_groups FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read/write access for split_members" ON public.split_members;
 CREATE POLICY "Public read/write access for split_members" ON public.split_members FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read/write access for split_expenses" ON public.split_expenses;
 CREATE POLICY "Public read/write access for split_expenses" ON public.split_expenses FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read/write access for split_shares" ON public.split_shares;
 CREATE POLICY "Public read/write access for split_shares" ON public.split_shares FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read/write access for settlements" ON public.settlements;
 CREATE POLICY "Public read/write access for settlements" ON public.settlements FOR ALL USING (true) WITH CHECK (true);
 
 -- Personal expenses: STRICT multi-tenant user isolation (users can NEVER see or modify another user's expenses)

@@ -103,8 +103,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Data Storage Choice'), findsOneWidget);
-    expect(find.text('Cloud Storage (Recommended)'), findsOneWidget);
-    expect(find.text('Local Storage Only (Privacy First)'), findsOneWidget);
+    expect(find.text('Cloud Storage'), findsOneWidget);
+    expect(find.text('Local Storage'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
   });
 }

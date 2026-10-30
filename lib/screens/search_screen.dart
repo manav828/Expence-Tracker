@@ -5,6 +5,7 @@ import '../models/expense.dart';
 import '../models/search_filter.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/add_expense_sheet.dart';
+import '../widgets/receipt_attachment_sheet.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialCategory;
@@ -616,6 +617,41 @@ class _SearchScreenState extends State<SearchScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(fontSize: 10, color: Color(0xFF3D4A42)),
+                              ),
+                            ],
+                            if (expense.receiptUrl != null && expense.receiptUrl!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              GestureDetector(
+                                onTap: () => FullScreenReceiptViewer.show(
+                                  context,
+                                  imageUrl: expense.receiptUrl!,
+                                  title: '${expense.category} Receipt',
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.25)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.receipt_long, size: 12, color: Color(0xFF006948)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Bill Attached',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF006948),
+                                        ),
+                                      ),
+                                      SizedBox(width: 2),
+                                      Icon(Icons.zoom_in, size: 12, color: Color(0xFF006948)),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ],

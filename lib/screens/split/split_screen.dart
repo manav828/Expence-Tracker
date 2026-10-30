@@ -110,21 +110,23 @@ class _SplitScreenState extends State<SplitScreen> {
   Widget _buildEmptyState(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight,
-            ),
-            child: IntrinsicHeight(
+        return RefreshIndicator(
+          color: _primaryColor,
+          onRefresh: () => context.read<SplitProvider>().loadGroups(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+              ),
+            child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Spacer(flex: 2),
-
                     // 3D Empty State Illustration (properly bounded to eliminate top dead-space)
                     ConstrainedBox(
                       constraints: const BoxConstraints(
@@ -173,10 +175,19 @@ class _SplitScreenState extends State<SplitScreen> {
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
-                            ),
+                            onPressed: () async {
+                              final group = await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+                              );
+                              if (!context.mounted) return;
+                              if (group is SplitGroup) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => SplitGroupDetailScreen(group: group)),
+                                );
+                              }
+                            },
                             icon: const Icon(Icons.add_circle_outline, size: 18, color: Colors.white),
                             label: const Text('Create Group'),
                             style: ElevatedButton.styleFrom(
@@ -210,17 +221,16 @@ class _SplitScreenState extends State<SplitScreen> {
                         ),
                       ],
                     ),
-
-                    const Spacer(flex: 3),
                   ],
                 ),
               ),
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   // ─── 2. Populated State (Matching split_home_details.png Pixel-Perfect) ────
   Widget _buildGroupList(BuildContext context, SplitProvider sp) {
@@ -479,7 +489,7 @@ class _SplitScreenState extends State<SplitScreen> {
 
     // Compute balance for current user
     final balances = sp.getBalancesForGroup(group.id);
-    final myName = sp.currentMemberName ?? AuthService.instance.userDisplayName ?? 'You';
+    final myName = sp.currentMemberName ?? AuthService.instance.userDisplayName;
     double myBalance = 0.0;
     // Find matching member entry (case-insensitive)
     for (var entry in balances.entries) {
@@ -874,10 +884,19 @@ class _SplitScreenState extends State<SplitScreen> {
           const SizedBox(height: 10),
           FloatingActionButton.extended(
             heroTag: 'create_group_fab',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
-            ),
+            onPressed: () async {
+              final group = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+              );
+              if (!context.mounted) return;
+              if (group is SplitGroup) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => SplitGroupDetailScreen(group: group)),
+                );
+              }
+            },
             label: const Text('Create Group', style: TextStyle(fontWeight: FontWeight.w800)),
             icon: const Icon(Icons.add, size: 20),
             backgroundColor: _primaryColor,

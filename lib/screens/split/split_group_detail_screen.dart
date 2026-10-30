@@ -3,11 +3,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/split_provider.dart';
 import '../../models/split_models.dart';
+import '../../services/auth_service.dart';
 import '../../services/pixabay_service.dart';
 import 'add_split_expense_sheet.dart';
 import 'settle_up_screen.dart';
+import 'group_banner_picker_sheet.dart';
+import 'receipt_attachment_sheet.dart';
+
+const List<Color> _avatarColors = [
+  Color(0xFF006948), // Deep emerald
+  Color(0xFF4B41E1), // Indigo
+  Color(0xFF0284C7), // Sky blue
+  Color(0xFFD97706), // Amber
+  Color(0xFFDC2626), // Crimson
+  Color(0xFF7C3AED), // Purple
+];
 
 class SplitGroupDetailScreen extends StatefulWidget {
   final SplitGroup group;
@@ -110,36 +123,58 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor.withValues(alpha: 0.12),
+                        foregroundColor: _primaryColor,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
-                      onPressed: isRefreshingCover
-                          ? null
-                          : () async {
-                              setDialogState(() => isRefreshingCover = true);
-                              final searchName = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : _group.name;
-                              final newUrl = await PixabayService.fetchImageForGroup(
-                                name: searchName,
-                                description: descCtrl.text.trim(),
-                              );
-                              setDialogState(() {
-                                currentCoverUrl = newUrl;
-                                isRefreshingCover = false;
-                              });
-                            },
-                      icon: isRefreshingCover
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.refresh_rounded, size: 16, color: _primaryColor),
-                      label: Text(
-                        isRefreshingCover ? 'Fetching...' : 'New Pixabay Photo',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _primaryColor),
-                      ),
+                      onPressed: () async {
+                        final chosen = await showModalBottomSheet<String>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => GroupBannerPickerSheet(
+                            initialUrl: currentCoverUrl,
+                            suggestedKeyword: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : _group.name,
+                          ),
+                        );
+                        if (chosen != null && chosen.isNotEmpty) {
+                          setDialogState(() => currentCoverUrl = chosen);
+                        }
+                      },
+                      icon: const Icon(Icons.panorama_outlined, size: 16),
+                      label: const Text('Change Banner', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'Auto-pick from Pixabay',
+                    style: IconButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    onPressed: isRefreshingCover
+                        ? null
+                        : () async {
+                            setDialogState(() => isRefreshingCover = true);
+                            final searchName = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : _group.name;
+                            final newUrl = await PixabayService.fetchImageForGroup(
+                              name: searchName,
+                              description: descCtrl.text.trim(),
+                            );
+                            setDialogState(() {
+                              currentCoverUrl = newUrl;
+                              isRefreshingCover = false;
+                            });
+                          },
+                    icon: isRefreshingCover
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.auto_awesome, size: 16, color: _primaryColor),
                   ),
                 ],
               ),
@@ -163,6 +198,8 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                   await context.read<SplitProvider>().updateGroup(updated);
                   if (mounted) {
                     setState(() => _group = updated);
+                  }
+                  if (ctx.mounted) {
                     Navigator.pop(ctx);
                   }
                 }
@@ -214,24 +251,6 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
     return 'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=1200&q=80';
   }
 
-  static const List<String> _memberAvatarUrls = [
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-    'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&q=80',
-    'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-  ];
-
-  static const List<Color> _avatarColors = [
-    Color(0xFF2563EB),
-    Color(0xFF059669),
-    Color(0xFFD97706),
-    Color(0xFFDC2626),
-    Color(0xFF7C3AED),
-    Color(0xFF0891B2),
-  ];
-
   void _showAddMemberDialog() {
     final ctrl = TextEditingController();
     showDialog(
@@ -251,8 +270,19 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006948)),
             onPressed: () async {
-              if (ctrl.text.trim().isNotEmpty) {
-                await context.read<SplitProvider>().addMember(_group.id, ctrl.text.trim());
+              final newName = ctrl.text.trim();
+              if (newName.isNotEmpty) {
+                final existing = context.read<SplitProvider>().getMembersForGroup(_group.id);
+                if (existing.any((m) => m.name.trim().toLowerCase() == newName.toLowerCase())) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Member "$newName" already exists in this group'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                await context.read<SplitProvider>().addMember(_group.id, newName);
                 if (ctx.mounted) Navigator.pop(ctx);
               }
             },
@@ -328,14 +358,16 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
   }
 
   Widget _buildAvatarCircle(SplitMember member, int index) {
-    final avatarUrl = _memberAvatarUrls[index % _memberAvatarUrls.length];
-    final fallbackColor = _avatarColors[index % _avatarColors.length];
-    final initial = member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?';
+    final color = _avatarColors[index % _avatarColors.length];
+    final initial = member.name.trim().isNotEmpty
+        ? member.name.trim()[0].toUpperCase()
+        : '?';
 
     return Container(
       width: 32,
       height: 32,
       decoration: BoxDecoration(
+        color: color,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: const [
@@ -346,22 +378,13 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
           ),
         ],
       ),
-      child: ClipOval(
-        child: Image.network(
-          avatarUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            color: fallbackColor,
-            alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
-            ),
-          ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 12.5,
         ),
       ),
     );
@@ -385,7 +408,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
       ),
       alignment: Alignment.center,
       child: Text(
-        '${remainingCount}+',
+        '+$remainingCount',
         style: const TextStyle(
           color: Color(0xFF1E293B),
           fontWeight: FontWeight.w900,
@@ -496,29 +519,36 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Date Range Pill Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.38),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white),
-                            const SizedBox(width: 5),
-                            Text(
-                              dateRangeStr,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.38),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: Text(
+                                  dateRangeStr,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
 
                       // Edit Translucent Pill Button
                       InkWell(
@@ -668,7 +698,13 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                         const SizedBox(width: 8),
 
                         // Member Avatars with overflow badge & Add button
-                        _buildMemberAvatarStack(context, members),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: _buildMemberAvatarStack(context, members),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -811,49 +847,56 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
       ),
       body: Consumer<SplitProvider>(
         builder: (context, sp, _) {
-          return Column(
-            children: [
-              // 1. Group Scenic Banner Card
-              _buildHeroBanner(context, _group, sp),
+          if (_loadingDetail && sp.getMembersForGroup(_group.id).isEmpty) {
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF006948)),
+            );
+          }
 
-              // 2. Tab Bar: Balances | Expenses | Members
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(bottom: BorderSide(color: Color(0x0F000000), width: 1)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: _primaryColor,
-                  unselectedLabelColor: const Color(0xFF6D7A72),
-                  indicatorColor: _primaryColor,
-                  indicatorWeight: 3,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                  tabs: const [
-                    Tab(text: 'Balances'),
-                    Tab(text: 'Expenses'),
-                    Tab(text: 'Members'),
-                  ],
-                ),
-              ),
+          return RefreshIndicator(
+            onRefresh: _loadDetail,
+            color: _primaryColor,
+            child: NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [
+                  // 1. Group Scenic Banner Card (Scrollable, NOT sticky)
+                  SliverToBoxAdapter(
+                    child: _buildHeroBanner(context, _group, sp),
+                  ),
 
-              // 3. TabBarView
-              Expanded(
-                child: _loadingDetail
-                    ? const Center(child: CircularProgressIndicator())
-                    : RefreshIndicator(
-                        onRefresh: _loadDetail,
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _BalancesTab(groupId: _group.id),
-                            _ExpensesTab(groupId: _group.id),
-                            _MembersTab(groupId: _group.id),
-                          ],
-                        ),
+                  // 2. Tab Bar: Balances | Expenses | Members (Scrollable, NOT sticky)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(bottom: BorderSide(color: Color(0x0F000000), width: 1)),
                       ),
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: _primaryColor,
+                        unselectedLabelColor: const Color(0xFF6D7A72),
+                        indicatorColor: _primaryColor,
+                        indicatorWeight: 3,
+                        labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                        tabs: const [
+                          Tab(text: 'Balances'),
+                          Tab(text: 'Expenses'),
+                          Tab(text: 'Members'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ];
+              },
+              body: TabBarView(
+                controller: _tabController,
+                children: [
+                  _BalancesTab(groupId: _group.id),
+                  _ExpensesTab(groupId: _group.id),
+                  _MembersTab(group: _group),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -897,14 +940,30 @@ class _BalancesTab extends StatelessWidget {
     return Consumer<SplitProvider>(builder: (context, sp, _) {
       final members = sp.getMembersForGroup(groupId);
       final balances = sp.getBalancesForGroup(groupId);
-      final debts = sp.getDebtsForGroup(groupId);
+      final isSimplified = sp.isSimplifyDebtsEnabled(groupId);
+      final directDebts = sp.getDebtsForGroup(groupId, forceSimplify: false);
+      final simplifiedDebts = sp.getDebtsForGroup(groupId, forceSimplify: true);
+      final debts = isSimplified ? simplifiedDebts : directDebts;
+      final savingsCount = directDebts.length - simplifiedDebts.length;
       final memberMap = {for (final m in members) m.id: m.name};
       final expenses = sp.getExpensesForGroup(groupId);
       final hasUnsettled = debts.isNotEmpty || balances.values.any((b) => b.abs() >= 0.01);
 
       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
+          // Simplify Debts Toggle Card (allows user to choose between minimum payments or direct itemized)
+          if (members.length > 1)
+            _SimplifyDebtsCard(
+              isSimplified: isSimplified,
+              directCount: directDebts.length,
+              simplifiedCount: simplifiedDebts.length,
+              savingsCount: savingsCount > 0 ? savingsCount : 0,
+              onToggle: (val) => sp.setSimplifyDebts(groupId, val),
+              onInfoTap: () => _showSimplifyInfoModal(context),
+            ),
+
           if (!hasUnsettled) ...[
             Center(child: Padding(
               padding: const EdgeInsets.all(24),
@@ -922,9 +981,39 @@ class _BalancesTab extends StatelessWidget {
               ]),
             )),
           ] else ...[
-            const Text('Who Owes Whom', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E))),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isSimplified ? 'Who Owes Whom (Simplified)' : 'Who Owes Whom (Direct)',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isSimplified
+                        ? const Color(0xFF006948).withValues(alpha: 0.1)
+                        : const Color(0xFF64748B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${debts.length} ${debts.length == 1 ? "payment" : "payments"}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isSimplified ? const Color(0xFF006948) : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
-            const Text('Simplified to minimum transactions', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
+            Text(
+              isSimplified
+                  ? 'Optimized to settle everyone with the minimum cash transfers'
+                  : 'Showing direct debts based on who paid for whom',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
+            ),
             const SizedBox(height: 12),
             ...debts.map((debt) => _DebtCard(
               debt: debt, memberMap: memberMap,
@@ -942,7 +1031,7 @@ class _BalancesTab extends StatelessWidget {
           ],
           if (balances.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text('Individual Balances', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E))),
+            const Text('Individual Net Balances', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E))),
             const SizedBox(height: 12),
             ...members.map((m) {
               final bal = balances[m.id] ?? 0.0;
@@ -953,6 +1042,263 @@ class _BalancesTab extends StatelessWidget {
       );
     });
   }
+}
+
+class _SimplifyDebtsCard extends StatelessWidget {
+  final bool isSimplified;
+  final int directCount;
+  final int simplifiedCount;
+  final int savingsCount;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onInfoTap;
+
+  const _SimplifyDebtsCard({
+    required this.isSimplified,
+    required this.directCount,
+    required this.simplifiedCount,
+    required this.savingsCount,
+    required this.onToggle,
+    required this.onInfoTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSimplified
+              ? const Color(0xFF006948).withValues(alpha: 0.25)
+              : const Color(0x0F000000),
+          width: 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: isSimplified
+                  ? const Color(0xFF006948).withValues(alpha: 0.1)
+                  : const Color(0xFF64748B).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isSimplified
+                  ? Icons.auto_awesome_rounded
+                  : Icons.compare_arrows_rounded,
+              color: isSimplified
+                  ? const Color(0xFF006948)
+                  : const Color(0xFF64748B),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Simplify Debts',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF131B2E),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: onInfoTap,
+                      borderRadius: BorderRadius.circular(10),
+                      child: const Padding(
+                        padding: EdgeInsets.all(3),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          size: 15,
+                          color: Color(0xFF6D7A72),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isSimplified
+                      ? (savingsCount > 0
+                          ? '$savingsCount fewer payments ($simplifiedCount vs $directCount)'
+                          : '$simplifiedCount ${simplifiedCount == 1 ? "payment" : "payments"} (minimized)')
+                      : '$directCount direct pairwise ${directCount == 1 ? "payment" : "payments"}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: isSimplified && savingsCount > 0
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: isSimplified && savingsCount > 0
+                        ? const Color(0xFF006948)
+                        : const Color(0xFF6D7A72),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: isSimplified,
+            activeColor: const Color(0xFF006948),
+            onChanged: onToggle,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showSimplifyInfoModal(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (ctx) => Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006948).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFF006948),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'About Simplify Debts',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF131B2E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Simplify Debts reorganizes group payments to settle everyone using the absolute minimum number of transactions.',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: Color(0xFF3D4A42),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAF8FF),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0x0F000000)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.compare_arrows_rounded, size: 18, color: Color(0xFF64748B)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Direct Mode (OFF): Shows debts strictly between the members who shared each specific bill.',
+                        style: TextStyle(fontSize: 12.5, color: Color(0xFF334155), height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, size: 18, color: Color(0xFF006948)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Simplified Mode (ON): If A owes B ₹500 and B owes C ₹500, A simply pays C ₹500 directly, taking B out of the middle.',
+                        style: TextStyle(fontSize: 12.5, color: Color(0xFF006948), fontWeight: FontWeight.w600, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Icon(Icons.verified_rounded, size: 18, color: Color(0xFF006948)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Everyone pays and receives the exact same net amount.',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF006948),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Got It', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _DebtCard extends StatelessWidget {
@@ -1057,17 +1403,32 @@ class _ExpensesTab extends StatelessWidget {
       final members = sp.getMembersForGroup(groupId);
       final memberMap = {for (final m in members) m.id: m.name};
       if (expenses.isEmpty) {
-        return const Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.receipt_long_outlined, size: 48, color: Color(0xFFBCCAC0)),
-            SizedBox(height: 12),
-            Text('No expenses yet', style: TextStyle(color: Color(0xFF6D7A72))),
-            SizedBox(height: 4),
-            Text('Tap "+ Add Expense" to get started', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
-          ]),
+        return LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.receipt_long_outlined, size: 48, color: Color(0xFFBCCAC0)),
+                      SizedBox(height: 12),
+                      Text('No expenses yet', style: TextStyle(color: Color(0xFF6D7A72), fontWeight: FontWeight.w600)),
+                      SizedBox(height: 4),
+                      Text('Tap "+ Add Expense" to get started', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         );
       }
       return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         itemCount: expenses.length,
         itemBuilder: (context, i) => _ExpenseCard(
@@ -1173,6 +1534,41 @@ class _ExpenseCard extends StatelessWidget {
                     ),
                     if (expense.note != null && expense.note!.isNotEmpty)
                       Text(expense.note!, style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
+                    if (expense.receiptUrl != null && expense.receiptUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => FullScreenReceiptViewer.show(
+                          context,
+                          imageUrl: expense.receiptUrl!,
+                          title: expense.title,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF006948).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.25)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.receipt_long, size: 12, color: Color(0xFF006948)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Bill Attached',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF006948),
+                                ),
+                              ),
+                              SizedBox(width: 2),
+                              Icon(Icons.zoom_in, size: 12, color: Color(0xFF006948)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ]),
                 ),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -1199,22 +1595,49 @@ class _ExpenseCard extends StatelessWidget {
 
 // ─── Members Tab ─────────────────────────────────────────────────────────────
 class _MembersTab extends StatelessWidget {
-  final String groupId;
-  const _MembersTab({required this.groupId});
+  final SplitGroup group;
+  const _MembersTab({required this.group});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SplitProvider>(builder: (context, sp, _) {
-      final members = sp.getMembersForGroup(groupId);
+      final members = sp.getMembersForGroup(group.id);
+      final currentUid = Supabase.instance.client.auth.currentUser?.id;
+      final currentMemberName = sp.currentMemberName ?? AuthService.instance.userDisplayName;
+      final isGroupCreator = (group.userId != null && currentUid != null && group.userId == currentUid) ||
+          (group.createdBy.trim().toLowerCase() == currentMemberName.trim().toLowerCase());
+
       return Column(
         children: [
           Expanded(
             child: members.isEmpty
-                ? const Center(child: Text('No members'))
+                ? const Center(child: Text('No members in this group'))
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                     itemCount: members.length,
-                    itemBuilder: (context, i) => _MemberTile(member: members[i], groupId: groupId),
+                    itemBuilder: (context, i) {
+                      final m = members[i];
+                      final bool isThisMemberCreator;
+                      if (group.userId != null && group.userId!.isNotEmpty) {
+                        isThisMemberCreator = (m.userId != null && m.userId == group.userId);
+                      } else {
+                        // For legacy or offline groups without group.userId, only the first member is creator
+                        isThisMemberCreator = (i == 0);
+                      }
+                      final isManualMember = (m.userId == null || m.userId!.isEmpty) && !isThisMemberCreator;
+                      final canEditName = isGroupCreator && (isManualMember || isThisMemberCreator);
+
+                      return _MemberTile(
+                        member: m,
+                        group: group,
+                        index: i,
+                        isGroupCreator: isGroupCreator,
+                        isThisMemberCreator: isThisMemberCreator,
+                        isManualMember: isManualMember,
+                        canEditName: canEditName,
+                      );
+                    },
                   ),
           ),
           SafeArea(
@@ -1222,29 +1645,46 @@ class _MembersTab extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
-                width: double.infinity, height: 50,
+                width: double.infinity,
+                height: 50,
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     final ctrl = TextEditingController();
                     await showDialog(
                       context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text('Add Member'),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: const Text('Add Member', style: TextStyle(fontWeight: FontWeight.w800)),
                         content: TextField(
                           controller: ctrl,
                           autofocus: true,
-                          decoration: const InputDecoration(
+                          textCapitalization: TextCapitalization.words,
+                          decoration: InputDecoration(
                             hintText: 'Member name',
-                            border: OutlineInputBorder(),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006948)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF006948),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
                             onPressed: () async {
-                              if (ctrl.text.trim().isNotEmpty) {
-                                await sp.addMember(groupId, ctrl.text.trim());
+                              final newName = ctrl.text.trim();
+                              if (newName.isNotEmpty) {
+                                final existing = sp.getMembersForGroup(group.id);
+                                if (existing.any((m) => m.name.trim().toLowerCase() == newName.toLowerCase())) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Member "$newName" already exists in this group'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await sp.addMember(group.id, newName);
                                 if (context.mounted) Navigator.pop(context);
                               }
                             },
@@ -1273,51 +1713,421 @@ class _MembersTab extends StatelessWidget {
 }
 
 class _MemberTile extends StatelessWidget {
-  final SplitMember member; final String groupId;
-  const _MemberTile({required this.member, required this.groupId});
+  final SplitMember member;
+  final SplitGroup group;
+  final int index;
+  final bool isGroupCreator;
+  final bool isThisMemberCreator;
+  final bool isManualMember;
+  final bool canEditName;
+
+  const _MemberTile({
+    required this.member,
+    required this.group,
+    required this.index,
+    required this.isGroupCreator,
+    required this.isThisMemberCreator,
+    required this.isManualMember,
+    required this.canEditName,
+  });
+
+  void _showEditNameDialog(BuildContext context) {
+    final ctrl = TextEditingController(text: member.name);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F7F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.edit_note_rounded, color: Color(0xFF006948), size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Change Name',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isThisMemberCreator
+                    ? 'Update your display name for this group.'
+                    : 'This member was added manually. You can update their display name for this group.',
+                style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: ctrl,
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Member Name',
+                  hintText: 'Enter name',
+                  prefixIcon: const Icon(Icons.person_outline, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF006948), width: 2),
+                  ),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Name cannot be empty';
+                  }
+                  final trimmed = val.trim().toLowerCase();
+                  final allMembers = context.read<SplitProvider>().getMembersForGroup(group.id);
+                  if (allMembers.any((m) => m.id != member.id && m.name.trim().toLowerCase() == trimmed)) {
+                    return 'A member with this name already exists in this group';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF006948),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final newName = ctrl.text.trim();
+                Navigator.pop(ctx);
+                if (newName != member.name) {
+                  await context.read<SplitProvider>().updateMemberName(group.id, member.id, newName);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Member name updated to "$newName"'),
+                        backgroundColor: const Color(0xFF006948),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAssignMemberDialog(BuildContext context, List<SplitMember> allMembers) {
+    final otherMembers = allMembers.where((m) => m.id != member.id).toList();
+    if (otherMembers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No other members in this group to transfer entries to.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF2563EB), size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Assign Entries To',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Transfer all past expenses, shares, and settlements from "${member.name}" to another member who joined:',
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B), height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 250),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: otherMembers.map((target) {
+                    final isTargetJoined = target.userId != null && target.userId!.isNotEmpty;
+                    return ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: const Color(0xFF006948),
+                        child: Text(
+                          target.name.trim().isNotEmpty ? target.name.trim()[0].toUpperCase() : '?',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
+                      title: Text(
+                        target.name,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                      ),
+                      subtitle: Text(
+                        isTargetJoined ? 'Joined via invite link' : 'Group member',
+                        style: TextStyle(fontSize: 11, color: isTargetJoined ? const Color(0xFF2563EB) : const Color(0xFF94A3B8)),
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF64748B)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (c2) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            title: const Text('Confirm Transfer'),
+                            content: Text(
+                              'Transfer all expenses and shares from "${member.name}" to "${target.name}"? "${member.name}" will then be merged and removed.',
+                            ),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(c2, false), child: const Text('Cancel')),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006948)),
+                                onPressed: () => Navigator.pop(c2, true),
+                                child: const Text('Confirm & Transfer', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true && context.mounted) {
+                          await context.read<SplitProvider>().mergeMembers(group.id, member.id, target.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('All entries transferred to "${target.name}"!'),
+                                backgroundColor: const Color(0xFF006948),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final avatarColor = _avatarColors[index % _avatarColors.length];
+    final initial = member.name.trim().isNotEmpty ? member.name.trim()[0].toUpperCase() : '?';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x0A000000)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: const Color(0xFF006948).withValues(alpha: 0.1),
-            child: Text(member.name[0].toUpperCase(),
-                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF006948))),
+          // 1. Initial Circle Avatar matching outside card
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: avatarColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x18000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Remove Member'),
-                  content: Text('Remove ${member.name} from the group?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Remove', style: TextStyle(color: Colors.white)),
+
+          // 2. Member Name & Status Badge
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        member.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14.5,
+                          color: Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-              );
-              if (confirm == true && context.mounted) {
-                await context.read<SplitProvider>().removeMember(groupId, member.id);
-              }
-            },
+                const SizedBox(height: 3),
+                if (isThisMemberCreator)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F7F0),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Group Creator',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF006948),
+                      ),
+                    ),
+                  )
+                else if (isManualMember)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Added manually',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.link, size: 10.5, color: Color(0xFF2563EB)),
+                        SizedBox(width: 3),
+                        Text(
+                          'Joined via invite',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2563EB),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
+
+          // 3. Edit Name Action (If added manually or creator's own name, and current user is group creator)
+          if (canEditName)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Color(0xFF006948), size: 20),
+              tooltip: 'Change Name',
+              onPressed: () => _showEditNameDialog(context),
+            ),
+
+          // 4. Assign / Transfer Action (Transfer all entries from temp manual member to joined person)
+          if (isGroupCreator && isManualMember)
+            IconButton(
+              icon: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF2563EB), size: 21),
+              tooltip: 'Assign entries to joined member',
+              onPressed: () {
+                final all = context.read<SplitProvider>().getMembersForGroup(group.id);
+                _showAssignMemberDialog(context, all);
+              },
+            ),
+
+          // 5. Remove Action (Creator can remove members except themselves)
+          if (isGroupCreator && !isThisMemberCreator)
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444), size: 20),
+              tooltip: 'Remove Member',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: const Text('Remove Member'),
+                    content: Text('Remove ${member.name} from the group?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Remove', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && context.mounted) {
+                  await context.read<SplitProvider>().removeMember(group.id, member.id);
+                }
+              },
+            ),
         ],
       ),
     );
