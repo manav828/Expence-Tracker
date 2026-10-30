@@ -3,20 +3,17 @@ set -e
 
 git config --global --add safe.directory "*" || true
 
-echo "==> Checking configuration files..."
-if [ ! -f "lib/config/api_keys.dart" ]; then
-  echo "==> Creating lib/config/api_keys.dart from environment variables..."
-  cat << 'EOF' > lib/config/api_keys.dart
+echo "==> Configuring environment and API keys..."
+cat << EOF > lib/config/api_keys.dart
 class ApiKeys {
-  static const String pixabayApiKey = String.fromEnvironment('PIXABAY_API_KEY', defaultValue: '');
-  static const String r2AccountId = String.fromEnvironment('R2_ACCOUNT_ID', defaultValue: '');
-  static const String r2BucketName = String.fromEnvironment('R2_BUCKET_NAME', defaultValue: '');
-  static const String r2AccessKeyId = String.fromEnvironment('R2_ACCESS_KEY_ID', defaultValue: '');
-  static const String r2SecretAccessKey = String.fromEnvironment('R2_SECRET_ACCESS_KEY', defaultValue: '');
-  static const String r2PublicBaseUrl = String.fromEnvironment('R2_PUBLIC_BASE_URL', defaultValue: '');
+  static const String pixabayApiKey = '${PIXABAY_API_KEY:-}';
+  static const String r2AccountId = '${R2_ACCOUNT_ID:-}';
+  static const String r2BucketName = '${R2_BUCKET_NAME:-}';
+  static const String r2AccessKeyId = '${R2_ACCESS_KEY_ID:-}';
+  static const String r2SecretAccessKey = '${R2_SECRET_ACCESS_KEY:-}';
+  static const String r2PublicBaseUrl = '${R2_PUBLIC_BASE_URL:-}';
 }
 EOF
-fi
 
 echo "==> Setting up Flutter SDK..."
 if [ ! -d "_flutter" ]; then
@@ -24,19 +21,17 @@ if [ ! -d "_flutter" ]; then
 fi
 export PATH="$PATH:$(pwd)/_flutter/bin"
 
-echo "==> Disabling Flutter analytics..."
+echo "==> Configuring Flutter settings..."
 flutter config --no-analytics
 
-echo "==> Precaching Flutter web engine..."
-flutter precache --web
+# Limit Dart VM memory to fit within Vercel container RAM limits
+export DART_VM_OPTIONS="--old_gen_heap_size=1536"
 
-echo "==> Building Flutter Web Release..."
-flutter build web --release --base-href / \
-  --dart-define=PIXABAY_API_KEY="${PIXABAY_API_KEY}" \
-  --dart-define=R2_ACCOUNT_ID="${R2_ACCOUNT_ID}" \
-  --dart-define=R2_BUCKET_NAME="${R2_BUCKET_NAME}" \
-  --dart-define=R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}" \
-  --dart-define=R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}" \
-  --dart-define=R2_PUBLIC_BASE_URL="${R2_PUBLIC_BASE_URL}"
+echo "==> Building Flutter Web Release (low memory footprint)..."
+flutter build web --release \
+  --base-href / \
+  --no-tree-shake-icons \
+  -O1 \
+  --no-source-maps
 
-echo "==> Build complete! Output directory: build/web"
+echo "==> Build complete! Output in build/web"
