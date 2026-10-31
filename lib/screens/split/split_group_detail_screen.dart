@@ -1831,22 +1831,65 @@ class _ExpenseCard extends StatelessWidget {
 }
 
 // ─── Members Tab ─────────────────────────────────────────────────────────────
-class _MembersTab extends StatelessWidget {
+class _MembersTab extends StatefulWidget {
   final SplitGroup group;
   const _MembersTab({required this.group});
 
   @override
+  State<_MembersTab> createState() => _MembersTabState();
+}
+
+class _MembersTabState extends State<_MembersTab> {
+  final Set<String> _collapsedGroupIds = {};
+
+  @override
   Widget build(BuildContext context) {
     return Consumer<SplitProvider>(builder: (context, sp, _) {
-      final members = sp.getMembersForGroup(group.id);
-      final expenseGroups = sp.getExpenseGroupsForGroup(group.id);
-      final settlementGroups = sp.getSettlementGroupsForGroup(group.id);
-      final memberMap = {for (final m in members) m.id: m.name};
+      final members = sp.getMembersForGroup(widget.group.id);
+      final expenseGroups = sp.getExpenseGroupsForGroup(widget.group.id);
+      final settlementGroups = sp.getSettlementGroupsForGroup(widget.group.id);
+      final memberMap = {for (final m in members) m.id: m};
 
       final currentUid = Supabase.instance.client.auth.currentUser?.id;
       final currentMemberName = sp.currentMemberName ?? AuthService.instance.userDisplayName;
-      final isGroupCreator = (group.userId != null && currentUid != null && group.userId == currentUid) ||
-          (group.createdBy.trim().toLowerCase() == currentMemberName.trim().toLowerCase());
+      final isGroupCreator = (widget.group.userId != null && currentUid != null && widget.group.userId == currentUid) ||
+          (widget.group.createdBy.trim().toLowerCase() == currentMemberName.trim().toLowerCase());
+
+      // Unified display groups
+      final List<_MemberDisplayGroup> displayGroups = [];
+      final Set<String> processedGroupIds = {};
+
+      for (final sg in settlementGroups) {
+        if (processedGroupIds.add(sg.id)) {
+          displayGroups.add(_MemberDisplayGroup(
+            id: sg.id,
+            name: sg.name,
+            memberIds: sg.memberIds,
+            isSettlement: true,
+            settlementGroup: sg,
+          ));
+        }
+      }
+
+      for (final eg in expenseGroups) {
+        final alreadyCombined = displayGroups.any((g) => g.name.toLowerCase() == eg.name.toLowerCase());
+        if (!alreadyCombined && processedGroupIds.add(eg.id)) {
+          displayGroups.add(_MemberDisplayGroup(
+            id: eg.id,
+            name: eg.name,
+            memberIds: eg.memberIds,
+            isSettlement: false,
+            expenseGroup: eg,
+          ));
+        }
+      }
+
+      final Set<String> groupedMemberIds = {};
+      for (final g in displayGroups) {
+        groupedMemberIds.addAll(g.memberIds);
+      }
+
+      final ungroupedMembers = members.where((m) => !groupedMemberIds.contains(m.id)).toList();
 
       return Column(
         children: [
@@ -1857,7 +1900,7 @@ class _MembersTab extends StatelessWidget {
               children: [
                 // Header Card with Group Management Actions
                 Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(bottom: 14),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -1901,21 +1944,7 @@ class _MembersTab extends StatelessWidget {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () => _showExpenseGroupModal(context, group, members),
-                              icon: const Icon(Icons.playlist_add_check_rounded, size: 16),
-                              label: const Text('+ Expense Group', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF006948),
-                                side: const BorderSide(color: Color(0xFF006948)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showSettlementGroupModal(context, group, members),
+                              onPressed: () => _showSettlementGroupModal(context, widget.group, members),
                               icon: const Icon(Icons.call_merge_rounded, size: 16),
                               label: const Text('+ Combine Settle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                               style: OutlinedButton.styleFrom(
@@ -1926,133 +1955,34 @@ class _MembersTab extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showExpenseGroupModal(context, widget.group, members),
+                              icon: const Icon(Icons.playlist_add_check_rounded, size: 16),
+                              label: const Text('+ Expense Group', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF006948),
+                                side: const BorderSide(color: Color(0xFF006948)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                // Active Expense Selection Groups Section
-                if (expenseGroups.isNotEmpty) ...[
+                // Groups in the list with expand/collapse arrow
+                if (displayGroups.isNotEmpty) ...[
                   Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 6),
+                    padding: const EdgeInsets.only(top: 2, bottom: 8),
                     child: Row(
                       children: [
                         const Text(
-                          'Expense Selection Groups',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF006948).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${expenseGroups.length}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...expenseGroups.map((eg) {
-                    final memberNames = eg.memberIds
-                        .map((mid) => memberMap[mid] ?? 'Member')
-                        .join(', ');
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F7F0),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.playlist_add_check_rounded, color: Color(0xFF006948), size: 18),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        eg.name,
-                                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: Color(0xFF0F172A)),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '${eg.memberIds.length} members',
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  memberNames,
-                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onSelected: (val) {
-                              if (val == 'edit') {
-                                _showExpenseGroupModal(context, group, members, existing: eg);
-                              } else if (val == 'delete') {
-                                _showDeleteGroupConfirm(
-                                  context,
-                                  title: 'Delete Expense Group',
-                                  message: 'Delete "${eg.name}"? Members will remain in the group.',
-                                  onConfirm: () => sp.deleteExpenseGroup(expenseGroupId: eg.id, groupId: group.id),
-                                );
-                              }
-                            },
-                            itemBuilder: (ctx) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Edit Group')),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete Group', style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-
-                // Active Combined Settlement Groups Section
-                if (settlementGroups.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 6),
-                    child: Row(
-                      children: [
-                        const Text(
-                          'Combined Settlement Groups',
+                          'Groups & Members',
                           style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                         ),
                         const SizedBox(width: 6),
@@ -2063,151 +1993,260 @@ class _MembersTab extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '${settlementGroups.length}',
+                            '${displayGroups.length} groups',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  ...settlementGroups.map((sg) {
-                    final memberNames = sg.memberIds
-                        .map((mid) => memberMap[mid] ?? 'Member')
-                        .join(', ');
+                  ...displayGroups.map((group) {
+                    final groupMembers = group.memberIds
+                        .map((mid) => memberMap[mid])
+                        .whereType<SplitMember>()
+                        .toList();
+                    final isCollapsed = _collapsedGroupIds.contains(group.id);
+
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Group Header Card with Expand/Collapse arrow
                           Container(
-                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEEF2FF),
-                              borderRadius: BorderRadius.circular(8),
+                              color: group.isSettlement
+                                  ? const Color(0xFFEEF2FF).withValues(alpha: 0.7)
+                                  : const Color(0xFFE8F7F0).withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: group.isSettlement
+                                    ? const Color(0xFF4F46E5).withValues(alpha: 0.3)
+                                    : const Color(0xFF006948).withValues(alpha: 0.3),
+                                width: 1.2,
+                              ),
                             ),
-                            child: const Icon(Icons.call_merge_rounded, color: Color(0xFF4F46E5), size: 18),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                            child: InkWell(
+                              onTap: () => setState(() {
+                                if (isCollapsed) {
+                                  _collapsedGroupIds.remove(group.id);
+                                } else {
+                                  _collapsedGroupIds.add(group.id);
+                                }
+                              }),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                child: Row(
                                   children: [
-                                    Flexible(
-                                      child: Text(
-                                        sg.name,
-                                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: Color(0xFF0F172A)),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: group.isSettlement ? const Color(0xFF4F46E5) : const Color(0xFF006948),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        group.isSettlement ? Icons.call_merge_rounded : Icons.playlist_add_check_rounded,
+                                        size: 16,
+                                        color: Colors.white,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFEEF2FF),
-                                        borderRadius: BorderRadius.circular(4),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  group.name,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 14,
+                                                    color: Color(0xFF0F172A),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: group.isSettlement
+                                                        ? const Color(0xFF4F46E5).withValues(alpha: 0.3)
+                                                        : const Color(0xFF006948).withValues(alpha: 0.3),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  group.isSettlement ? 'Combined Settlement' : 'Expense Group',
+                                                  style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: group.isSettlement ? const Color(0xFF4F46E5) : const Color(0xFF006948),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${groupMembers.length} members',
+                                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
                                       ),
-                                      child: const Text(
-                                        'Combined Balance',
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5)),
+                                    ),
+                                    Icon(
+                                      isCollapsed ? Icons.keyboard_arrow_right_rounded : Icons.keyboard_arrow_down_rounded,
+                                      size: 22,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onSelected: (val) {
+                                        if (val == 'edit') {
+                                          if (group.isSettlement && group.settlementGroup != null) {
+                                            _showSettlementGroupModal(context, widget.group, members, existing: group.settlementGroup);
+                                          } else if (group.expenseGroup != null) {
+                                            _showExpenseGroupModal(context, widget.group, members, existing: group.expenseGroup);
+                                          }
+                                        } else if (val == 'delete') {
+                                          if (group.isSettlement && group.settlementGroup != null) {
+                                            _showDeleteGroupConfirm(
+                                              context,
+                                              title: 'Dissolve Combined Settlement',
+                                              message: 'Dissolve "${group.name}"? Balances will be settled individually again.',
+                                              onConfirm: () => sp.deleteSettlementGroup(settlementGroupId: group.id, groupId: widget.group.id),
+                                            );
+                                          } else if (group.expenseGroup != null) {
+                                            _showDeleteGroupConfirm(
+                                              context,
+                                              title: 'Delete Expense Group',
+                                              message: 'Delete "${group.name}"? Members will remain in the group.',
+                                              onConfirm: () => sp.deleteExpenseGroup(expenseGroupId: group.id, groupId: widget.group.id),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      itemBuilder: (ctx) => [
+                                        const PopupMenuItem(value: 'edit', child: Text('Edit Group')),
+                                        const PopupMenuItem(value: 'delete', child: Text('Dissolve / Delete', style: TextStyle(color: Colors.red))),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Nested Members with Tree Connector Lines
+                          if (!isCollapsed) ...[
+                            ...groupMembers.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final m = entry.value;
+                              final isLast = (idx == groupMembers.length - 1);
+                              final overallIndex = members.indexOf(m);
+                              final isThisMemberCreator = (widget.group.userId != null && widget.group.userId!.isNotEmpty)
+                                  ? (m.userId != null && m.userId == widget.group.userId)
+                                  : (overallIndex == 0);
+                              final isManualMember = (m.userId == null || m.userId!.isEmpty) && !isThisMemberCreator;
+                              final canEditName = isGroupCreator && (isManualMember || isThisMemberCreator);
+
+                              return IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    SizedBox(
+                                      width: 32,
+                                      child: CustomPaint(
+                                        painter: _TreeBranchPainter(
+                                          isLast: isLast,
+                                          color: group.isSettlement
+                                              ? const Color(0xFFC7D2FE)
+                                              : const Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: _MemberTile(
+                                          member: m,
+                                          group: widget.group,
+                                          index: overallIndex >= 0 ? overallIndex : idx,
+                                          isGroupCreator: isGroupCreator,
+                                          isThisMemberCreator: isThisMemberCreator,
+                                          isManualMember: isManualMember,
+                                          canEditName: canEditName,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  memberNames,
-                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onSelected: (val) {
-                              if (val == 'edit') {
-                                _showSettlementGroupModal(context, group, members, existing: sg);
-                              } else if (val == 'delete') {
-                                _showDeleteGroupConfirm(
-                                  context,
-                                  title: 'Delete Combined Settlement',
-                                  message: 'Delete "${sg.name}"? Balances will be settled individually again.',
-                                  onConfirm: () => sp.deleteSettlementGroup(settlementGroupId: sg.id, groupId: group.id),
-                                );
-                              }
-                            },
-                            itemBuilder: (ctx) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Edit Group')),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete Group', style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
+                              );
+                            }),
+                          ],
                         ],
                       ),
                     );
                   }),
                 ],
 
-                // All Members Section
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 8),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'All Members',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF64748B).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
+                // Individual / Ungrouped Members Section
+                if (ungroupedMembers.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          displayGroups.isNotEmpty ? 'Individual Members' : 'All Members',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                         ),
-                        child: Text(
-                          '${members.length}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF64748B).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${ungroupedMembers.length}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-
-                if (members.isEmpty)
-                  const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text('No members in this group')))
-                else
-                  ...members.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final m = entry.value;
-                    final bool isThisMemberCreator;
-                    if (group.userId != null && group.userId!.isNotEmpty) {
-                      isThisMemberCreator = (m.userId != null && m.userId == group.userId);
-                    } else {
-                      isThisMemberCreator = (i == 0);
-                    }
+                  ...ungroupedMembers.map((m) {
+                    final overallIndex = members.indexOf(m);
+                    final isThisMemberCreator = (widget.group.userId != null && widget.group.userId!.isNotEmpty)
+                        ? (m.userId != null && m.userId == widget.group.userId)
+                        : (overallIndex == 0);
                     final isManualMember = (m.userId == null || m.userId!.isEmpty) && !isThisMemberCreator;
                     final canEditName = isGroupCreator && (isManualMember || isThisMemberCreator);
 
                     return _MemberTile(
                       member: m,
-                      group: group,
-                      index: i,
+                      group: widget.group,
+                      index: overallIndex >= 0 ? overallIndex : 0,
                       isGroupCreator: isGroupCreator,
                       isThisMemberCreator: isThisMemberCreator,
                       isManualMember: isManualMember,
                       canEditName: canEditName,
                     );
                   }),
+                ],
+
+                if (members.isEmpty)
+                  const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text('No members in this group'))),
               ],
             ),
           ),
@@ -2219,7 +2258,7 @@ class _MembersTab extends StatelessWidget {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showAddMemberDialog(context, sp, group),
+                  onPressed: () => _showAddMemberDialog(context, sp, widget.group),
                   icon: const Icon(Icons.person_add_outlined),
                   label: const Text('Add Member', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                   style: ElevatedButton.styleFrom(
@@ -2236,6 +2275,64 @@ class _MembersTab extends StatelessWidget {
       );
     });
   }
+}
+
+class _MemberDisplayGroup {
+  final String id;
+  final String name;
+  final List<String> memberIds;
+  final bool isSettlement;
+  final SplitSettlementGroup? settlementGroup;
+  final SplitExpenseGroup? expenseGroup;
+
+  _MemberDisplayGroup({
+    required this.id,
+    required this.name,
+    required this.memberIds,
+    this.isSettlement = false,
+    this.settlementGroup,
+    this.expenseGroup,
+  });
+}
+
+class _TreeBranchPainter extends CustomPainter {
+  final bool isLast;
+  final Color color;
+
+  const _TreeBranchPainter({
+    required this.isLast,
+    this.color = const Color(0xFFCBD5E1),
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final double midX = size.width / 2;
+    final double midY = size.height / 2;
+
+    // Vertical trunk
+    canvas.drawLine(
+      Offset(midX, 0),
+      Offset(midX, isLast ? midY : size.height),
+      paint,
+    );
+
+    // Horizontal branch
+    canvas.drawLine(
+      Offset(midX, midY),
+      Offset(size.width, midY),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeBranchPainter oldDelegate) =>
+      oldDelegate.isLast != isLast || oldDelegate.color != color;
 }
 
 // ─── Group Management Helpers & Dialogs ─────────────────────────────────────

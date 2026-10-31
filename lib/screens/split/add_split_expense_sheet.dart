@@ -352,10 +352,10 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
     }
   }
 
-  Widget _buildParticipantsSection(List<SplitExpenseGroup> expenseGroups, double currentTotal) {
+  Widget _buildParticipantsSection(List<_FolderGroupItem> folderGroups, double currentTotal) {
     final Set<String> groupedMemberIds = {};
-    for (final eg in expenseGroups) {
-      groupedMemberIds.addAll(eg.memberIds);
+    for (final fg in folderGroups) {
+      groupedMemberIds.addAll(fg.memberIds);
     }
 
     final ungroupedMembers = widget.members
@@ -381,8 +381,8 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
         const SizedBox(height: 8),
         _buildAllocationBanner(currentTotal),
 
-        // If no expense groups exist, render flat list
-        if (expenseGroups.isEmpty) ...[
+        // If no groups exist, render flat list
+        if (folderGroups.isEmpty) ...[
           ...widget.members.map((m) => _MemberSplitRow(
                 member: m,
                 included: _includedMembers.contains(m.id),
@@ -398,9 +398,9 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                 }),
               )),
         ] else ...[
-          // Render each expense group as an expandable section with a tristate checkbox
-          ...expenseGroups.map((eg) {
-            final groupMembers = widget.members.where((m) => eg.memberIds.contains(m.id)).toList();
+          // Render each folder group with tree lines
+          ...folderGroups.map((group) {
+            final groupMembers = widget.members.where((m) => group.memberIds.contains(m.id)).toList();
             if (groupMembers.isEmpty) return const SizedBox.shrink();
 
             final selectedCount = groupMembers.where((m) => _includedMembers.contains(m.id)).length;
@@ -408,107 +408,156 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                 ? false
                 : (selectedCount == groupMembers.length ? true : null);
 
-            final isCollapsed = _collapsedExpenseGroups.contains(eg.id);
+            final isCollapsed = _collapsedExpenseGroups.contains(group.id);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isGroupChecked != false
-                      ? const Color(0xFF006948).withValues(alpha: 0.25)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Group Header Row
-                  InkWell(
-                    onTap: () => setState(() {
-                      if (isCollapsed) {
-                        _collapsedExpenseGroups.remove(eg.id);
-                      } else {
-                        _collapsedExpenseGroups.add(eg.id);
-                      }
-                    }),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isCollapsed ? Icons.keyboard_arrow_right : Icons.keyboard_arrow_down,
-                            size: 20,
-                            color: const Color(0xFF64748B),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            _getExpenseGroupIcon(eg.icon),
-                            size: 18,
-                            color: const Color(0xFF006948),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  eg.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
-                                ),
-                                Text(
-                                  '$selectedCount of ${groupMembers.length} selected',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                ),
-                              ],
+                  // Folder Header Card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isGroupChecked != false
+                          ? const Color(0xFFE8F7F0).withValues(alpha: 0.6)
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isGroupChecked != false
+                            ? const Color(0xFF006948).withValues(alpha: 0.3)
+                            : const Color(0xFFE2E8F0),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        if (isCollapsed) {
+                          _collapsedExpenseGroups.remove(group.id);
+                        } else {
+                          _collapsedExpenseGroups.add(group.id);
+                        }
+                      }),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(
+                              group.icon != null && group.icon != 'folder'
+                                  ? _getExpenseGroupIcon(group.icon)
+                                  : (isCollapsed ? Icons.folder_rounded : Icons.folder_open_rounded),
+                              size: 22,
+                              color: const Color(0xFF006948),
                             ),
-                          ),
-                          Checkbox(
-                            tristate: true,
-                            value: isGroupChecked,
-                            activeColor: const Color(0xFF006948),
-                            visualDensity: VisualDensity.compact,
-                            onChanged: (_) => setState(() {
-                              if (isGroupChecked == true || isGroupChecked == null) {
-                                // Deselect all in this group
-                                for (final m in groupMembers) {
-                                  _includedMembers.remove(m.id);
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          group.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$selectedCount of ${groupMembers.length} selected',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: isGroupChecked != false
+                                          ? const Color(0xFF006948)
+                                          : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              isCollapsed ? Icons.keyboard_arrow_right_rounded : Icons.keyboard_arrow_down_rounded,
+                              size: 20,
+                              color: const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 4),
+                            // Tristate Group Checkbox
+                            Checkbox(
+                              tristate: true,
+                              value: isGroupChecked,
+                              activeColor: const Color(0xFF006948),
+                              visualDensity: VisualDensity.compact,
+                              onChanged: (_) => setState(() {
+                                if (isGroupChecked == true || isGroupChecked == null) {
+                                  // Deselect all members in this group
+                                  for (final m in groupMembers) {
+                                    _includedMembers.remove(m.id);
+                                  }
+                                } else {
+                                  // Select all members in this group
+                                  for (final m in groupMembers) {
+                                    _includedMembers.add(m.id);
+                                  }
                                 }
-                              } else {
-                                // Select all in this group
-                                for (final m in groupMembers) {
-                                  _includedMembers.add(m.id);
-                                }
-                              }
-                            }),
-                          ),
-                        ],
+                              }),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                  // Expanded members list
+                  // Sub-members with Tree Lines
                   if (!isCollapsed) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                      child: Column(
-                        children: groupMembers.map((m) => _MemberSplitRow(
-                              member: m,
-                              included: _includedMembers.contains(m.id),
-                              splitType: _splitType,
-                              customCtrl: _customAmountCtrls[m.id]!,
-                              percentCtrl: _percentCtrls[m.id]!,
-                              onToggle: (v) => setState(() {
-                                if (v) {
-                                  _includedMembers.add(m.id);
-                                } else {
-                                  _includedMembers.remove(m.id);
-                                }
-                              }),
-                            )).toList(),
-                      ),
-                    ),
+                    ...groupMembers.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final m = entry.value;
+                      final isLast = (i == groupMembers.length - 1);
+
+                      return IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Tree connector line
+                            SizedBox(
+                              width: 32,
+                              child: CustomPaint(
+                                painter: _TreeBranchPainter(isLast: isLast),
+                              ),
+                            ),
+                            // The individual member row
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: _MemberSplitRow(
+                                  member: m,
+                                  included: _includedMembers.contains(m.id),
+                                  splitType: _splitType,
+                                  customCtrl: _customAmountCtrls[m.id]!,
+                                  percentCtrl: _percentCtrls[m.id]!,
+                                  onToggle: (v) => setState(() {
+                                    if (v) {
+                                      _includedMembers.add(m.id);
+                                    } else {
+                                      _includedMembers.remove(m.id);
+                                    }
+                                  }),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ],
               ),
@@ -524,7 +573,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                   const Icon(Icons.person_outline, size: 16, color: Color(0xFF64748B)),
                   const SizedBox(width: 6),
                   Text(
-                    'Other Members (${ungroupedMembers.length})',
+                    'Individual Members (${ungroupedMembers.length})',
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF64748B)),
                   ),
                 ],
@@ -710,7 +759,38 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
   Widget build(BuildContext context) {
     final currentTotal = double.tryParse(_amountCtrl.text.trim()) ?? 0.0;
     final isEditing = widget.expenseToEdit != null;
-    final expenseGroups = context.watch<SplitProvider>().getExpenseGroupsForGroup(widget.groupId);
+    final sp = context.watch<SplitProvider>();
+    final expenseGroups = sp.getExpenseGroupsForGroup(widget.groupId);
+    final settlementGroups = sp.getSettlementGroupsForGroup(widget.groupId);
+
+    final List<_FolderGroupItem> allFolderGroups = [];
+    final Set<String> seenGroupIds = {};
+
+    for (final eg in expenseGroups) {
+      if (seenGroupIds.add(eg.id)) {
+        allFolderGroups.add(_FolderGroupItem(
+          id: eg.id,
+          name: eg.name,
+          icon: eg.icon,
+          memberIds: eg.memberIds,
+        ));
+      }
+    }
+
+    for (final sg in settlementGroups) {
+      if (!seenGroupIds.contains(sg.id)) {
+        final alreadyExists = allFolderGroups.any((g) => g.name.toLowerCase() == sg.name.toLowerCase());
+        if (!alreadyExists) {
+          seenGroupIds.add(sg.id);
+          allFolderGroups.add(_FolderGroupItem(
+            id: sg.id,
+            name: sg.name,
+            icon: 'folder',
+            memberIds: sg.memberIds,
+          ));
+        }
+      }
+    }
 
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -804,7 +884,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
             ),
             const SizedBox(height: 16),
             // Group-aware participant selection
-            _buildParticipantsSection(expenseGroups, currentTotal),
+            _buildParticipantsSection(allFolderGroups, currentTotal),
             const SizedBox(height: 12),
             // Note
             _Field(controller: _noteCtrl, label: 'Note (optional)', hint: 'e.g. split hotel cost', icon: Icons.notes_outlined),
@@ -962,3 +1042,58 @@ class _Field extends StatelessWidget {
         ),
       );
 }
+
+class _FolderGroupItem {
+  final String id;
+  final String name;
+  final String? icon;
+  final List<String> memberIds;
+
+  _FolderGroupItem({
+    required this.id,
+    required this.name,
+    this.icon,
+    required this.memberIds,
+  });
+}
+
+class _TreeBranchPainter extends CustomPainter {
+  final bool isLast;
+
+  const _TreeBranchPainter({
+    required this.isLast,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final double midX = size.width / 2;
+    final double midY = size.height / 2;
+
+    // Vertical line:
+    // If not last, draw from top to bottom.
+    // If last, draw from top to center midY.
+    canvas.drawLine(
+      Offset(midX, 0),
+      Offset(midX, isLast ? midY : size.height),
+      paint,
+    );
+
+    // Horizontal arm branching out to the right
+    canvas.drawLine(
+      Offset(midX, midY),
+      Offset(size.width, midY),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeBranchPainter oldDelegate) =>
+      oldDelegate.isLast != isLast;
+}
+
