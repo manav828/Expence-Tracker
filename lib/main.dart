@@ -267,37 +267,33 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
         final currentUser = Supabase.instance.client.auth.currentUser;
         if (currentUser != null && mounted) {
-          final sp = context.read<SplitProvider>();
-          final name = sp.currentMemberName ?? AuthService.instance.userDisplayName;
-          final memberName = name.trim().isNotEmpty
-              ? name.trim()
-              : (currentUser.email?.split('@').first ?? 'Member');
+          final group = await SplitService.instance.getGroupByInviteCode(cleanCode);
+          if (group != null) {
+            final members = await SplitService.instance.getMembers(group.id);
+            final alreadyMember = members.any((m) => m.userId == currentUser.id);
 
-          SplitGroup? group;
-          try {
-            group = await sp.joinGroupByInviteCode(cleanCode, memberName);
-          } catch (e) {
-            debugPrint('Auto-join deep link error: $e');
-          }
+            if (alreadyMember) {
+              // User has ALREADY joined with this account (by user_id)
+              // Open the group directly without creating any member!
+              try {
+                await prefs.remove('pending_invite_code');
+              } catch (_) {}
 
-          try {
-            await prefs.remove('pending_invite_code');
-          } catch (_) {}
-
-          if (group != null && mounted) {
-            await appNavigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (_) => SplitGroupDetailScreen(group: group!),
-              ),
-            );
-            if (mounted) {
-              context.read<SplitProvider>().loadGroups();
+              await appNavigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (_) => SplitGroupDetailScreen(group: group),
+                ),
+              );
+              if (mounted) {
+                context.read<SplitProvider>().loadGroups();
+              }
+              return;
             }
-            return;
           }
         }
 
-        // If not logged in or auto-join could not resolve group directly, push JoinGroupScreen
+        // If not logged in or NOT yet a member of this group:
+        // Open JoinGroupScreen so user can confirm their chosen name (e.g. "akshay") before joining!
         if (mounted) {
           await appNavigatorKey.currentState?.push(
             MaterialPageRoute(

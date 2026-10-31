@@ -28,7 +28,10 @@ class SplitProvider with ChangeNotifier {
     final uid = Supabase.instance.client.auth.currentUser?.id;
     return uid != null ? 'split_group_ids_$uid' : 'split_group_ids_guest';
   }
-  static const _memberNameKey = 'split_member_name_v1';
+  String get _memberNameKey {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    return uid != null ? 'split_member_name_$uid' : 'split_member_name_guest';
+  }
 
   List<SplitGroup> get groups => _groups;
   Map<String, List<SplitMember>> get members => _members;
@@ -62,7 +65,6 @@ class SplitProvider with ChangeNotifier {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _currentMemberName = prefs.getString(_memberNameKey);
-    await _processPendingInviteIfAny();
     await loadGroups();
 
     // Listen to Supabase auth events (e.g. session restored from disk, login, user switch)
@@ -72,35 +74,13 @@ class SplitProvider with ChangeNotifier {
           event == AuthChangeEvent.tokenRefreshed ||
           event == AuthChangeEvent.initialSession ||
           event == AuthChangeEvent.userUpdated) {
-        await _processPendingInviteIfAny();
+        final prefs = await SharedPreferences.getInstance();
+        _currentMemberName = prefs.getString(_memberNameKey);
         loadGroups(isBackgroundRefresh: true);
       } else if (event == AuthChangeEvent.signedOut) {
         clearStateOnLogout();
       }
     });
-  }
-
-  Future<void> _processPendingInviteIfAny() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final pendingCode = prefs.getString('pending_invite_code');
-      if (pendingCode == null || pendingCode.trim().isEmpty) return;
-
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      final name = _currentMemberName ?? AuthService.instance.userDisplayName;
-
-      final memberName = name.trim().isNotEmpty
-          ? name.trim()
-          : (currentUser?.email?.split('@').first ?? 'Member');
-
-      debugPrint('Auto-joining pending invite group: $pendingCode as $memberName');
-      final group = await joinGroupByInviteCode(pendingCode.trim().toUpperCase(), memberName);
-      if (group != null) {
-        await prefs.remove('pending_invite_code');
-      }
-    } catch (e) {
-      debugPrint('Error processing pending invite code: $e');
-    }
   }
 
   void clearStateOnLogout() {
@@ -300,42 +280,32 @@ class SplitProvider with ChangeNotifier {
     final existingMembers = await SplitService.instance.getMembers(group.id);
     final currentUser = Supabase.instance.client.auth.currentUser;
 
-    // 1. Check if user is already linked by auth user_id
+    // STRICT USER ID BASED JOIN:
+    // Check if user is already enrolled by auth user_id
     final matchingUidMembers = currentUser?.id != null
         ? existingMembers.where((m) => m.userId == currentUser!.id).toList()
         : <SplitMember>[];
 
     if (matchingUidMembers.isNotEmpty) {
-      // User is already an enrolled member with their user_id!
-      // If duplicate member rows exist from prior bugs, auto-cleanup duplicates:
+      // User is ALREADY a member with their user_id!
+      final primary = matchingUidMembers.first;
+      // If multiple duplicate rows exist with the same user_id, clean them up:
       if (matchingUidMembers.length > 1) {
-        final primary = matchingUidMembers.first;
         for (int i = 1; i < matchingUidMembers.length; i++) {
           unawaited(SplitService.instance.mergeMembers(group.id, matchingUidMembers[i].id, primary.id));
         }
       }
+      // If user chose a new name (e.g. "akshay"), update their existing member record!
+      if (memberName.trim().isNotEmpty && memberName.trim() != primary.name.trim()) {
+        await SplitService.instance.updateMemberName(primary.id, memberName.trim());
+      }
     } else {
-      // 2. Check if there is an existing manual member with matching name that hasn't been claimed yet
-      SplitMember? matchedManual;
-      for (final m in existingMembers) {
-        if ((m.userId == null || m.userId!.isEmpty) &&
-            m.name.trim().toLowerCase() == memberName.trim().toLowerCase()) {
-          matchedManual = m;
-          break;
-        }
-      }
-
-      if (matchedManual != null && currentUser?.id != null) {
-        // Link this account to the existing member so all past expenses & shares are immediately theirs!
-        await SplitService.instance.claimMember(matchedManual.id, currentUser!.id);
-      } else {
-        // 3. Add as a new member with their auth user_id
-        await SplitService.instance.addMember(
-          groupId: group.id,
-          name: memberName,
-          userId: currentUser?.id,
-        );
-      }
+      // Add EXACTLY ONE new member with their auth user_id!
+      await SplitService.instance.addMember(
+        groupId: group.id,
+        name: memberName.trim(),
+        userId: currentUser?.id,
+      );
     }
 
     // Save group ID in user-scoped preferences

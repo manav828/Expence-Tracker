@@ -282,29 +282,18 @@ class SplitService {
                 try {
                   final memberships = await _db
                       .from('split_members')
-                      .select('id, user_id, name')
+                      .select('id, user_id')
                       .eq('group_id', g.id);
                   bool isMember = false;
-                  String? unlinkedMemberId;
                   for (final m in (memberships as List)) {
                     final mUid = m['user_id'] as String?;
-                    final mName = (m['name'] as String? ?? '').trim().toLowerCase();
                     if (mUid == userId) {
                       isMember = true;
                       break;
                     }
-                    if ((mUid == null || mUid.isEmpty) &&
-                        displayName.isNotEmpty &&
-                        mName == displayName.trim().toLowerCase()) {
-                      isMember = true;
-                      unlinkedMemberId = m['id'] as String;
-                    }
                   }
                   if (isMember) {
                     cloudGroupsMap[g.id] = g;
-                    if (unlinkedMemberId != null) {
-                      claimMember(unlinkedMemberId, userId);
-                    }
                   }
                 } catch (e) {
                   debugPrint('Membership check error for group ${g.id}: $e');
@@ -641,7 +630,8 @@ class SplitService {
           .order('joined_at', ascending: true);
       final rawCloudMembers = (res as List).map((m) => SplitMember.fromMap(m)).toList();
 
-      // Deduplicate members sharing the same user_id in this group
+      // STRICT USER ID DEDUPLICATION:
+      // Each authenticated user_id can appear AT MOST ONCE in a group!
       final List<SplitMember> cloudMembers = [];
       final Set<String> seenUserIds = {};
       final List<String> duplicatesToMerge = [];
@@ -650,71 +640,53 @@ class SplitService {
         if (m.userId != null && m.userId!.isNotEmpty) {
           if (seenUserIds.contains(m.userId)) {
             duplicatesToMerge.add(m.id);
-            continue;
+            continue; // Skip duplicate row with same user_id
           }
           seenUserIds.add(m.userId!);
         }
         cloudMembers.add(m);
       }
 
-      // If an authenticated member already exists, auto-merge any duplicate unclaimed members with the identical name
-      for (final dup in rawCloudMembers) {
-        if (dup.userId == null || dup.userId!.isEmpty) {
-          final matchingAuth = cloudMembers.where((u) =>
-              u.userId != null &&
-              u.userId!.isNotEmpty &&
-              u.name.trim().toLowerCase() == dup.name.trim().toLowerCase() &&
-              u.id != dup.id).firstOrNull;
-          if (matchingAuth != null && !duplicatesToMerge.contains(dup.id)) {
-            duplicatesToMerge.add(dup.id);
-            cloudMembers.removeWhere((c) => c.id == dup.id);
-          }
-        }
-      }
-
-      // Cleanup duplicate member rows in background so creator and members never see duplicates
+      // Cleanup duplicate member rows in background in Supabase
       if (duplicatesToMerge.isNotEmpty) {
         for (final dupId in duplicatesToMerge) {
           final dup = rawCloudMembers.firstWhere((c) => c.id == dupId);
-          final primary = cloudMembers.where((u) =>
-              (dup.userId != null && u.userId == dup.userId) ||
-              u.name.trim().toLowerCase() == dup.name.trim().toLowerCase()).firstOrNull;
+          final primary = cloudMembers.where((u) => u.userId == dup.userId).firstOrNull;
           if (primary != null && primary.id != dupId) {
             unawaited(mergeMembers(groupId, dupId, primary.id));
           }
         }
       }
 
-      if (!kIsWeb && cloudMembers.isNotEmpty) {
+      // Authoritative Sync: update local SQLite cache with exact cloud members
+      // and purge any local rows that were removed in the cloud
+      if (!kIsWeb) {
         try {
           final db = await _localDb;
+          final cloudIds = cloudMembers.map((m) => m.id).toList();
+          if (cloudIds.isNotEmpty) {
+            final placeholders = List.filled(cloudIds.length, '?').join(',');
+            await db.delete(
+              'split_members',
+              where: 'group_id = ? AND id NOT IN ($placeholders)',
+              whereArgs: [groupId, ...cloudIds],
+            );
+          } else {
+            await db.delete('split_members', where: 'group_id = ?', whereArgs: [groupId]);
+          }
           final batch = db.batch();
           for (final m in cloudMembers) {
             batch.insert('split_members', m.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
           }
           await batch.commit(noResult: true);
         } catch (e) {
-          debugPrint('Local SQLite cache error in getMembers: $e');
+          debugPrint('Local SQLite sync error in getMembers: $e');
         }
       }
 
-      // MERGE: Combine local and cloud members so members are never dropped
-      final map = <String, SplitMember>{};
-      for (final m in localMembers) {
-        map[m.id] = m;
-      }
-      for (final m in cloudMembers) {
-        map[m.id] = m;
-      }
-      // Remove any duplicate IDs that were merged
-      for (final dupId in duplicatesToMerge) {
-        map.remove(dupId);
-      }
-      if (map.isNotEmpty) {
-        final list = map.values.toList();
-        list.sort((a, b) => a.joinedAt.compareTo(b.joinedAt));
-        return list;
-      }
+      // Online: Return authoritative cloud members directly (do not resurrect deleted local members)
+      cloudMembers.sort((a, b) => a.joinedAt.compareTo(b.joinedAt));
+      return cloudMembers;
     } catch (e) {
       debugPrint('Cloud getMembers error, returning local cached: $e');
     }
