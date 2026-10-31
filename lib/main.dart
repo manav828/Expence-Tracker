@@ -23,6 +23,8 @@ import 'widgets/budget_alert_banner.dart';
 import 'services/transaction_detection_service.dart';
 import 'utils/category_icons.dart';
 import 'services/auth_service.dart';
+import 'services/split_service.dart';
+import 'models/split_models.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'widgets/storage_choice_dialog.dart';
