@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/config/app_config.dart';
+import '../core/errors/error_handler.dart';
 import 'storage_preference_service.dart';
 
 class AuthService {
@@ -13,18 +15,10 @@ class AuthService {
   static const String _userNameKey = 'user_display_name_cached';
   static const String _userPhotoKey = 'user_photo_url_cached';
 
-  // Google OAuth Client IDs
-  // 1. Web Client ID (used as serverClientId for token verification with Supabase)
-  static const String _webClientId =
-      '399080992633-83vkmq76bgerotmks2ol10bniofcjq4t.apps.googleusercontent.com';
-
-  // 2. Android Client ID (registered with package com.manav.expense.expense_tracker & SHA-1 in Google Cloud)
-  static const String androidClientId =
-      '399080992633-10o8it0lqlo4dcj4hat30ndu9g3oqjm9.apps.googleusercontent.com';
-
-  // 3. iOS Client ID (fill in when creating iOS credentials in Google Cloud Console)
-  static const String _iosClientId =
-      '399080992633-l5k7r4ihs15tgs41c41hktcv8uip9jer.apps.googleusercontent.com';
+  // Google OAuth Client IDs configured via AppConfig / --dart-define
+  static String get _webClientId => AppConfig.googleWebClientId;
+  static String get androidClientId => AppConfig.googleAndroidClientId;
+  static String get _iosClientId => AppConfig.googleIosClientId;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -208,8 +202,8 @@ class AuthService {
       );
       await StoragePreferenceService.setMode(StorageMode.cloud);
       return res;
-    } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
+    } catch (e, st) {
+      ErrorHandler.log('AuthService.signInWithGoogle', e, st);
       rethrow;
     }
   }
@@ -221,8 +215,8 @@ class AuthService {
   Future<void> signOut() async {
     try {
       await _client.auth.signOut();
-    } catch (e) {
-      debugPrint('Supabase sign out error: $e');
+    } catch (e, st) {
+      ErrorHandler.log('AuthService.signOut.supabase', e, st);
     }
     if (!kIsWeb) {
       try {
@@ -230,8 +224,8 @@ class AuthService {
         if (await googleSignIn.isSignedIn()) {
           await googleSignIn.signOut();
         }
-      } catch (e) {
-        debugPrint('Google sign out error: $e');
+      } catch (e, st) {
+        ErrorHandler.log('AuthService.signOut.google', e, st);
       }
     }
 

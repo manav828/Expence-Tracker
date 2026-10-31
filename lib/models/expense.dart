@@ -1,13 +1,33 @@
+/// Represents an individual user expense or cash outflow in ExpenCircle.
 class Expense {
+  /// Unique database identifier (auto-incremented integer for SQLite and BigInt for cloud DB).
   final int? id;
+
+  /// Supabase auth user UID owning this personal expense.
   final String? userId;
+
+  /// Financial monetary value in INR (e.g. 250.00).
   final double amount;
+
+  /// User-defined or preset category (e.g. 'Food', 'Travel', 'Shopping').
   final String category;
+
+  /// Transaction instrument (e.g. 'UPI', 'Credit Card', 'Cash', 'NetBanking').
   final String paymentMethod;
+
+  /// Optional remark, note, or merchant name.
   final String? comment;
+
+  /// Optional receipt or invoice image URL hosted on CDN.
   final String? receiptUrl;
-  final int expenseDate; // Unix timestamp in milliseconds
+
+  /// Transaction timestamp in milliseconds since Unix epoch.
+  final int expenseDate;
+
+  /// Record creation timestamp in milliseconds since Unix epoch.
   final int createdAt;
+
+  /// Record last update timestamp in milliseconds since Unix epoch.
   final int updatedAt;
 
   Expense({
@@ -23,6 +43,7 @@ class Expense {
     required this.updatedAt,
   });
 
+  /// Serializes the expense to a key-value Map for SQLite or Supabase database operations.
   Map<String, dynamic> toMap() {
     final map = <String, dynamic>{
       'id': id,
@@ -41,6 +62,7 @@ class Expense {
     return map;
   }
 
+  /// Deserializes a key-value Map safely into an [Expense] instance.
   factory Expense.fromMap(Map<String, dynamic> map) {
     final expDate = (map['expense_date'] as num).toInt();
     final created = map['created_at'] != null ? (map['created_at'] as num).toInt() : expDate;
@@ -60,8 +82,10 @@ class Expense {
     );
   }
 
+  /// Converts the Unix millisecond timestamp into a [DateTime] object.
   DateTime get dateTime => DateTime.fromMillisecondsSinceEpoch(expenseDate);
 
+  /// Creates a copy of this expense with replaced field values.
   Expense copyWith({
     int? id,
     String? userId,

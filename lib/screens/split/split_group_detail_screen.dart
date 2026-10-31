@@ -11,7 +11,7 @@ import '../../services/pixabay_service.dart';
 import 'add_split_expense_sheet.dart';
 import 'settle_up_screen.dart';
 import 'group_banner_picker_sheet.dart';
-import 'receipt_attachment_sheet.dart';
+import '../../widgets/receipt_attachment_sheet.dart';
 
 const List<Color> _avatarColors = [
   Color(0xFF006948), // Deep emerald

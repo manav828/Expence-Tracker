@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/errors/error_handler.dart';
 import '../models/split_models.dart';
 import '../services/split_service.dart';
 import '../services/pixabay_service.dart';
-import '../services/auth_service.dart';
 
 class SplitProvider with ChangeNotifier {
   List<SplitGroup> _groups = [];
@@ -44,6 +44,11 @@ class SplitProvider with ChangeNotifier {
   bool get hasPendingSync => _hasPendingSync;
   String? get error => _error;
   String? get currentMemberName => _currentMemberName;
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
 
   List<SplitMember> getMembersForGroup(String groupId) => _members[groupId] ?? [];
   List<SplitExpense> getExpensesForGroup(String groupId) => _expenses[groupId] ?? [];
@@ -153,9 +158,10 @@ class SplitProvider with ChangeNotifier {
           }
         }
       });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.log('SplitProvider.loadGroups', e, st);
       if (!isBackgroundRefresh) {
-        _error = e.toString();
+        _error = ErrorHandler.getUserMessage(e);
       }
     }
     if (!isBackgroundRefresh) {

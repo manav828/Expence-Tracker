@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/pixabay_service.dart';
 import '../../services/cloudflare_r2_service.dart';

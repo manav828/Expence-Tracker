@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
-import '../config/api_keys.dart';
+import '../core/config/app_config.dart';
+import '../core/errors/error_handler.dart';
 
 class CloudflareR2Service {
   static final CloudflareR2Service instance = CloudflareR2Service._();
@@ -19,11 +20,11 @@ class CloudflareR2Service {
     String contentType = 'image/jpeg',
   }) async {
     try {
-      final accountId = ApiKeys.r2AccountId;
-      final bucket = ApiKeys.r2BucketName;
-      final accessKey = ApiKeys.r2AccessKeyId;
-      final secretKey = ApiKeys.r2SecretAccessKey;
-      final publicBase = ApiKeys.r2PublicBaseUrl;
+      final accountId = AppConfig.r2AccountId;
+      final bucket = AppConfig.r2BucketName;
+      final accessKey = AppConfig.r2AccessKeyId;
+      final secretKey = AppConfig.r2SecretAccessKey;
+      final publicBase = AppConfig.r2PublicBaseUrl;
 
       // Clean the key path
       final cleanKey = path.startsWith('/') ? path.substring(1) : path;
@@ -102,8 +103,8 @@ class CloudflareR2Service {
         debugPrint('Cloudflare R2 upload failed [${res.statusCode}]: ${res.body}');
         return null;
       }
-    } catch (e) {
-      debugPrint('Cloudflare R2 upload exception: $e');
+    } catch (e, st) {
+      ErrorHandler.log('CloudflareR2Service.uploadBytes', e, st);
       return null;
     }
   }
@@ -131,11 +132,11 @@ class CloudflareR2Service {
   /// Deletes an object from Cloudflare R2 by its public URL.
   Future<bool> deleteByUrl(String publicUrl) async {
     try {
-      final accountId = ApiKeys.r2AccountId;
-      final bucket = ApiKeys.r2BucketName;
-      final accessKey = ApiKeys.r2AccessKeyId;
-      final secretKey = ApiKeys.r2SecretAccessKey;
-      final publicBase = ApiKeys.r2PublicBaseUrl;
+      final accountId = AppConfig.r2AccountId;
+      final bucket = AppConfig.r2BucketName;
+      final accessKey = AppConfig.r2AccessKeyId;
+      final secretKey = AppConfig.r2SecretAccessKey;
+      final publicBase = AppConfig.r2PublicBaseUrl;
 
       // Extract the key from publicUrl
       String cleanKey;
@@ -219,8 +220,8 @@ class CloudflareR2Service {
         debugPrint('Cloudflare R2 delete failed [${res.statusCode}]: ${res.body}');
         return false;
       }
-    } catch (e) {
-      debugPrint('Cloudflare R2 delete exception: $e');
+    } catch (e, st) {
+      ErrorHandler.log('CloudflareR2Service.deleteByUrl', e, st);
       return false;
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/errors/error_handler.dart';
 import '../models/budget.dart';
 import '../models/expense.dart';
 import '../services/database_service.dart';
@@ -27,11 +28,18 @@ class BudgetProgress {
 class BudgetProvider with ChangeNotifier {
   List<Budget> _budgets = [];
   bool _isLoading = false;
+  String? _errorMessage;
   String? _recentOverspendWarning;
 
   List<Budget> get budgets => _budgets;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
   String? get recentOverspendWarning => _recentOverspendWarning;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   BudgetProvider({bool autoFetch = true}) {
     if (autoFetch) {
@@ -52,11 +60,18 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> fetchBudgets() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
-    _budgets = await DatabaseService.instance.getBudgets();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      _budgets = await DatabaseService.instance.getBudgets();
+    } catch (e, st) {
+      ErrorHandler.log('BudgetProvider.fetchBudgets', e, st);
+      _errorMessage = ErrorHandler.getUserMessage(e);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> setBudget(String category, double monthlyLimit) async {

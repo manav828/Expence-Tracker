@@ -214,7 +214,6 @@ class SplitService {
   Future<List<SplitGroup>> fetchUserGroups({List<String>? localKnownIds}) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     final userId = currentUser?.id;
-    final displayName = AuthService.instance.userDisplayName;
 
     List<SplitGroup> localGroups = [];
     if (!kIsWeb) {

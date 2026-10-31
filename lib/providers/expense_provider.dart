@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import '../core/errors/error_handler.dart';
 import '../models/expense.dart';
 import '../models/search_filter.dart';
 import '../services/database_service.dart';
@@ -8,13 +9,20 @@ import '../services/google_sheets_service.dart';
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
   bool _isLoading = false;
+  String? _errorMessage;
   List<String> _categories = [];
   List<String> _paymentMethods = [];
 
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
   List<String> get categories => _categories;
   List<String> get paymentMethods => _paymentMethods;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   ExpenseProvider({bool autoFetch = true}) {
     if (autoFetch) {
@@ -34,15 +42,21 @@ class ExpenseProvider with ChangeNotifier {
   Future<void> fetchExpenses({bool showLoading = true}) async {
     if (showLoading) {
       _isLoading = true;
+      _errorMessage = null;
       notifyListeners();
     }
 
-    _expenses = await DatabaseService.instance.getAllExpenses();
-    _categories = await DatabaseService.instance.getCategories();
-    _paymentMethods = await DatabaseService.instance.getPaymentMethods();
-    
-    _isLoading = false;
-    notifyListeners();
+    try {
+      _expenses = await DatabaseService.instance.getAllExpenses();
+      _categories = await DatabaseService.instance.getCategories();
+      _paymentMethods = await DatabaseService.instance.getPaymentMethods();
+    } catch (e, st) {
+      ErrorHandler.log('ExpenseProvider.fetchExpenses', e, st);
+      _errorMessage = ErrorHandler.getUserMessage(e);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> reloadForStorageMode() async {

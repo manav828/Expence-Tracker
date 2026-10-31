@@ -1,8 +1,18 @@
+/// Represents a category-specific monthly spending limit in ExpenCircle.
 class Budget {
+  /// Unique database identifier for the budget limit.
   final int? id;
+
+  /// The spending category this budget safeguards (e.g. 'Food', 'Groceries').
   final String category;
+
+  /// Monthly financial threshold in INR (e.g. 5000.0).
   final double monthlyLimit;
+
+  /// Creation timestamp in milliseconds since Unix epoch.
   final int createdAt;
+
+  /// Last modification timestamp in milliseconds since Unix epoch.
   final int updatedAt;
 
   Budget({
@@ -13,6 +23,7 @@ class Budget {
     required this.updatedAt,
   });
 
+  /// Serializes budget to database map.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -23,6 +34,7 @@ class Budget {
     };
   }
 
+  /// Deserializes database record map into a [Budget] instance.
   factory Budget.fromMap(Map<String, dynamic> map) {
     return Budget(
       id: map['id'],
@@ -33,6 +45,7 @@ class Budget {
     );
   }
 
+  /// Creates a copy of this budget with updated fields.
   Budget copyWith({
     int? id,
     String? category,

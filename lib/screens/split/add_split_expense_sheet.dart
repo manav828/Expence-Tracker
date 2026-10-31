@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/split_provider.dart';
 import '../../models/split_models.dart';
 import '../../services/cloudflare_r2_service.dart';
-import 'receipt_attachment_sheet.dart';
+import '../../widgets/receipt_attachment_sheet.dart';
 
 class AddSplitExpenseSheet extends StatefulWidget {
   final String groupId;

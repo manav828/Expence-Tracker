@@ -1,13 +1,15 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../config/api_keys.dart';
+import '../core/config/app_config.dart';
+import '../core/errors/error_handler.dart';
 
+/// Service responsible for fetching contextual banners and searching images on Pixabay.
+/// Falls back to high-resolution curated photography when offline or unconfigured.
 class PixabayService {
   PixabayService._();
   static final PixabayService instance = PixabayService._();
 
-  static const _baseUrl = 'https://pixabay.com/api/';
+  static const String _baseUrl = 'https://pixabay.com/api/';
 
   /// Fetches an image URL for a group based on its name and optional description.
   /// Falls back to curated aesthetic photos if Pixabay returns 0 hits or if offline.
@@ -17,18 +19,19 @@ class PixabayService {
   }) async {
     try {
       final query = _extractBestSearchKeyword(name, description);
-      if (query.isNotEmpty && ApiKeys.pixabayApiKey.isNotEmpty && ApiKeys.pixabayApiKey != 'YOUR_PIXABAY_API_KEY_HERE') {
+      if (query.isNotEmpty && AppConfig.hasPixabayConfigured) {
         final encodedQuery = Uri.encodeComponent(query);
         final url = Uri.parse(
-          '$_baseUrl?key=${ApiKeys.pixabayApiKey}&q=$encodedQuery&image_type=photo&orientation=horizontal&safesearch=true&per_page=5',
+          '$_baseUrl?key=${AppConfig.pixabayApiKey}&q=$encodedQuery&image_type=photo&orientation=horizontal&safesearch=true&per_page=5',
         );
 
-        final res = await http.get(url).timeout(const Duration(seconds: 4));
+        final res = await http.get(url).timeout(
+              const Duration(seconds: AppConfig.imageSearchTimeoutSeconds),
+            );
         if (res.statusCode == 200) {
           final data = json.decode(res.body) as Map<String, dynamic>;
           final hits = data['hits'] as List<dynamic>?;
           if (hits != null && hits.isNotEmpty) {
-            // Pick the first horizontal high-res photo
             final first = hits.first as Map<String, dynamic>;
             final imageUrl = (first['largeImageURL'] ?? first['webformatURL']) as String?;
             if (imageUrl != null && imageUrl.isNotEmpty) {
@@ -37,11 +40,10 @@ class PixabayService {
           }
         }
       }
-    } catch (e) {
-      debugPrint('PixabayService fetch error (using fallback): $e');
+    } catch (e, st) {
+      ErrorHandler.log('PixabayService.fetchImageForGroup', e, st);
     }
 
-    // Graceful fallback to curated high-resolution photography
     return getCuratedFallback(name);
   }
 
@@ -49,7 +51,6 @@ class PixabayService {
   static String _extractBestSearchKeyword(String name, String? description) {
     final lower = name.toLowerCase();
 
-    // Specific destination & activity mappings
     if (lower.contains('udaipur') || lower.contains('rajasthan') || lower.contains('jaipur')) return 'rajasthan palace';
     if (lower.contains('bali')) return 'bali indonesia temple';
     if (lower.contains('goa')) return 'goa beach sunset';
@@ -73,7 +74,6 @@ class PixabayService {
     if (lower.contains('movie') || lower.contains('cinema')) return 'cinema theater popcorn';
     if (lower.contains('road') || lower.contains('drive') || lower.contains('bike')) return 'road trip scenic highway';
 
-    // Remove noise words and extract meaningful terms
     final stopWords = {
       'the', 'a', 'an', 'and', 'or', 'for', 'with', 'to', 'in', 'at', 'by', 'of',
       'group', 'trip', 'tour', 'expenses', 'split', 'gang', 'boys', 'girls', 'fam',
@@ -90,9 +90,9 @@ class PixabayService {
       return words.take(2).join(' ');
     }
 
-    // If description has words, try description
     if (description != null && description.isNotEmpty) {
-      final descWords = description.toLowerCase()
+      final descWords = description
+          .toLowerCase()
           .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), ' ')
           .split(RegExp(r'\s+'))
           .where((w) => w.length > 2 && !stopWords.contains(w))
@@ -163,13 +163,15 @@ class PixabayService {
     if (cleanQuery.isEmpty) return [];
 
     try {
-      if (ApiKeys.pixabayApiKey.isNotEmpty && ApiKeys.pixabayApiKey != 'YOUR_PIXABAY_API_KEY_HERE') {
+      if (AppConfig.hasPixabayConfigured) {
         final encoded = Uri.encodeComponent(cleanQuery);
         final url = Uri.parse(
-          '$_baseUrl?key=${ApiKeys.pixabayApiKey}&q=$encoded&image_type=photo&orientation=horizontal&safesearch=true&per_page=$perPage',
+          '$_baseUrl?key=${AppConfig.pixabayApiKey}&q=$encoded&image_type=photo&orientation=horizontal&safesearch=true&per_page=$perPage',
         );
 
-        final res = await http.get(url).timeout(const Duration(seconds: 5));
+        final res = await http.get(url).timeout(
+              const Duration(seconds: AppConfig.imageSearchTimeoutSeconds),
+            );
         if (res.statusCode == 200) {
           final data = json.decode(res.body) as Map<String, dynamic>;
           final hits = data['hits'] as List<dynamic>?;
@@ -186,8 +188,8 @@ class PixabayService {
           }
         }
       }
-    } catch (e) {
-      debugPrint('PixabayService search error: $e');
+    } catch (e, st) {
+      ErrorHandler.log('PixabayService.searchImages', e, st);
     }
 
     return [];
