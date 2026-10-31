@@ -22,6 +22,7 @@ class SplitProvider with ChangeNotifier {
   String? _error;
   String? _currentMemberName; // the name used by this device in groups
   StreamSubscription<AuthState>? _authSub;
+  final Map<String, Future<SplitGroup?>> _inFlightJoins = {};
 
   String get _userGroupIdsKey {
     final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -143,8 +144,13 @@ class SplitProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final ids = prefs.getStringList(_userGroupIdsKey) ?? [];
+      final guestIds = prefs.getStringList('split_group_ids_guest') ?? [];
       final localIds = await SplitService.instance.getAllLocalGroupIds();
-      final allLocalIds = {...ids, ...localIds}.toList();
+      final allLocalIds = {
+        ...ids,
+        if (Supabase.instance.client.auth.currentUser != null) ...guestIds,
+        ...localIds
+      }.toList();
 
       // FETCH FROM DB (Supabase cloud first, with local SQLite offline fallback)
       _groups = await SplitService.instance.fetchUserGroups(localKnownIds: allLocalIds);
@@ -261,24 +267,53 @@ class SplitProvider with ChangeNotifier {
     }
     _groups.removeWhere((g) => g.id == group.id);
     _groups.insert(0, group);
-    await loadGroupDetail(group.id);
+    try {
+      await loadGroupDetail(group.id);
+    } catch (e) {
+      debugPrint('Error loading group detail in join: $e');
+    }
     _checkPendingSync();
     notifyListeners();
     return group;
   }
 
   Future<SplitGroup?> joinGroupByInviteCode(String code, String memberName) async {
+    final cleanCode = code.trim().toUpperCase();
+    if (_inFlightJoins.containsKey(cleanCode)) {
+      debugPrint('Join already in flight for $cleanCode, awaiting existing join...');
+      return await _inFlightJoins[cleanCode]!;
+    }
+
+    final future = _joinGroupByInviteCodeInternal(cleanCode, memberName);
+    _inFlightJoins[cleanCode] = future;
+    try {
+      final res = await future;
+      return res;
+    } finally {
+      _inFlightJoins.remove(cleanCode);
+    }
+  }
+
+  Future<SplitGroup?> _joinGroupByInviteCodeInternal(String code, String memberName) async {
     final group = await SplitService.instance.getGroupByInviteCode(code);
     if (group == null) return null;
     final existingMembers = await SplitService.instance.getMembers(group.id);
     final currentUser = Supabase.instance.client.auth.currentUser;
 
     // 1. Check if user is already linked by auth user_id
-    final alreadyMemberByUid = currentUser?.id != null &&
-        existingMembers.any((m) => m.userId == currentUser!.id);
+    final matchingUidMembers = currentUser?.id != null
+        ? existingMembers.where((m) => m.userId == currentUser!.id).toList()
+        : <SplitMember>[];
 
-    if (alreadyMemberByUid) {
-      // User is already an enrolled member with their user_id
+    if (matchingUidMembers.isNotEmpty) {
+      // User is already an enrolled member with their user_id!
+      // If duplicate member rows exist from prior bugs, auto-cleanup duplicates:
+      if (matchingUidMembers.length > 1) {
+        final primary = matchingUidMembers.first;
+        for (int i = 1; i < matchingUidMembers.length; i++) {
+          unawaited(SplitService.instance.mergeMembers(group.id, matchingUidMembers[i].id, primary.id));
+        }
+      }
     } else {
       // 2. Check if there is an existing manual member with matching name that hasn't been claimed yet
       SplitMember? matchedManual;
@@ -302,6 +337,7 @@ class SplitProvider with ChangeNotifier {
         );
       }
     }
+
     // Save group ID in user-scoped preferences
     final prefs = await SharedPreferences.getInstance();
     final ids = prefs.getStringList(_userGroupIdsKey) ?? [];
@@ -309,9 +345,15 @@ class SplitProvider with ChangeNotifier {
       ids.add(group.id);
       await prefs.setStringList(_userGroupIdsKey, ids);
     }
+    await prefs.remove('pending_invite_code');
+
     _groups.removeWhere((g) => g.id == group.id);
     _groups.insert(0, group);
-    await loadGroupDetail(group.id);
+    try {
+      await loadGroupDetail(group.id);
+    } catch (e) {
+      debugPrint('Error loading group detail in join: $e');
+    }
     _checkPendingSync();
     notifyListeners();
     return group;

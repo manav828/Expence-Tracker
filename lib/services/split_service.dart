@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -229,6 +230,7 @@ class SplitService {
     try {
       final Map<String, SplitGroup> cloudGroupsMap = {};
       final Set<String> groupIdsToFetch = {};
+      final Set<String> verifiedMemberGroupIds = {};
 
       if (localKnownIds != null) {
         groupIdsToFetch.addAll(localKnownIds);
@@ -250,11 +252,13 @@ class SplitService {
           debugPrint('fetchUserGroups by user_id error: $e');
         }
 
-        // 2. Fetch groups where this user is registered as a member
+        // 2. Fetch all groups where this user is registered as a member
         try {
           final memberRows = await _db.from('split_members').select('group_id').eq('user_id', userId);
           for (final r in memberRows as List) {
-            groupIdsToFetch.add(r['group_id'] as String);
+            final gid = r['group_id'] as String;
+            verifiedMemberGroupIds.add(gid);
+            groupIdsToFetch.add(gid);
           }
         } catch (e) {
           debugPrint('fetchUserGroups by member user_id error: $e');
@@ -270,17 +274,40 @@ class SplitService {
             final g = SplitGroup.fromMap(item);
             // If user is authenticated, ensure they actually belong to this group as creator or member
             if (userId != null && userId.isNotEmpty) {
-              if (g.userId == userId) {
+              if (g.userId == userId || verifiedMemberGroupIds.contains(g.id)) {
+                // User is verified creator or verified member
                 cloudGroupsMap[g.id] = g;
               } else {
-                final membership = await _db
-                    .from('split_members')
-                    .select('id')
-                    .eq('group_id', g.id)
-                    .eq('user_id', userId)
-                    .maybeSingle();
-                if (membership != null) {
-                  cloudGroupsMap[g.id] = g;
+                // For groups from local storage / deep link, safely check membership with list/limit (never maybeSingle)
+                try {
+                  final memberships = await _db
+                      .from('split_members')
+                      .select('id, user_id, name')
+                      .eq('group_id', g.id);
+                  bool isMember = false;
+                  String? unlinkedMemberId;
+                  for (final m in (memberships as List)) {
+                    final mUid = m['user_id'] as String?;
+                    final mName = (m['name'] as String? ?? '').trim().toLowerCase();
+                    if (mUid == userId) {
+                      isMember = true;
+                      break;
+                    }
+                    if ((mUid == null || mUid.isEmpty) &&
+                        displayName.isNotEmpty &&
+                        mName == displayName.trim().toLowerCase()) {
+                      isMember = true;
+                      unlinkedMemberId = m['id'] as String;
+                    }
+                  }
+                  if (isMember) {
+                    cloudGroupsMap[g.id] = g;
+                    if (unlinkedMemberId != null) {
+                      claimMember(unlinkedMemberId, userId);
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Membership check error for group ${g.id}: $e');
                 }
               }
             } else {
@@ -612,7 +639,52 @@ class SplitService {
           .select()
           .eq('group_id', groupId)
           .order('joined_at', ascending: true);
-      final cloudMembers = (res as List).map((m) => SplitMember.fromMap(m)).toList();
+      final rawCloudMembers = (res as List).map((m) => SplitMember.fromMap(m)).toList();
+
+      // Deduplicate members sharing the same user_id in this group
+      final List<SplitMember> cloudMembers = [];
+      final Set<String> seenUserIds = {};
+      final List<String> duplicatesToMerge = [];
+
+      for (final m in rawCloudMembers) {
+        if (m.userId != null && m.userId!.isNotEmpty) {
+          if (seenUserIds.contains(m.userId)) {
+            duplicatesToMerge.add(m.id);
+            continue;
+          }
+          seenUserIds.add(m.userId!);
+        }
+        cloudMembers.add(m);
+      }
+
+      // If an authenticated member already exists, auto-merge any duplicate unclaimed members with the identical name
+      for (final dup in rawCloudMembers) {
+        if (dup.userId == null || dup.userId!.isEmpty) {
+          final matchingAuth = cloudMembers.where((u) =>
+              u.userId != null &&
+              u.userId!.isNotEmpty &&
+              u.name.trim().toLowerCase() == dup.name.trim().toLowerCase() &&
+              u.id != dup.id).firstOrNull;
+          if (matchingAuth != null && !duplicatesToMerge.contains(dup.id)) {
+            duplicatesToMerge.add(dup.id);
+            cloudMembers.removeWhere((c) => c.id == dup.id);
+          }
+        }
+      }
+
+      // Cleanup duplicate member rows in background so creator and members never see duplicates
+      if (duplicatesToMerge.isNotEmpty) {
+        for (final dupId in duplicatesToMerge) {
+          final dup = rawCloudMembers.firstWhere((c) => c.id == dupId);
+          final primary = cloudMembers.where((u) =>
+              (dup.userId != null && u.userId == dup.userId) ||
+              u.name.trim().toLowerCase() == dup.name.trim().toLowerCase()).firstOrNull;
+          if (primary != null && primary.id != dupId) {
+            unawaited(mergeMembers(groupId, dupId, primary.id));
+          }
+        }
+      }
+
       if (!kIsWeb && cloudMembers.isNotEmpty) {
         try {
           final db = await _localDb;
@@ -633,6 +705,10 @@ class SplitService {
       }
       for (final m in cloudMembers) {
         map[m.id] = m;
+      }
+      // Remove any duplicate IDs that were merged
+      for (final dupId in duplicatesToMerge) {
+        map.remove(dupId);
       }
       if (map.isNotEmpty) {
         final list = map.values.toList();

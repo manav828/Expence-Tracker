@@ -30,6 +30,32 @@ import 'services/storage_preference_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
+String? extractInviteCode(Uri uri) {
+  // 1. Direct query parameter: ?code=... or ?join=... or ?split=...
+  String? code = uri.queryParameters['code'] ??
+      uri.queryParameters['join'] ??
+      uri.queryParameters['split'];
+  if (code != null && code.trim().isNotEmpty) return code.trim();
+
+  // 2. Hash fragment query: #/?code=... or #/split?code=...
+  if (uri.hasFragment && uri.fragment.contains('?')) {
+    final queryPart = uri.fragment.substring(uri.fragment.indexOf('?') + 1);
+    final fragUri = Uri(query: queryPart);
+    code = fragUri.queryParameters['code'] ??
+        fragUri.queryParameters['join'] ??
+        fragUri.queryParameters['split'];
+    if (code != null && code.trim().isNotEmpty) return code.trim();
+  }
+
+  // 3. Path segments: /join/CODE or /split/CODE
+  final segments = uri.pathSegments;
+  if (segments.length >= 2 &&
+      (segments[0] == 'join' || segments[0] == 'split' || segments[0] == 'code')) {
+    return segments[1].trim();
+  }
+  return null;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await CategoryIcons.init();
@@ -38,6 +64,18 @@ void main() async {
     publishableKey: 'sb_publishable_r7uEuebZL7Ed74YQzWlTqg_VnmFZ6It',
   );
   await AuthService.instance.initUserCache();
+
+  if (kIsWeb) {
+    final initialCode = extractInviteCode(Uri.base);
+    if (initialCode != null && initialCode.isNotEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pending_invite_code', initialCode.toUpperCase());
+        await prefs.setBool('onboarding_completed', true);
+      } catch (_) {}
+    }
+  }
+
   runApp(
     MultiProvider(
       providers: [
@@ -194,56 +232,84 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     TransactionDetectionService.initialize(appNavigatorKey);
+
+    if (kIsWeb) {
+      final code = extractInviteCode(Uri.base);
+      if (code != null && code.trim().isNotEmpty) {
+        _currentIndex = 2; // Immediately switch to Split tab for invite deep link
+      }
+    }
+
     _checkWebDeepLink();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       StorageChoiceDialog.showIfNeeded(context);
     });
   }
 
+  static String? _handledWebDeepLinkCode;
+
   void _checkWebDeepLink() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (kIsWeb) {
-        final uri = Uri.base;
-        final code = uri.queryParameters['code'] ?? uri.queryParameters['join'] ?? uri.queryParameters['split'];
-        if (code != null && code.trim().isNotEmpty) {
-          final cleanCode = code.trim().toUpperCase();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        String? cleanCode = kIsWeb ? extractInviteCode(Uri.base)?.toUpperCase() : null;
+        cleanCode ??= prefs.getString('pending_invite_code')?.trim().toUpperCase();
+
+        if (cleanCode == null || cleanCode.isEmpty) return;
+        if (_handledWebDeepLinkCode == cleanCode) return;
+        _handledWebDeepLinkCode = cleanCode;
+
+        if (mounted) {
+          setState(() {
+            _currentIndex = 2;
+          });
+        }
+
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        if (currentUser != null && mounted) {
+          final sp = context.read<SplitProvider>();
+          final name = sp.currentMemberName ?? AuthService.instance.userDisplayName;
+          final memberName = name.trim().isNotEmpty
+              ? name.trim()
+              : (currentUser.email?.split('@').first ?? 'Member');
+
+          SplitGroup? group;
           try {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('pending_invite_code', cleanCode);
+            group = await sp.joinGroupByInviteCode(cleanCode, memberName);
+          } catch (e) {
+            debugPrint('Auto-join deep link error: $e');
+          }
+
+          try {
+            await prefs.remove('pending_invite_code');
           } catch (_) {}
 
-          final currentUser = Supabase.instance.client.auth.currentUser;
-          if (currentUser != null && mounted) {
-            final sp = context.read<SplitProvider>();
-            final name = sp.currentMemberName ?? AuthService.instance.userDisplayName;
-            final memberName = name.trim().isNotEmpty
-                ? name.trim()
-                : (currentUser.email?.split('@').first ?? 'Member');
-            final group = await sp.joinGroupByInviteCode(cleanCode, memberName);
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('pending_invite_code');
-            } catch (_) {}
-            if (group != null && mounted) {
-              setState(() => _currentIndex = 2);
-              appNavigatorKey.currentState?.push(
-                MaterialPageRoute(
-                  builder: (_) => SplitGroupDetailScreen(group: group),
-                ),
-              );
-              return;
-            }
-          }
-
-          if (mounted) {
-            setState(() => _currentIndex = 2);
-            appNavigatorKey.currentState?.push(
+          if (group != null && mounted) {
+            await appNavigatorKey.currentState?.push(
               MaterialPageRoute(
-                builder: (_) => JoinGroupScreen(prefilledCode: cleanCode),
+                builder: (_) => SplitGroupDetailScreen(group: group!),
               ),
             );
+            if (mounted) {
+              context.read<SplitProvider>().loadGroups();
+            }
+            return;
           }
         }
+
+        // If not logged in or auto-join could not resolve group directly, push JoinGroupScreen
+        if (mounted) {
+          await appNavigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => JoinGroupScreen(prefilledCode: cleanCode),
+            ),
+          );
+          if (mounted) {
+            context.read<SplitProvider>().loadGroups();
+          }
+        }
+      } catch (e) {
+        debugPrint('Error in _checkWebDeepLink: $e');
       }
     });
   }

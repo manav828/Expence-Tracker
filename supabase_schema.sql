@@ -133,6 +133,8 @@ ALTER TABLE public.user_expenses ADD COLUMN IF NOT EXISTS comment TEXT;
 
 -- Indexes for lightning fast queries
 CREATE INDEX IF NOT EXISTS idx_split_members_group_id ON public.split_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_split_members_user_id ON public.split_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_split_groups_user_id ON public.split_groups(user_id);
 CREATE INDEX IF NOT EXISTS idx_split_groups_invite_code ON public.split_groups(invite_code);
 CREATE INDEX IF NOT EXISTS idx_split_expenses_group_id ON public.split_expenses(group_id);
 CREATE INDEX IF NOT EXISTS idx_split_shares_expense_id ON public.split_shares(expense_id);
