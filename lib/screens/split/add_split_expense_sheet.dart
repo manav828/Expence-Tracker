@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/split_provider.dart';
 import '../../models/split_models.dart';
+import '../../services/cloudflare_r2_service.dart';
 import 'receipt_attachment_sheet.dart';
 
 class AddSplitExpenseSheet extends StatefulWidget {
@@ -34,6 +35,8 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
   final Map<String, TextEditingController> _customAmountCtrls = {};
   final Map<String, TextEditingController> _percentCtrls = {};
   String? _receiptUrl;
+  String? _newlyUploadedReceiptUrl;
+  bool _isSaved = false;
   bool _isLoading = false;
 
   static const _primaryColor = Color(0xFF006948);
@@ -105,6 +108,9 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
 
   @override
   void dispose() {
+    if (!_isSaved && _newlyUploadedReceiptUrl != null) {
+      CloudflareR2Service.instance.deleteByUrl(_newlyUploadedReceiptUrl!);
+    }
     _amountCtrl.removeListener(_onShareValuesChanged);
     _titleCtrl.dispose();
     _amountCtrl.dispose();
@@ -239,9 +245,15 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
               addedByMemberId: _addedByMemberId ?? _paidByMemberId!,
             );
       }
+      _isSaved = true;
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showError('Error: $e');
+      if (_newlyUploadedReceiptUrl != null) {
+        CloudflareR2Service.instance.deleteByUrl(_newlyUploadedReceiptUrl!);
+        _newlyUploadedReceiptUrl = null;
+        if (mounted) setState(() => _receiptUrl = null);
+      }
+      _showError('Failed to save expense: $e');
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -621,7 +633,13 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
             ),
             if (_receiptUrl != null)
               TextButton(
-                onPressed: () => setState(() => _receiptUrl = null),
+                onPressed: () {
+                  if (_newlyUploadedReceiptUrl != null && _newlyUploadedReceiptUrl == _receiptUrl) {
+                    CloudflareR2Service.instance.deleteByUrl(_newlyUploadedReceiptUrl!);
+                    _newlyUploadedReceiptUrl = null;
+                  }
+                  setState(() => _receiptUrl = null);
+                },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
@@ -643,7 +661,10 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                 builder: (_) => const ReceiptAttachmentSheet(),
               );
               if (chosen != null && chosen.isNotEmpty) {
-                setState(() => _receiptUrl = chosen);
+                setState(() {
+                  _receiptUrl = chosen;
+                  _newlyUploadedReceiptUrl = chosen;
+                });
               }
             },
             child: Container(
@@ -674,7 +695,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Upload photo or paste receipt link',
+                          'Upload photo or take picture',
                           style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                         ),
                       ],

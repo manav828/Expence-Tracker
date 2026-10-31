@@ -153,6 +153,13 @@ class AuthService {
 
       if (kIsWeb) {
         await StoragePreferenceService.setMode(StorageMode.cloud);
+        final code = Uri.base.queryParameters['code'] ??
+            Uri.base.queryParameters['join'] ??
+            Uri.base.queryParameters['split'];
+        if (code != null && code.trim().isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('pending_invite_code', code.trim().toUpperCase());
+        }
         final redirectUri = Uri.base.origin;
         return await _client.auth.signInWithOAuth(
           OAuthProvider.google,

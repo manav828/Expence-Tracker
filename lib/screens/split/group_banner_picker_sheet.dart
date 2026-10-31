@@ -22,7 +22,6 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _searchCtrl = TextEditingController();
-  final _urlCtrl = TextEditingController();
 
   List<String> _searchResults = [];
   bool _isSearching = false;
@@ -38,11 +37,8 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _previewUrl = widget.initialUrl;
-    if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
-      _urlCtrl.text = widget.initialUrl!;
-    }
     if (widget.suggestedKeyword != null && widget.suggestedKeyword!.trim().isNotEmpty) {
       _searchCtrl.text = widget.suggestedKeyword!.trim();
     }
@@ -56,7 +52,6 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
   void dispose() {
     _tabController.dispose();
     _searchCtrl.dispose();
-    _urlCtrl.dispose();
     super.dispose();
   }
 
@@ -79,21 +74,13 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
     }
   }
 
-  Future<void> _pickAndUpload() async {
+  Future<void> _pickAndUpload({bool useCamera = false}) async {
     setState(() => _isUploading = true);
     try {
-      final picked = await pickImageFile();
+      final picked = await pickImageFile(useCamera: useCamera);
       if (picked == null) {
         if (mounted) {
           setState(() => _isUploading = false);
-          if (!kIsWeb) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('File picking is available on Web. On mobile, please choose from Presets, Pixabay, or paste an Image URL.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
         }
         return;
       }
@@ -190,9 +177,8 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
             isScrollable: true,
             tabs: const [
               Tab(icon: Icon(Icons.auto_awesome, size: 16), text: 'Curated'),
-              Tab(icon: Icon(Icons.search, size: 16), text: 'Pixabay'),
+              Tab(icon: Icon(Icons.search, size: 16), text: 'Search'),
               Tab(icon: Icon(Icons.cloud_upload_outlined, size: 16), text: 'Upload'),
-              Tab(icon: Icon(Icons.link, size: 16), text: 'Image URL'),
             ],
           ),
 
@@ -204,7 +190,6 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
                 _buildCuratedTab(),
                 _buildPixabayTab(),
                 _buildUploadTab(),
-                _buildUrlTab(),
               ],
             ),
           ),
@@ -465,95 +450,43 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
             ),
             const SizedBox(height: 10),
           ],
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _primaryColor),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: _isUploading ? null : _pickAndUpload,
-              icon: _isUploading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _primaryColor))
-                  : const Icon(Icons.upload_file, color: _primaryColor),
-              label: Text(
-                _isUploading ? 'Uploading image...' : (_uploadedUrl != null ? 'Upload Another Photo' : 'Select Photo to Upload'),
-                style: const TextStyle(color: _primaryColor, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── 4. Image URL ───────────────────────────────────────────────────────────
-  Widget _buildUrlTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Paste Direct Image Link',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Paste any valid public image link (Unsplash, Imgur, web URL, etc.)',
-            style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _urlCtrl,
-            decoration: InputDecoration(
-              hintText: 'https://images.unsplash.com/...',
-              hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-              prefixIcon: const Icon(Icons.link, size: 20),
-              isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onChanged: (v) => setState(() => _previewUrl = v.trim()),
-          ),
-          const SizedBox(height: 16),
-          if (_previewUrl != null && _previewUrl!.isNotEmpty) ...[
-            const Text('Preview', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                height: 140,
-                width: double.infinity,
-                child: Image.network(
-                  _previewUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.red.shade50,
-                    alignment: Alignment.center,
-                    child: const Text('Could not load image from this URL', style: TextStyle(color: Colors.red, fontSize: 13)),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: _primaryColor),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: _isUploading ? null : () => _pickAndUpload(useCamera: true),
+                  icon: const Icon(Icons.camera_alt_outlined, color: _primaryColor, size: 20),
+                  label: const Text(
+                    'Take Photo',
+                    style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: _isUploading ? null : () => _pickAndUpload(useCamera: false),
+                  icon: _isUploading
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.upload_file, color: Colors.white, size: 20),
+                  label: Text(
+                    _isUploading ? 'Uploading...' : 'Upload File',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
                 ),
-                onPressed: () {
-                  if (_previewUrl != null && _previewUrl!.isNotEmpty) {
-                    Navigator.pop(context, _previewUrl);
-                  }
-                },
-                child: const Text('Use This Image', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               ),
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );

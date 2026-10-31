@@ -22,7 +22,10 @@ class SplitProvider with ChangeNotifier {
   String? _currentMemberName; // the name used by this device in groups
   StreamSubscription<AuthState>? _authSub;
 
-  static const _groupIdsKey = 'split_group_ids_v1';
+  String get _userGroupIdsKey {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    return uid != null ? 'split_group_ids_$uid' : 'split_group_ids_guest';
+  }
   static const _memberNameKey = 'split_member_name_v1';
 
   List<SplitGroup> get groups => _groups;
@@ -57,18 +60,56 @@ class SplitProvider with ChangeNotifier {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _currentMemberName = prefs.getString(_memberNameKey);
+    await _processPendingInviteIfAny();
     await loadGroups();
 
     // Listen to Supabase auth events (e.g. session restored from disk, login, user switch)
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed ||
           event == AuthChangeEvent.initialSession ||
           event == AuthChangeEvent.userUpdated) {
+        await _processPendingInviteIfAny();
         loadGroups(isBackgroundRefresh: true);
+      } else if (event == AuthChangeEvent.signedOut) {
+        clearStateOnLogout();
       }
     });
+  }
+
+  Future<void> _processPendingInviteIfAny() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pendingCode = prefs.getString('pending_invite_code');
+      if (pendingCode == null || pendingCode.trim().isEmpty) return;
+
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final name = _currentMemberName ?? AuthService.instance.userDisplayName;
+
+      final memberName = name.trim().isNotEmpty
+          ? name.trim()
+          : (currentUser?.email?.split('@').first ?? 'Member');
+
+      debugPrint('Auto-joining pending invite group: $pendingCode as $memberName');
+      final group = await joinGroupByInviteCode(pendingCode.trim().toUpperCase(), memberName);
+      if (group != null) {
+        await prefs.remove('pending_invite_code');
+      }
+    } catch (e) {
+      debugPrint('Error processing pending invite code: $e');
+    }
+  }
+
+  void clearStateOnLogout() {
+    _groups.clear();
+    _members.clear();
+    _expenses.clear();
+    _settlements.clear();
+    _balances.clear();
+    _expenseGroups.clear();
+    _settlementGroups.clear();
+    notifyListeners();
   }
 
   Future<void> setCurrentMemberName(String name) async {
@@ -100,17 +141,17 @@ class SplitProvider with ChangeNotifier {
     }
     try {
       final prefs = await SharedPreferences.getInstance();
-      final ids = prefs.getStringList(_groupIdsKey) ?? [];
+      final ids = prefs.getStringList(_userGroupIdsKey) ?? [];
       final localIds = await SplitService.instance.getAllLocalGroupIds();
       final allLocalIds = {...ids, ...localIds}.toList();
 
       // FETCH FROM DB (Supabase cloud first, with local SQLite offline fallback)
       _groups = await SplitService.instance.fetchUserGroups(localKnownIds: allLocalIds);
 
-      // Keep local preferences updated with all discovered group IDs
+      // Keep local preferences updated with all discovered group IDs for this user
       final discoveredIds = _groups.map((g) => g.id).toList();
       if (discoveredIds.isNotEmpty) {
-        await prefs.setStringList(_groupIdsKey, discoveredIds);
+        await prefs.setStringList(_userGroupIdsKey, discoveredIds);
       }
 
       await Future.wait(_groups.map((g) => loadGroupDetail(g.id)));
@@ -138,13 +179,28 @@ class SplitProvider with ChangeNotifier {
 
   Future<void> loadGroupDetail(String groupId) async {
     try {
-      final members = await SplitService.instance.getMembers(groupId);
-      final exps = await SplitService.instance.getExpenses(groupId);
-      final setts = await SplitService.instance.getSettlements(groupId);
-      final shares = await SplitService.instance.getAllSharesForGroup(groupId);
-      final bals = await SplitService.instance.computeBalances(groupId);
-      final egs = await SplitService.instance.getExpenseGroups(groupId);
-      final sgs = await SplitService.instance.getSettlementGroups(groupId);
+      final results = await Future.wait([
+        SplitService.instance.getMembers(groupId),
+        SplitService.instance.getExpenses(groupId),
+        SplitService.instance.getSettlements(groupId),
+        SplitService.instance.getAllSharesForGroup(groupId),
+        SplitService.instance.getExpenseGroups(groupId),
+        SplitService.instance.getSettlementGroups(groupId),
+      ]);
+
+      final members = results[0] as List<SplitMember>;
+      final exps = results[1] as List<SplitExpense>;
+      final setts = results[2] as List<Settlement>;
+      final shares = results[3] as List<SplitShare>;
+      final egs = results[4] as List<SplitExpenseGroup>;
+      final sgs = results[5] as List<SplitSettlementGroup>;
+
+      final bals = SplitService.instance.computeBalancesFromData(
+        members: members,
+        expenses: exps,
+        settlements: setts,
+        shares: shares,
+      );
 
       final prefs = await SharedPreferences.getInstance();
       _simplifyDebts[groupId] = prefs.getBool('split_simplify_debts_$groupId') ?? true;
@@ -197,10 +253,10 @@ class SplitProvider with ChangeNotifier {
     }
     // Save group id locally
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_groupIdsKey) ?? [];
+    final ids = prefs.getStringList(_userGroupIdsKey) ?? [];
     if (!ids.contains(group.id)) {
       ids.add(group.id);
-      await prefs.setStringList(_groupIdsKey, ids);
+      await prefs.setStringList(_userGroupIdsKey, ids);
     }
     _groups.removeWhere((g) => g.id == group.id);
     _groups.insert(0, group);
@@ -216,26 +272,28 @@ class SplitProvider with ChangeNotifier {
     final existingMembers = await SplitService.instance.getMembers(group.id);
     final currentUser = Supabase.instance.client.auth.currentUser;
 
-    // 1. Check if there is an existing manual member with matching name
-    SplitMember? matchedManual;
-    for (final m in existingMembers) {
-      if ((m.userId == null || m.userId!.isEmpty) &&
-          m.name.trim().toLowerCase() == memberName.trim().toLowerCase()) {
-        matchedManual = m;
-        break;
-      }
-    }
+    // 1. Check if user is already linked by auth user_id
+    final alreadyMemberByUid = currentUser?.id != null &&
+        existingMembers.any((m) => m.userId == currentUser!.id);
 
-    if (matchedManual != null && currentUser?.id != null) {
-      // Auto-assign / claim: links account to existing member so all previous expenses & shares are immediately theirs!
-      await SplitService.instance.claimMember(matchedManual.id, currentUser!.id);
+    if (alreadyMemberByUid) {
+      // User is already an enrolled member with their user_id
     } else {
-      // 2. Check if already member
-      final alreadyMember = existingMembers.any(
-        (m) => (currentUser?.id != null && m.userId == currentUser!.id) ||
-               m.name.trim().toLowerCase() == memberName.trim().toLowerCase(),
-      );
-      if (!alreadyMember) {
+      // 2. Check if there is an existing manual member with matching name that hasn't been claimed yet
+      SplitMember? matchedManual;
+      for (final m in existingMembers) {
+        if ((m.userId == null || m.userId!.isEmpty) &&
+            m.name.trim().toLowerCase() == memberName.trim().toLowerCase()) {
+          matchedManual = m;
+          break;
+        }
+      }
+
+      if (matchedManual != null && currentUser?.id != null) {
+        // Link this account to the existing member so all past expenses & shares are immediately theirs!
+        await SplitService.instance.claimMember(matchedManual.id, currentUser!.id);
+      } else {
+        // 3. Add as a new member with their auth user_id
         await SplitService.instance.addMember(
           groupId: group.id,
           name: memberName,
@@ -243,14 +301,15 @@ class SplitProvider with ChangeNotifier {
         );
       }
     }
-    // Save locally
+    // Save group ID in user-scoped preferences
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_groupIdsKey) ?? [];
+    final ids = prefs.getStringList(_userGroupIdsKey) ?? [];
     if (!ids.contains(group.id)) {
       ids.add(group.id);
-      await prefs.setStringList(_groupIdsKey, ids);
-      _groups.insert(0, group);
+      await prefs.setStringList(_userGroupIdsKey, ids);
     }
+    _groups.removeWhere((g) => g.id == group.id);
+    _groups.insert(0, group);
     await loadGroupDetail(group.id);
     _checkPendingSync();
     notifyListeners();
@@ -275,9 +334,9 @@ class SplitProvider with ChangeNotifier {
     _settlements.remove(groupId);
     _balances.remove(groupId);
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_groupIdsKey) ?? [];
+    final ids = prefs.getStringList(_userGroupIdsKey) ?? [];
     ids.remove(groupId);
-    await prefs.setStringList(_groupIdsKey, ids);
+    await prefs.setStringList(_userGroupIdsKey, ids);
     _checkPendingSync();
     notifyListeners();
   }

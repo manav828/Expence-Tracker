@@ -15,9 +15,12 @@ class PickedFileData {
   });
 }
 
-Future<PickedFileData?> pickImageFile() async {
+Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
   final completer = Completer<PickedFileData?>();
   final input = html.FileUploadInputElement()..accept = 'image/*';
+  if (useCamera) {
+    input.setAttribute('capture', 'environment');
+  }
   input.click();
 
   input.onChange.listen((event) {

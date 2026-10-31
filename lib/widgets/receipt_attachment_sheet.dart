@@ -17,7 +17,6 @@ class ReceiptAttachmentSheet extends StatefulWidget {
 }
 
 class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
-  final _urlCtrl = TextEditingController();
   bool _isUploading = false;
   String? _previewUrl;
 
@@ -27,32 +26,15 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
   void initState() {
     super.initState();
     _previewUrl = widget.initialUrl;
-    if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
-      _urlCtrl.text = widget.initialUrl!;
-    }
   }
 
-  @override
-  void dispose() {
-    _urlCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickAndUploadReceipt() async {
+  Future<void> _pickAndUploadReceipt({bool useCamera = false}) async {
     setState(() => _isUploading = true);
     try {
-      final picked = await pickImageFile();
+      final picked = await pickImageFile(useCamera: useCamera);
       if (picked == null) {
         if (mounted) {
           setState(() => _isUploading = false);
-          if (!kIsWeb) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('File upload is available on Web. On mobile, you can paste an image link or sample receipt.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
         }
         return;
       }
@@ -67,7 +49,6 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
         if (url != null) {
           setState(() {
             _previewUrl = url;
-            _urlCtrl.text = url;
             _isUploading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
@@ -144,114 +125,148 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Attach a bill photo or restaurant/store invoice.',
+              'Upload an image or take a photo of your receipt.',
               style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 20),
 
-            // Option 1: Upload directly
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+            if (_isUploading) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Column(
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(strokeWidth: 3, color: _primaryColor),
+                    ),
+                    SizedBox(height: 14),
+                    Text(
+                      'Uploading receipt...',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF131B2E)),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
+            ] else ...[
+              // Action Buttons Row: Take Photo + Upload from Device
+              Row(
                 children: [
-                  const Icon(Icons.cloud_upload_outlined, size: 36, color: _primaryColor),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Upload Photo / Receipt',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF131B2E)),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Stored safely in cloud storage',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  // Option 1: Take Photo
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => _pickAndUploadReceipt(useCamera: true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFBBF7D0), width: 1.2),
+                        ),
+                        child: const Column(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Color(0xFFDCFCE7),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.camera_alt_rounded, color: _primaryColor, size: 26),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Take Photo',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF131B2E)),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Use camera',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
                       ),
-                      onPressed: _isUploading ? null : _pickAndUploadReceipt,
-                      icon: _isUploading
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.file_upload_outlined, color: Colors.white, size: 18),
-                      label: Text(
-                        _isUploading ? 'Uploading receipt...' : 'Choose Receipt Image',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Option 2: Upload from Device
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => _pickAndUploadReceipt(useCamera: false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                        ),
+                        child: const Column(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.file_upload_outlined, color: Color(0xFF0F172A), size: 26),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Upload File',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF131B2E)),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Gallery / files',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 20),
-            const Center(
-              child: Text('— OR PASTE LINK —', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
-            ),
-            const SizedBox(height: 16),
-
-            // Option 2: Paste link
-            TextField(
-              controller: _urlCtrl,
-              decoration: InputDecoration(
-                labelText: 'Image / Receipt URL',
-                hintText: 'https://...',
-                prefixIcon: const Icon(Icons.link, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                suffixIcon: _urlCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _urlCtrl.clear();
-                          setState(() => _previewUrl = null);
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: (v) => setState(() => _previewUrl = v.trim().isEmpty ? null : v.trim()),
-            ),
-
-            const SizedBox(height: 12),
-            // Quick Sample Receipt button (for quick demonstration or offline testing)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {
-                  const sample = 'https://images.unsplash.com/photo-1554415707-9e4c0192a561?auto=format&fit=crop&w=800&q=80';
-                  _urlCtrl.text = sample;
-                  setState(() => _previewUrl = sample);
-                },
-                icon: const Icon(Icons.receipt, size: 14, color: Color(0xFF64748B)),
-                label: const Text('Insert Sample Receipt', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              ),
-            ),
+            ],
 
             // Preview Section
             if (_previewUrl != null && _previewUrl!.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text('Receipt Preview', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Receipt Preview', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                  TextButton(
+                    onPressed: () => setState(() => _previewUrl = null),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Change', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  height: 160,
+                  height: 180,
                   width: double.infinity,
                   color: const Color(0xFFF1F5F9),
                   child: Image.network(
                     _previewUrl!,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const Center(
-                      child: Text('Invalid image link', style: TextStyle(color: Colors.red, fontSize: 13)),
+                      child: Text('Failed to load image preview', style: TextStyle(color: Colors.red, fontSize: 13)),
                     ),
                   ),
                 ),

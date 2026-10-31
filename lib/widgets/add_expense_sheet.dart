@@ -5,6 +5,7 @@ import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
 import '../utils/category_icons.dart';
+import '../services/cloudflare_r2_service.dart';
 import 'searchable_selection_sheet.dart';
 import 'category_icon_picker_dialog.dart';
 import 'receipt_attachment_sheet.dart';
@@ -41,6 +42,8 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String? _category;
   String? _paymentMethod;
   String? _receiptUrl;
+  String? _newlyUploadedReceiptUrl;
+  bool _isSaved = false;
   late DateTime _selectedDate;
 
   bool get isEditing => widget.expenseToEdit != null;
@@ -79,6 +82,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
   @override
   void dispose() {
+    if (!_isSaved && _newlyUploadedReceiptUrl != null) {
+      CloudflareR2Service.instance.deleteByUrl(_newlyUploadedReceiptUrl!);
+    }
     _amountController.dispose();
     _commentController.dispose();
     super.dispose();
@@ -299,75 +305,93 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
       final finalPaymentMethod = _paymentMethod ?? (provider.paymentMethods.isNotEmpty ? provider.paymentMethods.first : 'UPI');
       final comment = _commentController.text.trim().isEmpty ? null : _commentController.text.trim();
 
-      if (isEditing) {
-        final updated = widget.expenseToEdit!.copyWith(
-          amount: amount,
-          category: finalCategory,
-          paymentMethod: finalPaymentMethod,
-          comment: comment,
-          receiptUrl: _receiptUrl,
-          expenseDate: _selectedDate.millisecondsSinceEpoch,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        );
-
-        await provider.updateExpense(updated);
-        if (!mounted) return;
-        context.read<BudgetProvider>().checkForOverspend(updated, provider.expenses);
-        Navigator.of(context).pop();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated spend: ₹${amount.toStringAsFixed(2)} ($finalCategory)'),
-            backgroundColor: const Color(0xFF006948),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      } else {
-        final newExpense = Expense(
-          amount: amount,
-          category: finalCategory,
-          paymentMethod: finalPaymentMethod,
-          comment: comment,
-          receiptUrl: _receiptUrl,
-          expenseDate: _selectedDate.millisecondsSinceEpoch,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        );
-
-        await provider.addExpense(newExpense);
-        if (!mounted) return;
-        final overspendWarning = context.read<BudgetProvider>().checkForOverspend(newExpense, provider.expenses);
-        Navigator.of(context).pop();
-
-        if (overspendWarning != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Budget limit exceeded for $finalCategory!',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: const Color(0xFFBA1A1A),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              duration: const Duration(seconds: 4),
-            ),
+      try {
+        if (isEditing) {
+          final updated = widget.expenseToEdit!.copyWith(
+            amount: amount,
+            category: finalCategory,
+            paymentMethod: finalPaymentMethod,
+            comment: comment,
+            receiptUrl: _receiptUrl,
+            expenseDate: _selectedDate.millisecondsSinceEpoch,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
           );
-        } else {
+
+          await provider.updateExpense(updated);
+          _isSaved = true;
+          if (!mounted) return;
+          context.read<BudgetProvider>().checkForOverspend(updated, provider.expenses);
+          Navigator.of(context).pop();
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added ₹${amount.toStringAsFixed(2)} to $finalCategory'),
+              content: Text('Updated spend: ₹${amount.toStringAsFixed(2)} ($finalCategory)'),
               backgroundColor: const Color(0xFF006948),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        } else {
+          final newExpense = Expense(
+            amount: amount,
+            category: finalCategory,
+            paymentMethod: finalPaymentMethod,
+            comment: comment,
+            receiptUrl: _receiptUrl,
+            expenseDate: _selectedDate.millisecondsSinceEpoch,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+
+          await provider.addExpense(newExpense);
+          _isSaved = true;
+          if (!mounted) return;
+          final overspendWarning = context.read<BudgetProvider>().checkForOverspend(newExpense, provider.expenses);
+          Navigator.of(context).pop();
+
+          if (overspendWarning != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Budget limit exceeded for $finalCategory!',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFFBA1A1A),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Added ₹${amount.toStringAsFixed(2)} to $finalCategory'),
+                backgroundColor: const Color(0xFF006948),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (_newlyUploadedReceiptUrl != null) {
+          CloudflareR2Service.instance.deleteByUrl(_newlyUploadedReceiptUrl!);
+          _newlyUploadedReceiptUrl = null;
+          if (mounted) setState(() => _receiptUrl = null);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save expense: $e'),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -929,7 +953,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
             ),
             if (_receiptUrl != null)
               TextButton(
-                onPressed: () => setState(() => _receiptUrl = null),
+                onPressed: () {
+                  if (_newlyUploadedReceiptUrl != null && _newlyUploadedReceiptUrl == _receiptUrl) {
+                    CloudflareR2Service.instance.deleteByUrl(_newlyUploadedReceiptUrl!);
+                    _newlyUploadedReceiptUrl = null;
+                  }
+                  setState(() => _receiptUrl = null);
+                },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
@@ -951,7 +981,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 builder: (_) => const ReceiptAttachmentSheet(),
               );
               if (chosen != null && chosen.isNotEmpty) {
-                setState(() => _receiptUrl = chosen);
+                setState(() {
+                  _receiptUrl = chosen;
+                  _newlyUploadedReceiptUrl = chosen;
+                });
               }
             },
             child: Container(
@@ -982,7 +1015,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Upload photo or paste receipt link',
+                          'Upload photo or take picture',
                           style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                         ),
                       ],

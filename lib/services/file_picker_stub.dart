@@ -12,7 +12,7 @@ class PickedFileData {
   });
 }
 
-Future<PickedFileData?> pickImageFile() async {
+Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
   // Mobile / Desktop stub without native plugin requirement
   return null;
 }

@@ -13,6 +13,8 @@ import 'screens/search_screen.dart';
 import 'screens/budget_screen.dart';
 import 'screens/split/split_screen.dart';
 import 'screens/split/join_group_screen.dart';
+import 'screens/split/split_group_detail_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/user_profile_avatar.dart';
 import 'widgets/add_expense_sheet.dart';
@@ -199,17 +201,48 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _checkWebDeepLink() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (kIsWeb) {
         final uri = Uri.base;
         final code = uri.queryParameters['code'] ?? uri.queryParameters['join'] ?? uri.queryParameters['split'];
         if (code != null && code.trim().isNotEmpty) {
-          setState(() => _currentIndex = 2);
-          appNavigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (_) => JoinGroupScreen(prefilledCode: code.trim()),
-            ),
-          );
+          final cleanCode = code.trim().toUpperCase();
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('pending_invite_code', cleanCode);
+          } catch (_) {}
+
+          final currentUser = Supabase.instance.client.auth.currentUser;
+          if (currentUser != null && mounted) {
+            final sp = context.read<SplitProvider>();
+            final name = sp.currentMemberName ?? AuthService.instance.userDisplayName;
+            final memberName = name.trim().isNotEmpty
+                ? name.trim()
+                : (currentUser.email?.split('@').first ?? 'Member');
+            final group = await sp.joinGroupByInviteCode(cleanCode, memberName);
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('pending_invite_code');
+            } catch (_) {}
+            if (group != null && mounted) {
+              setState(() => _currentIndex = 2);
+              appNavigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (_) => SplitGroupDetailScreen(group: group),
+                ),
+              );
+              return;
+            }
+          }
+
+          if (mounted) {
+            setState(() => _currentIndex = 2);
+            appNavigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (_) => JoinGroupScreen(prefilledCode: cleanCode),
+              ),
+            );
+          }
         }
       }
     });

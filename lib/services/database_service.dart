@@ -313,7 +313,19 @@ class DatabaseService {
         final map = expense.toMap();
         map.remove('id');
         map['user_id'] = currentUser.id;
-        final res = await client.from('user_expenses').insert(map).select().single();
+        Map<String, dynamic> res;
+        try {
+          res = await client.from('user_expenses').insert(map).select().single();
+        } catch (insertErr) {
+          final errStr = insertErr.toString().toLowerCase();
+          if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
+            debugPrint('receipt_url column missing on user_expenses table, retrying without receipt_url');
+            final fallbackMap = Map<String, dynamic>.from(map)..remove('receipt_url');
+            res = await client.from('user_expenses').insert(fallbackMap).select().single();
+          } else {
+            rethrow;
+          }
+        }
         final cloudExpense = Expense.fromMap(res);
         if (kIsWeb) {
           _webExpenses.add(cloudExpense);
@@ -474,11 +486,26 @@ class DatabaseService {
         final map = expense.toMap();
         map.remove('id');
         map['user_id'] = currentUser.id;
-        await client
-            .from('user_expenses')
-            .update(map)
-            .eq('id', expense.id!)
-            .eq('user_id', currentUser.id);
+        try {
+          await client
+              .from('user_expenses')
+              .update(map)
+              .eq('id', expense.id!)
+              .eq('user_id', currentUser.id);
+        } catch (updateErr) {
+          final errStr = updateErr.toString().toLowerCase();
+          if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
+            debugPrint('receipt_url column missing on user_expenses table, updating without receipt_url');
+            final fallbackMap = Map<String, dynamic>.from(map)..remove('receipt_url');
+            await client
+                .from('user_expenses')
+                .update(fallbackMap)
+                .eq('id', expense.id!)
+                .eq('user_id', currentUser.id);
+          } else {
+            rethrow;
+          }
+        }
       } catch (e) {
         debugPrint('Cloud updateExpense error: $e');
       }

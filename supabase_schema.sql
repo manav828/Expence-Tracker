@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS public.split_expenses (
     added_by_member_id TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.split_expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE public.split_expenses ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE public.split_expenses ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.split_expenses ADD COLUMN IF NOT EXISTS added_by_member_id TEXT;
+ALTER TABLE public.split_expenses ADD COLUMN IF NOT EXISTS split_type TEXT DEFAULT 'equal';
 
 -- 4. Split Shares Table (Stores breakdown of shares per member)
 CREATE TABLE IF NOT EXISTS public.split_shares (
@@ -123,6 +128,8 @@ CREATE TABLE IF NOT EXISTS public.user_expenses (
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
 );
+ALTER TABLE public.user_expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE public.user_expenses ADD COLUMN IF NOT EXISTS comment TEXT;
 
 -- Indexes for lightning fast queries
 CREATE INDEX IF NOT EXISTS idx_split_members_group_id ON public.split_members(group_id);

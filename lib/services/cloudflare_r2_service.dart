@@ -127,4 +127,101 @@ class CloudflareR2Service {
       contentType: contentType,
     );
   }
+
+  /// Deletes an object from Cloudflare R2 by its public URL.
+  Future<bool> deleteByUrl(String publicUrl) async {
+    try {
+      final accountId = ApiKeys.r2AccountId;
+      final bucket = ApiKeys.r2BucketName;
+      final accessKey = ApiKeys.r2AccessKeyId;
+      final secretKey = ApiKeys.r2SecretAccessKey;
+      final publicBase = ApiKeys.r2PublicBaseUrl;
+
+      // Extract the key from publicUrl
+      String cleanKey;
+      if (publicBase.isNotEmpty && publicUrl.startsWith(publicBase)) {
+        cleanKey = publicUrl.substring(publicBase.length);
+      } else {
+        final uri = Uri.tryParse(publicUrl);
+        cleanKey = uri?.path ?? publicUrl;
+      }
+      if (cleanKey.startsWith('/')) cleanKey = cleanKey.substring(1);
+
+      if (cleanKey.isEmpty) return false;
+
+      final now = DateTime.now().toUtc();
+      final amzDate = '${now.toIso8601String().replaceAll('-', '').replaceAll(':', '').split('.').first}Z';
+      final dateStamp = amzDate.substring(0, 8);
+
+      const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // sha256 of empty string
+
+      final host = '$accountId.r2.cloudflarestorage.com';
+      final canonicalUri = '/$bucket/$cleanKey';
+
+      final canonicalHeaders = 'host:$host\n'
+          'x-amz-content-sha256:$payloadHash\n'
+          'x-amz-date:$amzDate\n';
+
+      final signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+
+      final canonicalRequest = [
+        'DELETE',
+        canonicalUri,
+        '', // query string
+        canonicalHeaders,
+        signedHeaders,
+        payloadHash,
+      ].join('\n');
+
+      final hashedCanonicalRequest = sha256.convert(utf8.encode(canonicalRequest)).toString();
+      final credentialScope = '$dateStamp/auto/s3/aws4_request';
+
+      final stringToSign = [
+        'AWS4-HMAC-SHA256',
+        amzDate,
+        credentialScope,
+        hashedCanonicalRequest,
+      ].join('\n');
+
+      List<int> hmacSha256(List<int> key, String data) {
+        return Hmac(sha256, key).convert(utf8.encode(data)).bytes;
+      }
+
+      final kSecret = utf8.encode('AWS4$secretKey');
+      final kDate = hmacSha256(kSecret, dateStamp);
+      final kRegion = hmacSha256(kDate, 'auto');
+      final kService = hmacSha256(kRegion, 's3');
+      final kSigning = hmacSha256(kService, 'aws4_request');
+
+      final signature = Hmac(sha256, kSigning).convert(utf8.encode(stringToSign)).toString();
+
+      final authHeader = 'AWS4-HMAC-SHA256 '
+          'Credential=$accessKey/$credentialScope, '
+          'SignedHeaders=$signedHeaders, '
+          'Signature=$signature';
+
+      final deleteUrl = 'https://$host$canonicalUri';
+
+      final res = await http.delete(
+        Uri.parse(deleteUrl),
+        headers: {
+          'Host': host,
+          'x-amz-date': amzDate,
+          'x-amz-content-sha256': payloadHash,
+          'Authorization': authHeader,
+        },
+      );
+
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        debugPrint('Cloudflare R2 delete success: $publicUrl');
+        return true;
+      } else {
+        debugPrint('Cloudflare R2 delete failed [${res.statusCode}]: ${res.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Cloudflare R2 delete exception: $e');
+      return false;
+    }
+  }
 }

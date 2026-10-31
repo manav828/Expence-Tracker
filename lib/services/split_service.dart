@@ -261,28 +261,32 @@ class SplitService {
         }
       }
 
-      // 3. Fallback for older groups: match creator display name
-      if (displayName.trim().isNotEmpty) {
-        try {
-          final res = await _db.from('split_groups').select().ilike('created_by', displayName.trim());
-          for (final item in res as List) {
-            final g = SplitGroup.fromMap(item);
-            cloudGroupsMap[g.id] = g;
-            groupIdsToFetch.add(g.id);
-          }
-        } catch (e) {
-          debugPrint('fetchUserGroups by display name error: $e');
-        }
-      }
-
-      // 4. Fetch any remaining IDs (from invite joins, local prefs, etc.)
+      // 3. Fetch any remaining IDs (e.g. from local storage for guest or invite joins)
       final remainingIds = groupIdsToFetch.where((id) => !cloudGroupsMap.containsKey(id)).toList();
       if (remainingIds.isNotEmpty) {
         try {
           final res = await _db.from('split_groups').select().inFilter('id', remainingIds);
           for (final item in res as List) {
             final g = SplitGroup.fromMap(item);
-            cloudGroupsMap[g.id] = g;
+            // If user is authenticated, ensure they actually belong to this group as creator or member
+            if (userId != null && userId.isNotEmpty) {
+              if (g.userId == userId) {
+                cloudGroupsMap[g.id] = g;
+              } else {
+                final membership = await _db
+                    .from('split_members')
+                    .select('id')
+                    .eq('group_id', g.id)
+                    .eq('user_id', userId)
+                    .maybeSingle();
+                if (membership != null) {
+                  cloudGroupsMap[g.id] = g;
+                }
+              }
+            } else {
+              // Unauthenticated guest user on local device
+              cloudGroupsMap[g.id] = g;
+            }
           }
         } catch (e) {
           debugPrint('fetchUserGroups remaining IDs error: $e');
@@ -783,16 +787,34 @@ class SplitService {
 
     // Try cloud or queue
     try {
-      await _db.from('split_expenses').insert(expense.toMap());
+      final expenseData = expense.toMap();
+      debugPrint('addExpense payload: $expenseData');
+      try {
+        await _db.from('split_expenses').upsert(expenseData);
+      } catch (insertErr) {
+        final errStr = insertErr.toString().toLowerCase();
+        if (errStr.contains('receipt_url') && expenseData.containsKey('receipt_url')) {
+          debugPrint('receipt_url column missing on split_expenses table, retrying without receipt_url');
+          final fallbackData = Map<String, dynamic>.from(expenseData)..remove('receipt_url');
+          await _db.from('split_expenses').upsert(fallbackData);
+        } else {
+          rethrow;
+        }
+      }
       final sharesList = sharesObjects.map((s) => s.toMap()).toList();
       if (sharesList.isNotEmpty) {
-        await _db.from('split_shares').insert(sharesList);
+        await _db.from('split_shares').upsert(sharesList);
       }
-    } catch (e) {
-      debugPrint('Cloud addExpense error, queued offline: $e');
-      await _enqueue('INSERT', 'split_expenses', expense.id, expense.toMap());
-      for (final s in sharesObjects) {
-        await _enqueue('INSERT', 'split_shares', s.id, s.toMap());
+    } catch (e, stackTrace) {
+      debugPrint('Cloud addExpense error: $e');
+      debugPrint('Cloud addExpense stackTrace: $stackTrace');
+      if (!kIsWeb) {
+        await _enqueue('INSERT', 'split_expenses', expense.id, expense.toMap());
+        for (final s in sharesObjects) {
+          await _enqueue('INSERT', 'split_shares', s.id, s.toMap());
+        }
+      } else {
+        rethrow;
       }
     }
 
@@ -843,18 +865,33 @@ class SplitService {
     }
 
     try {
-      await _db.from('split_expenses').update(updateData).eq('id', expenseId);
+      try {
+        await _db.from('split_expenses').update(updateData).eq('id', expenseId);
+      } catch (updateErr) {
+        final errStr = updateErr.toString().toLowerCase();
+        if (errStr.contains('receipt_url') && updateData.containsKey('receipt_url')) {
+          debugPrint('receipt_url column missing on split_expenses table, updating without receipt_url');
+          final fallbackData = Map<String, dynamic>.from(updateData)..remove('receipt_url');
+          await _db.from('split_expenses').update(fallbackData).eq('id', expenseId);
+        } else {
+          rethrow;
+        }
+      }
       await _db.from('split_shares').delete().eq('expense_id', expenseId);
       final sharesList = sharesObjects.map((s) => s.toMap()).toList();
       if (sharesList.isNotEmpty) {
         await _db.from('split_shares').insert(sharesList);
       }
     } catch (e) {
-      debugPrint('Cloud updateExpense error, queued offline: $e');
-      await _enqueue('UPDATE', 'split_expenses', expenseId, updateData);
-      await _enqueue('DELETE', 'split_shares', expenseId, null);
-      for (final s in sharesObjects) {
-        await _enqueue('INSERT', 'split_shares', s.id, s.toMap());
+      debugPrint('Cloud updateExpense error: $e');
+      if (!kIsWeb) {
+        await _enqueue('UPDATE', 'split_expenses', expenseId, updateData);
+        await _enqueue('DELETE', 'split_shares', expenseId, null);
+        for (final s in sharesObjects) {
+          await _enqueue('INSERT', 'split_shares', s.id, s.toMap());
+        }
+      } else {
+        rethrow;
       }
     }
   }
@@ -1567,11 +1604,12 @@ class SplitService {
 
   // --- Balance Calculation (pure math, 100% offline & local) ---
 
-  Future<Map<String, double>> computeBalances(String groupId) async {
-    final members = await getMembers(groupId);
-    final expenses = await getExpenses(groupId);
-    final settlements = await getSettlements(groupId);
-    final shares = await getAllSharesForGroup(groupId);
+  Map<String, double> computeBalancesFromData({
+    required List<SplitMember> members,
+    required List<SplitExpense> expenses,
+    required List<Settlement> settlements,
+    required List<SplitShare> shares,
+  }) {
     final balances = <String, double>{for (final m in members) m.id: 0.0};
 
     for (final exp in expenses) {
@@ -1585,5 +1623,20 @@ class SplitService {
       balances[s.toMemberId] = (balances[s.toMemberId] ?? 0) - s.amount;
     }
     return balances;
+  }
+
+  Future<Map<String, double>> computeBalances(String groupId) async {
+    final results = await Future.wait([
+      getMembers(groupId),
+      getExpenses(groupId),
+      getSettlements(groupId),
+      getAllSharesForGroup(groupId),
+    ]);
+    return computeBalancesFromData(
+      members: results[0] as List<SplitMember>,
+      expenses: results[1] as List<SplitExpense>,
+      settlements: results[2] as List<Settlement>,
+      shares: results[3] as List<SplitShare>,
+    );
   }
 }

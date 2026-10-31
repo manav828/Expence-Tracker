@@ -22,7 +22,14 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     _codeCtrl = TextEditingController(text: widget.prefilledCode ?? '');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final name = context.read<SplitProvider>().currentMemberName;
-      if (name != null) _nameCtrl.text = name;
+      if (name != null && name.trim().isNotEmpty) {
+        _nameCtrl.text = name;
+      } else {
+        final authName = AuthService.instance.userDisplayName;
+        if (authName.trim().isNotEmpty) {
+          _nameCtrl.text = authName.trim();
+        }
+      }
     });
   }
 

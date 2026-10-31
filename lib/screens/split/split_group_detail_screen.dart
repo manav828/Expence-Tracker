@@ -919,7 +919,6 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                     currentMemberName: context.read<SplitProvider>().currentMemberName,
                   ),
                 );
-                _loadDetail();
               },
               label: const Text('Add Expense', style: TextStyle(fontWeight: FontWeight.w700)),
               icon: const Icon(Icons.add),
