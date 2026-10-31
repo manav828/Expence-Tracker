@@ -1,7 +1,8 @@
 {
-  "buildCommand": "bash vercel-build.sh",
-  "outputDirectory": "build/web",
   "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": false
+  },
   "rewrites": [
     {
       "source": "/(.*)",

@@ -1,0 +1,55 @@
+name: Deploy Flutter Web to Vercel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter Version
+        run: flutter --version
+
+      - name: Generate API Keys Config
+        run: |
+          mkdir -p lib/config
+          cat << 'EOF' > lib/config/api_keys.dart
+          class ApiKeys {
+            static const String pixabayApiKey = '${{ secrets.PIXABAY_API_KEY || '54231264-d3ff3246617b74558e914701c' }}';
+            static const String r2AccountId = '${{ secrets.R2_ACCOUNT_ID || 'e8acbf2339145c4be33e745c659773a1' }}';
+            static const String r2BucketName = '${{ secrets.R2_BUCKET_NAME || 'expencircle-storage' }}';
+            static const String r2AccessKeyId = '${{ secrets.R2_ACCESS_KEY_ID || '0a858b98473475974aa638978a326d68' }}';
+            static const String r2SecretAccessKey = '${{ secrets.R2_SECRET_ACCESS_KEY || '4c7404639cac7ef4a153d7cc4326c689d29d5c50e97f2d6c8ded76044abdec5f' }}';
+            static const String r2PublicBaseUrl = '${{ secrets.R2_PUBLIC_BASE_URL || 'https://pub-5931ad4398be42b6a8a7426e57c49b6b.r2.dev' }}';
+          }
+          EOF
+
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: Build Web Application Bundle
+        run: flutter build web --release --base-href /
+
+      - name: Copy Vercel Configuration to Build Output
+        run: cp vercel.json build/web/vercel.json
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./build/web
