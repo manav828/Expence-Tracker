@@ -79,7 +79,7 @@ class ExpenseTrackerApp extends StatelessWidget {
           outline: Color(0xFF6D7A72),
           outlineVariant: Color(0xFFBCCAC0),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
