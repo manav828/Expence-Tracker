@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/split_models.dart';
 import '../services/split_service.dart';
 import '../services/pixabay_service.dart';
+import '../services/auth_service.dart';
 
 class SplitProvider with ChangeNotifier {
   List<SplitGroup> _groups = [];

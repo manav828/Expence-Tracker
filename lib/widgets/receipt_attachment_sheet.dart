@@ -170,23 +170,23 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFFBBF7D0), width: 1.2),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
                             Container(
-                              padding: EdgeInsets.all(12),
-                              decoration: BoxDecoration(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(
                                 color: Color(0xFFDCFCE7),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.camera_alt_rounded, color: _primaryColor, size: 26),
+                              child: const Icon(Icons.camera_alt_rounded, color: _primaryColor, size: 26),
                             ),
-                            SizedBox(height: 10),
-                            Text(
+                            const SizedBox(height: 10),
+                            const Text(
                               'Take Photo',
                               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF131B2E)),
                             ),
-                            SizedBox(height: 2),
-                            Text(
+                            const SizedBox(height: 2),
+                            const Text(
                               'Use camera',
                               style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                             ),
@@ -208,23 +208,23 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
                             Container(
-                              padding: EdgeInsets.all(12),
-                              decoration: BoxDecoration(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(
                                 color: Color(0xFFF1F5F9),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.file_upload_outlined, color: Color(0xFF0F172A), size: 26),
+                              child: const Icon(Icons.file_upload_outlined, color: Color(0xFF0F172A), size: 26),
                             ),
-                            SizedBox(height: 10),
-                            Text(
+                            const SizedBox(height: 10),
+                            const Text(
                               'Upload File',
                               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF131B2E)),
                             ),
-                            SizedBox(height: 2),
-                            Text(
+                            const SizedBox(height: 2),
+                            const Text(
                               'Gallery / files',
                               style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                             ),
