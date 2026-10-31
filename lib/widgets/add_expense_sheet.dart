@@ -982,7 +982,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Upload photo to Cloudflare R2 or paste receipt link',
+                          'Upload photo or paste receipt link',
                           style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                         ),
                       ],
@@ -1053,7 +1053,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Stored securely on Cloudflare',
+                        'Receipt attached securely',
                         style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                       ),
                     ],

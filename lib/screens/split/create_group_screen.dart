@@ -225,7 +225,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'Presets, Pixabay search, or Cloudflare storage',
+                          'Presets, image search, or upload your own',
                           style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                         ),
                       ],

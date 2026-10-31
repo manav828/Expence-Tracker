@@ -1898,104 +1898,99 @@ class _MembersTabState extends State<_MembersTab> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
               children: [
-                // Header Card with Group Management Actions
-                Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x06000000),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Sleek, Compact Action Bar (Title & Quick Add Buttons)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.hub_outlined, size: 18, color: Color(0xFF006948)),
-                              SizedBox(width: 6),
-                              Text(
-                                'Member Grouping & Combinations',
-                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Color(0xFF0F172A)),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.info_outline, size: 18, color: Color(0xFF64748B)),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            tooltip: 'How grouping works',
-                            onPressed: () => _showGroupsInfoModal(context),
-                          ),
-                        ],
+                      Text(
+                        'Trip Members (${members.length})',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: Color(0xFF0F172A)),
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showSettlementGroupModal(context, widget.group, members),
-                              icon: const Icon(Icons.call_merge_rounded, size: 16),
-                              label: const Text('+ Combine Settle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF4F46E5),
-                                side: const BorderSide(color: Color(0xFF4F46E5)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showExpenseGroupModal(context, widget.group, members),
-                              icon: const Icon(Icons.playlist_add_check_rounded, size: 16),
-                              label: const Text('+ Expense Group', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF006948),
-                                side: const BorderSide(color: Color(0xFF006948)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
-                            ),
-                          ),
-                        ],
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => _showSettlementGroupModal(context, widget.group, members),
+                        icon: const Icon(Icons.call_merge_rounded, size: 14, color: Color(0xFF4F46E5)),
+                        label: const Text('Combine', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5))),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          backgroundColor: const Color(0xFFEEF2FF),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      TextButton.icon(
+                        onPressed: () => _showExpenseGroupModal(context, widget.group, members),
+                        icon: const Icon(Icons.playlist_add_check_rounded, size: 14, color: Color(0xFF006948)),
+                        label: const Text('Group', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF006948))),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          backgroundColor: const Color(0xFFE8F7F0),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline, size: 17, color: Color(0xFF64748B)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'How grouping works',
+                        onPressed: () => _showGroupsInfoModal(context),
                       ),
                     ],
                   ),
                 ),
 
-                // Groups in the list with expand/collapse arrow
-                if (displayGroups.isNotEmpty) ...[
+                // 1. Individual Members on TOP
+                if (ungroupedMembers.isNotEmpty) ...[
                   Padding(
-                    padding: const EdgeInsets.only(top: 2, bottom: 8),
+                    padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       children: [
-                        const Text(
-                          'Groups & Members',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                        const Icon(Icons.person_outline, size: 15, color: Color(0xFF64748B)),
+                        const SizedBox(width: 5),
+                        Text(
+                          displayGroups.isNotEmpty
+                              ? 'Individual Members (${ungroupedMembers.length})'
+                              : 'All Members (${ungroupedMembers.length})',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${displayGroups.length} groups',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
-                          ),
+                      ],
+                    ),
+                  ),
+                  ...ungroupedMembers.map((m) {
+                    final overallIndex = members.indexOf(m);
+                    final isThisMemberCreator = (widget.group.userId != null && widget.group.userId!.isNotEmpty)
+                        ? (m.userId != null && m.userId == widget.group.userId)
+                        : (overallIndex == 0);
+                    final isManualMember = (m.userId == null || m.userId!.isEmpty) && !isThisMemberCreator;
+                    final canEditName = isGroupCreator && (isManualMember || isThisMemberCreator);
+
+                    return _MemberTile(
+                      member: m,
+                      group: widget.group,
+                      index: overallIndex >= 0 ? overallIndex : 0,
+                      isGroupCreator: isGroupCreator,
+                      isThisMemberCreator: isThisMemberCreator,
+                      isManualMember: isManualMember,
+                      canEditName: canEditName,
+                    );
+                  }),
+                ],
+
+                // 2. Groups BELOW Individual Members (sleek & compact)
+                if (displayGroups.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.folder_outlined, size: 15, color: Color(0xFF64748B)),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Groups & Combinations (${displayGroups.length})',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                         ),
                       ],
                     ),
@@ -2008,22 +2003,21 @@ class _MembersTabState extends State<_MembersTab> {
                     final isCollapsed = _collapsedGroupIds.contains(group.id);
 
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Group Header Card with Expand/Collapse arrow
+                          // Sleek Group Header Card with Expand/Collapse arrow
                           Container(
                             decoration: BoxDecoration(
                               color: group.isSettlement
                                   ? const Color(0xFFEEF2FF).withValues(alpha: 0.7)
                                   : const Color(0xFFE8F7F0).withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: group.isSettlement
-                                    ? const Color(0xFF4F46E5).withValues(alpha: 0.3)
-                                    : const Color(0xFF006948).withValues(alpha: 0.3),
-                                width: 1.2,
+                                    ? const Color(0xFF4F46E5).withValues(alpha: 0.25)
+                                    : const Color(0xFF006948).withValues(alpha: 0.25),
                               ),
                             ),
                             child: InkWell(
@@ -2034,81 +2028,64 @@ class _MembersTabState extends State<_MembersTab> {
                                   _collapsedGroupIds.add(group.id);
                                 }
                               }),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                                 child: Row(
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: group.isSettlement ? const Color(0xFF4F46E5) : const Color(0xFF006948),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        group.isSettlement ? Icons.call_merge_rounded : Icons.playlist_add_check_rounded,
-                                        size: 16,
-                                        color: Colors.white,
-                                      ),
+                                    Icon(
+                                      group.isSettlement ? Icons.call_merge_rounded : Icons.playlist_add_check_rounded,
+                                      size: 16,
+                                      color: group.isSettlement ? const Color(0xFF4F46E5) : const Color(0xFF006948),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(width: 8),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                      child: Row(
                                         children: [
-                                          Row(
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  group.name,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 14,
-                                                    color: Color(0xFF0F172A),
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
+                                          Flexible(
+                                            child: Text(
+                                              group.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                                color: Color(0xFF0F172A),
                                               ),
-                                              const SizedBox(width: 6),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius: BorderRadius.circular(4),
-                                                  border: Border.all(
-                                                    color: group.isSettlement
-                                                        ? const Color(0xFF4F46E5).withValues(alpha: 0.3)
-                                                        : const Color(0xFF006948).withValues(alpha: 0.3),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  group.isSettlement ? 'Combined Settlement' : 'Expense Group',
-                                                  style: TextStyle(
-                                                    fontSize: 9.5,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: group.isSettlement ? const Color(0xFF4F46E5) : const Color(0xFF006948),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              group.isSettlement ? 'Combined Settlement' : 'Expense Group',
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: group.isSettlement ? const Color(0xFF4F46E5) : const Color(0xFF006948),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
                                           Text(
-                                            '${groupMembers.length} members',
-                                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                            '(${groupMembers.length})',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
                                           ),
                                         ],
                                       ),
                                     ),
                                     Icon(
                                       isCollapsed ? Icons.keyboard_arrow_right_rounded : Icons.keyboard_arrow_down_rounded,
-                                      size: 22,
+                                      size: 18,
                                       color: const Color(0xFF64748B),
                                     ),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: 2),
                                     PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
+                                      icon: const Icon(Icons.more_vert, size: 17, color: Color(0xFF94A3B8)),
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
                                       onSelected: (val) {
@@ -2147,7 +2124,7 @@ class _MembersTabState extends State<_MembersTab> {
                             ),
                           ),
 
-                          // Nested Members with Tree Connector Lines
+                          // Nested Members with compact Tree Connector Lines
                           if (!isCollapsed) ...[
                             ...groupMembers.asMap().entries.map((entry) {
                               final idx = entry.key;
@@ -2165,7 +2142,7 @@ class _MembersTabState extends State<_MembersTab> {
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
                                     SizedBox(
-                                      width: 32,
+                                      width: 22,
                                       child: CustomPaint(
                                         painter: _TreeBranchPainter(
                                           isLast: isLast,
@@ -2177,7 +2154,7 @@ class _MembersTabState extends State<_MembersTab> {
                                     ),
                                     Expanded(
                                       child: Padding(
-                                        padding: const EdgeInsets.only(top: 6),
+                                        padding: const EdgeInsets.only(top: 3),
                                         child: _MemberTile(
                                           member: m,
                                           group: widget.group,
@@ -2186,6 +2163,7 @@ class _MembersTabState extends State<_MembersTab> {
                                           isThisMemberCreator: isThisMemberCreator,
                                           isManualMember: isManualMember,
                                           canEditName: canEditName,
+                                          compact: true,
                                         ),
                                       ),
                                     ),
@@ -2196,51 +2174,6 @@ class _MembersTabState extends State<_MembersTab> {
                           ],
                         ],
                       ),
-                    );
-                  }),
-                ],
-
-                // Individual / Ungrouped Members Section
-                if (ungroupedMembers.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          displayGroups.isNotEmpty ? 'Individual Members' : 'All Members',
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF64748B).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${ungroupedMembers.length}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...ungroupedMembers.map((m) {
-                    final overallIndex = members.indexOf(m);
-                    final isThisMemberCreator = (widget.group.userId != null && widget.group.userId!.isNotEmpty)
-                        ? (m.userId != null && m.userId == widget.group.userId)
-                        : (overallIndex == 0);
-                    final isManualMember = (m.userId == null || m.userId!.isEmpty) && !isThisMemberCreator;
-                    final canEditName = isGroupCreator && (isManualMember || isThisMemberCreator);
-
-                    return _MemberTile(
-                      member: m,
-                      group: widget.group,
-                      index: overallIndex >= 0 ? overallIndex : 0,
-                      isGroupCreator: isGroupCreator,
-                      isThisMemberCreator: isThisMemberCreator,
-                      isManualMember: isManualMember,
-                      canEditName: canEditName,
                     );
                   }),
                 ],
@@ -2936,6 +2869,7 @@ class _MemberTile extends StatelessWidget {
   final bool isThisMemberCreator;
   final bool isManualMember;
   final bool canEditName;
+  final bool compact;
 
   const _MemberTile({
     required this.member,
@@ -2945,6 +2879,7 @@ class _MemberTile extends StatelessWidget {
     required this.isThisMemberCreator,
     required this.isManualMember,
     required this.canEditName,
+    this.compact = false,
   });
 
   void _showEditNameDialog(BuildContext context) {
@@ -3167,6 +3102,69 @@ class _MemberTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final avatarColor = _avatarColors[index % _avatarColors.length];
     final initial = member.name.trim().isNotEmpty ? member.name.trim()[0].toUpperCase() : '?';
+
+    if (compact) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: avatarColor,
+              child: Text(
+                initial,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      member.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isThisMemberCreator) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F7F0),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text('Admin', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF006948))),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (canEditName)
+              InkWell(
+                onTap: () => _showEditNameDialog(context),
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.edit_outlined, size: 15, color: Color(0xFF64748B)),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),

@@ -72,7 +72,7 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Receipt uploaded to Cloudflare R2!'),
+              content: Text('Receipt uploaded successfully!'),
               backgroundColor: _primaryColor,
             ),
           );
@@ -80,7 +80,7 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
           setState(() => _isUploading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Failed to upload receipt to Cloudflare storage.'),
+              content: Text('Failed to upload receipt. Please try again.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -90,7 +90,7 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
       if (mounted) {
         setState(() => _isUploading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload error: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Upload failed. Please try again.'), backgroundColor: Colors.red),
         );
       }
     }
@@ -144,7 +144,7 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Attach a bill photo or restaurant/store invoice stored on Cloudflare R2.',
+              'Attach a bill photo or restaurant/store invoice.',
               style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 20),
@@ -163,12 +163,12 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
                   const Icon(Icons.cloud_upload_outlined, size: 36, color: _primaryColor),
                   const SizedBox(height: 8),
                   const Text(
-                    'Upload Photo / File to Cloudflare',
+                    'Upload Photo / Receipt',
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF131B2E)),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Stored safely in free 10GB cloud storage',
+                    'Stored safely in cloud storage',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 12),
@@ -185,7 +185,7 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.file_upload_outlined, color: Colors.white, size: 18),
                       label: Text(
-                        _isUploading ? 'Uploading to Cloudflare...' : 'Choose Receipt Image',
+                        _isUploading ? 'Uploading receipt...' : 'Choose Receipt Image',
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                       ),
                     ),

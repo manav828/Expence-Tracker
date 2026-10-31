@@ -113,7 +113,7 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Banner uploaded to Cloudflare R2!'),
+              content: Text('Banner uploaded successfully!'),
               backgroundColor: _primaryColor,
             ),
           );
@@ -121,7 +121,7 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
           setState(() => _isUploading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Failed to upload image to Cloudflare storage.'),
+              content: Text('Failed to upload image. Please try again.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -436,7 +436,7 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
           ),
           const SizedBox(height: 6),
           const Text(
-            'Stored securely on Cloudflare 10GB cloud storage',
+            'Stored securely in cloud storage',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
           ),
@@ -478,7 +478,7 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _primaryColor))
                   : const Icon(Icons.upload_file, color: _primaryColor),
               label: Text(
-                _isUploading ? 'Uploading to Cloudflare...' : (_uploadedUrl != null ? 'Upload Another Photo' : 'Select Photo to Upload'),
+                _isUploading ? 'Uploading image...' : (_uploadedUrl != null ? 'Upload Another Photo' : 'Select Photo to Upload'),
                 style: const TextStyle(color: _primaryColor, fontWeight: FontWeight.w700),
               ),
             ),
@@ -501,7 +501,7 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
           ),
           const SizedBox(height: 6),
           const Text(
-            'Paste any valid public image link (Unsplash, Imgur, Cloudflare, etc.)',
+            'Paste any valid public image link (Unsplash, Imgur, web URL, etc.)',
             style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 14),
