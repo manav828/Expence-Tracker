@@ -3,12 +3,20 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
+import '../utils/category_icons.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/receipt_attachment_sheet.dart';
 import 'search_screen.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  TransactionType? _typeFilter;
 
   void _openEditSheet(BuildContext context, Expense expense) {
     showModalBottomSheet(
@@ -33,64 +41,88 @@ class HistoryScreen extends StatelessWidget {
             return _buildEmptyState();
           }
 
+          final filteredExpenses = _typeFilter == null
+              ? provider.expenses
+              : provider.expenses.where((e) => e.type == _typeFilter).toList();
+
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            itemCount: provider.expenses.length + 1,
+            itemCount: filteredExpenses.length + 1,
             itemBuilder: (context, index) {
               if (index == 0) {
+                final expenseCount = provider.expenses.where((e) => e.isExpense).length;
+                final incomeCount = provider.expenses.where((e) => e.isIncome).length;
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Transaction History',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF131B2E),
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Transaction History',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF131B2E),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Tap any record to edit details or change date',
+                                style: TextStyle(fontSize: 11, color: const Color(0xFF6D7A72).withValues(alpha: 0.9)),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Tap any record to edit details or change date',
-                            style: TextStyle(fontSize: 11, color: const Color(0xFF6D7A72).withValues(alpha: 0.9)),
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                                  );
+                                },
+                                icon: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.search, size: 18, color: Color(0xFF006948)),
+                                ),
+                                tooltip: 'Search & Filter',
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${provider.expenses.length} Total',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+
+                      // Filter chips: All, Expenses, Income
                       Row(
                         children: [
-                          IconButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SearchScreen()),
-                              );
-                            },
-                            icon: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF006948).withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.search, size: 18, color: Color(0xFF006948)),
-                            ),
-                            tooltip: 'Search & Filter',
-                          ),
-                          const SizedBox(width: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF006948).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${provider.expenses.length} Total',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
-                            ),
-                          ),
+                          _buildFilterChip('All (${provider.expenses.length})', null),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('Expenses ($expenseCount)', TransactionType.expense),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('Income ($incomeCount)', TransactionType.income),
                         ],
                       ),
                     ],
@@ -98,8 +130,9 @@ class HistoryScreen extends StatelessWidget {
                 );
               }
 
-              final expense = provider.expenses[index - 1];
+              final expense = filteredExpenses[index - 1];
               final dateStr = DateFormat('EEE, d MMM yyyy • hh:mm a').format(expense.dateTime);
+              final isInc = expense.isIncome;
 
               return Dismissible(
                 key: Key(expense.id.toString()),
@@ -131,7 +164,10 @@ class HistoryScreen extends StatelessWidget {
                       return AlertDialog(
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        title: const Text('Delete Expense', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF131B2E))),
+                        title: Text(
+                          isInc ? 'Delete Income' : 'Delete Expense',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF131B2E)),
+                        ),
                         content: const Text('Are you sure you want to delete this recorded transaction?'),
                         actions: [
                           TextButton(
@@ -185,10 +221,16 @@ class HistoryScreen extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                color: isInc
+                                    ? const Color(0xFF006948).withValues(alpha: 0.12)
+                                    : const Color(0xFF006948).withValues(alpha: 0.08),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.receipt_long, color: Color(0xFF006948), size: 22),
+                              child: Icon(
+                                CategoryIcons.get(expense.category),
+                                color: const Color(0xFF006948),
+                                size: 22,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -265,26 +307,30 @@ class HistoryScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '-₹${expense.amount.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  isInc
+                                      ? '+₹${expense.amount.toStringAsFixed(2)}'
+                                      : '-₹${expense.amount.toStringAsFixed(2)}',
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF131B2E),
+                                    color: isInc ? const Color(0xFF006948) : const Color(0xFF131B2E),
                                   ),
                                 ),
                                 const SizedBox(height: 3),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF2F3FF),
+                                    color: isInc
+                                        ? const Color(0xFF85F8C4).withValues(alpha: 0.35)
+                                        : const Color(0xFFF2F3FF),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     expense.paymentMethod,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF3D4A42),
+                                      color: isInc ? const Color(0xFF005137) : const Color(0xFF3D4A42),
                                     ),
                                   ),
                                 ),
@@ -304,6 +350,45 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildFilterChip(String label, TransactionType? type) {
+    final isSelected = _typeFilter == type;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _typeFilter = type;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF006948) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF006948) : const Color(0x1F000000),
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF006948).withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF3D4A42),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -312,7 +397,7 @@ class HistoryScreen extends StatelessWidget {
           Icon(Icons.history_toggle_off, size: 70, color: Color(0xFFBCCAC0)),
           SizedBox(height: 16),
           Text(
-            'No expenses recorded yet.',
+            'No transactions recorded yet.',
             style: TextStyle(color: Color(0xFF3D4A42), fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],

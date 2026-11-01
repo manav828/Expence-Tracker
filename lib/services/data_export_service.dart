@@ -60,7 +60,7 @@ class DataExportService {
   Future<void> exportCsvFile(List<Expense> expenses) async {
     final csvContent = generateCsv(expenses);
     final dateTag = DateFormat('yyyyMMdd').format(DateTime.now());
-    final filename = 'apex_spend_export_$dateTag.csv';
+    final filename = 'expencircle_spend_export_$dateTag.csv';
 
     await exporter.saveOrShareFile(
       filename: filename,
@@ -73,7 +73,7 @@ class DataExportService {
   Future<void> exportJsonFile(List<Expense> expenses) async {
     final jsonContent = generateJson(expenses);
     final dateTag = DateFormat('yyyyMMdd').format(DateTime.now());
-    final filename = 'apex_spend_backup_$dateTag.json';
+    final filename = 'expencircle_spend_backup_$dateTag.json';
 
     await exporter.saveOrShareFile(
       filename: filename,

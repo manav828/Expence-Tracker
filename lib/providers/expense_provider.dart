@@ -253,15 +253,47 @@ class ExpenseProvider with ChangeNotifier {
     _notifyWidgetUpdate();
   }
 
-  // --- Analytics Helpers ---
+  // --- Income Categories ---
+  static const List<String> defaultIncomeCategories = [
+    'Salary',
+    'Freelance',
+    'Investments',
+    'Refund / Cashback',
+    'Rental Income',
+    'Gifts',
+    'Other Income',
+  ];
+
+  List<String> get incomeCategories => defaultIncomeCategories;
+
+  // --- Analytics & Financial Helpers ---
 
   double get totalExpenses {
-    return _expenses.fold(0.0, (sum, item) => sum + item.amount);
+    return _expenses.where((e) => e.isExpense).fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get totalIncome {
+    return _expenses.where((e) => e.isIncome).fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get netSavings => totalIncome - totalExpenses;
+
+  double get savingsRate {
+    if (totalIncome <= 0) return 0.0;
+    return ((netSavings / totalIncome) * 100).clamp(-100.0, 100.0);
   }
 
   Map<String, double> get categoryTotals {
     final map = <String, double>{};
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
+      map[e.category] = (map[e.category] ?? 0.0) + e.amount;
+    }
+    return map;
+  }
+
+  Map<String, double> get incomeCategoryTotals {
+    final map = <String, double>{};
+    for (var e in _expenses.where((e) => e.isIncome)) {
       map[e.category] = (map[e.category] ?? 0.0) + e.amount;
     }
     return map;
@@ -271,15 +303,38 @@ class ExpenseProvider with ChangeNotifier {
     final now = DateTime.now();
     return _expenses.where((e) {
       final d = e.dateTime;
-      return d.year == now.year && d.month == now.month;
+      return e.isExpense && d.year == now.year && d.month == now.month;
     }).fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get incomeThisMonth {
+    final now = DateTime.now();
+    return _expenses.where((e) {
+      final d = e.dateTime;
+      return e.isIncome && d.year == now.year && d.month == now.month;
+    }).fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get netSavingsThisMonth => incomeThisMonth - expensesThisMonth;
+
+  double get savingsRateThisMonth {
+    if (incomeThisMonth <= 0) return 0.0;
+    return ((netSavingsThisMonth / incomeThisMonth) * 100).clamp(-100.0, 100.0);
   }
 
   double get expensesThisWeek {
     final now = DateTime.now();
     final weekAgo = now.subtract(const Duration(days: 7));
     return _expenses
-        .where((e) => e.dateTime.isAfter(weekAgo))
+        .where((e) => e.isExpense && e.dateTime.isAfter(weekAgo))
+        .fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get incomeThisWeek {
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    return _expenses
+        .where((e) => e.isIncome && e.dateTime.isAfter(weekAgo))
         .fold(0.0, (sum, item) => sum + item.amount);
   }
 
@@ -287,7 +342,15 @@ class ExpenseProvider with ChangeNotifier {
     final now = DateTime.now();
     return _expenses.where((e) {
       final d = e.dateTime;
-      return d.year == now.year && d.month == now.month && d.day == now.day;
+      return e.isExpense && d.year == now.year && d.month == now.month && d.day == now.day;
+    }).fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get incomeToday {
+    final now = DateTime.now();
+    return _expenses.where((e) {
+      final d = e.dateTime;
+      return e.isIncome && d.year == now.year && d.month == now.month && d.day == now.day;
     }).fold(0.0, (sum, item) => sum + item.amount);
   }
 
@@ -296,7 +359,7 @@ class ExpenseProvider with ChangeNotifier {
     // Monday of current week
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
     final result = List<double>.filled(7, 0.0);
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
       final d = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
       final diff = d.difference(monday).inDays;
       if (diff >= 0 && diff < 7) {
@@ -308,7 +371,7 @@ class ExpenseProvider with ChangeNotifier {
 
   Map<int, double> getDailyTotalsForMonth(int year, int month) {
     final map = <int, double>{};
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
       final d = e.dateTime;
       if (d.year == year && d.month == month) {
         map[d.day] = (map[d.day] ?? 0.0) + e.amount;
@@ -326,7 +389,18 @@ class ExpenseProvider with ChangeNotifier {
 
   double getTotalExpensesForMonth(int year, int month) {
     double sum = 0.0;
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
+      final d = e.dateTime;
+      if (d.year == year && d.month == month) {
+        sum += e.amount;
+      }
+    }
+    return sum;
+  }
+
+  double getTotalIncomeForMonth(int year, int month) {
+    double sum = 0.0;
+    for (var e in _expenses.where((e) => e.isIncome)) {
       final d = e.dateTime;
       if (d.year == year && d.month == month) {
         sum += e.amount;
@@ -337,7 +411,18 @@ class ExpenseProvider with ChangeNotifier {
 
   Map<String, double> getCategoryTotalsForMonth(int year, int month) {
     final map = <String, double>{};
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
+      final d = e.dateTime;
+      if (d.year == year && d.month == month) {
+        map[e.category] = (map[e.category] ?? 0.0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  Map<String, double> getIncomeCategoryTotalsForMonth(int year, int month) {
+    final map = <String, double>{};
+    for (var e in _expenses.where((e) => e.isIncome)) {
       final d = e.dateTime;
       if (d.year == year && d.month == month) {
         map[e.category] = (map[e.category] ?? 0.0) + e.amount;
@@ -443,6 +528,11 @@ class ExpenseProvider with ChangeNotifier {
         return false;
       }
       if (filter.maxAmount != null && e.amount > filter.maxAmount!) {
+        return false;
+      }
+
+      // 6. Transaction type filtering
+      if (filter.type != null && e.type != filter.type) {
         return false;
       }
 

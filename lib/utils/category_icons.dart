@@ -114,6 +114,12 @@ class CategoryIcons {
       return Icons.trending_up;
     } else if (lower.contains('salary') || lower.contains('payroll') || lower.contains('income') || lower.contains('stipend')) {
       return Icons.payments;
+    } else if (lower.contains('freelance') || lower.contains('contract') || lower.contains('gig')) {
+      return Icons.laptop_chromebook;
+    } else if (lower.contains('refund') || lower.contains('cashback') || lower.contains('reimburse')) {
+      return Icons.replay;
+    } else if (lower.contains('dividend') || lower.contains('interest') || lower.contains('deposit')) {
+      return Icons.account_balance;
     } else if (lower.contains('rent') || lower.contains('house') || lower.contains('housing')) {
       return Icons.home;
     } else if (lower.contains('education') || lower.contains('course') || lower.contains('school')) {

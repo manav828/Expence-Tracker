@@ -16,7 +16,7 @@ import java.util.regex.Pattern
 class SmsReceiver : BroadcastReceiver() {
 
     companion object {
-        const val CHANNEL_ID = "apex_tx_detection"
+        const val CHANNEL_ID = "expencircle_tx_detection"
         const val CHANNEL_NAME = "Transaction Detection"
     }
 

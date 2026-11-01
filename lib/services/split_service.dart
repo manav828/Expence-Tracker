@@ -238,6 +238,15 @@ class SplitService {
         groupIdsToFetch.add(g.id);
       }
 
+      // Auto-claim any unowned legacy groups or creator member rows for this authenticated user
+      if (userId != null && userId.isNotEmpty && groupIdsToFetch.isNotEmpty) {
+        try {
+          await _db.rpc('claim_user_groups', params: {'p_group_ids': groupIdsToFetch.toList()});
+        } catch (e) {
+          debugPrint('claim_user_groups RPC check: $e');
+        }
+      }
+
       // 1. Fetch groups created by this user_id in Supabase
       if (userId != null && userId.isNotEmpty) {
         try {
@@ -411,11 +420,32 @@ class SplitService {
   }
 
   Future<SplitGroup?> getGroupByInviteCode(String code) async {
+    final cleanCode = code.trim().toUpperCase();
+
+    // 1. Secure RPC lookup (works for users joining before membership is recorded)
+    try {
+      final rpcRes = await _db.rpc('get_group_by_invite_code', params: {'p_code': cleanCode});
+      if (rpcRes != null) {
+        final list = rpcRes is List ? rpcRes : [rpcRes];
+        if (list.isNotEmpty && list.first != null) {
+          final group = SplitGroup.fromMap(Map<String, dynamic>.from(list.first as Map));
+          if (!kIsWeb) {
+            final db = await _localDb;
+            await db.insert('split_groups', group.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+          return group;
+        }
+      }
+    } catch (e) {
+      debugPrint('Cloud getGroupByInviteCode RPC fallback: $e');
+    }
+
+    // 2. Direct table SELECT fallback (for creator or existing members)
     try {
       final res = await _db
           .from('split_groups')
           .select()
-          .eq('invite_code', code.toUpperCase())
+          .eq('invite_code', cleanCode)
           .maybeSingle();
       if (res != null) {
         final group = SplitGroup.fromMap(res);
@@ -429,13 +459,14 @@ class SplitService {
       debugPrint('Cloud getGroupByInviteCode error: $e');
     }
 
+    // 3. Local SQLite fallback (offline)
     if (!kIsWeb) {
       try {
         final db = await _localDb;
         final res = await db.query(
           'split_groups',
           where: 'UPPER(invite_code) = ?',
-          whereArgs: [code.toUpperCase()],
+          whereArgs: [cleanCode],
           limit: 1,
         );
         if (res.isNotEmpty) return SplitGroup.fromMap(res.first);
@@ -1087,11 +1118,23 @@ class SplitService {
     }
 
     try {
-      final expenses = await _db.from('split_expenses').select('id').eq('group_id', groupId);
-      final ids = (expenses as List).map((e) => e['id'] as String).toList();
-      if (ids.isEmpty) return localShares;
-      final res = await _db.from('split_shares').select().inFilter('expense_id', ids);
-      final cloudShares = (res as List).map((m) => SplitShare.fromMap(m)).toList();
+      List<SplitShare>? cloudShares;
+      try {
+        final rpcRes = await _db.rpc('get_group_shares', params: {'p_group_id': groupId});
+        if (rpcRes is List) {
+          cloudShares = rpcRes.map((m) => SplitShare.fromMap(Map<String, dynamic>.from(m as Map))).toList();
+        }
+      } catch (rpcErr) {
+        debugPrint('get_group_shares RPC fallback: $rpcErr');
+      }
+
+      if (cloudShares == null) {
+        final expenses = await _db.from('split_expenses').select('id').eq('group_id', groupId);
+        final ids = (expenses as List).map((e) => e['id'] as String).toList();
+        if (ids.isEmpty) return localShares;
+        final res = await _db.from('split_shares').select().inFilter('expense_id', ids);
+        cloudShares = (res as List).map((m) => SplitShare.fromMap(m)).toList();
+      }
       if (!kIsWeb && cloudShares.isNotEmpty) {
         try {
           final db = await _localDb;

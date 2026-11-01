@@ -113,7 +113,7 @@ class BudgetProvider with ChangeNotifier {
     final target = category.trim().toLowerCase();
     return expenses.where((e) {
       final d = e.dateTime;
-      return e.category.trim().toLowerCase() == target && d.year == now.year && d.month == now.month;
+      return e.isExpense && e.category.trim().toLowerCase() == target && d.year == now.year && d.month == now.month;
     }).fold(0.0, (sum, item) => sum + item.amount);
   }
 

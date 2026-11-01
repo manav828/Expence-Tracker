@@ -25,12 +25,21 @@ class SplitProvider with ChangeNotifier {
   final Map<String, Future<SplitGroup?>> _inFlightJoins = {};
 
   String get _userGroupIdsKey {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    return uid != null ? 'split_group_ids_$uid' : 'split_group_ids_guest';
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      return uid != null ? 'split_group_ids_$uid' : 'split_group_ids_guest';
+    } catch (_) {
+      return 'split_group_ids_guest';
+    }
   }
+
   String get _memberNameKey {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    return uid != null ? 'split_member_name_$uid' : 'split_member_name_guest';
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      return uid != null ? 'split_member_name_$uid' : 'split_member_name_guest';
+    } catch (_) {
+      return 'split_member_name_guest';
+    }
   }
 
   List<SplitGroup> get groups => _groups;
@@ -72,20 +81,22 @@ class SplitProvider with ChangeNotifier {
     _currentMemberName = prefs.getString(_memberNameKey);
     await loadGroups();
 
-    // Listen to Supabase auth events (e.g. session restored from disk, login, user switch)
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-      final event = data.event;
-      if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed ||
-          event == AuthChangeEvent.initialSession ||
-          event == AuthChangeEvent.userUpdated) {
-        final prefs = await SharedPreferences.getInstance();
-        _currentMemberName = prefs.getString(_memberNameKey);
-        loadGroups(isBackgroundRefresh: true);
-      } else if (event == AuthChangeEvent.signedOut) {
-        clearStateOnLogout();
-      }
-    });
+    try {
+      // Listen to Supabase auth events (e.g. session restored from disk, login, user switch)
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+        final event = data.event;
+        if (event == AuthChangeEvent.signedIn ||
+            event == AuthChangeEvent.tokenRefreshed ||
+            event == AuthChangeEvent.initialSession ||
+            event == AuthChangeEvent.userUpdated) {
+          final prefs = await SharedPreferences.getInstance();
+          _currentMemberName = prefs.getString(_memberNameKey);
+          loadGroups(isBackgroundRefresh: true);
+        } else if (event == AuthChangeEvent.signedOut) {
+          clearStateOnLogout();
+        }
+      });
+    } catch (_) {}
   }
 
   void clearStateOnLogout() {

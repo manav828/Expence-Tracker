@@ -22,8 +22,21 @@ class AuthService {
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  User? get currentUser => _client.auth.currentUser;
-  bool get isAuthenticated => _client.auth.currentUser != null;
+  User? get currentUser {
+    try {
+      return _client.auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool get isAuthenticated {
+    try {
+      return currentUser != null;
+    } catch (_) {
+      return false;
+    }
+  }
 
   String? _cachedDisplayName;
   String? _cachedPhotoUrl;

@@ -1,21 +1,41 @@
-/// Represents an individual user expense or cash outflow in ExpenCircle.
+/// Represents the financial flow direction of a personal transaction.
+enum TransactionType {
+  /// Debit or spending outflow
+  expense,
+
+  /// Credit or incoming earnings/refunds
+  income;
+
+  String toDbValue() => name;
+
+  static TransactionType fromDbValue(String? value) {
+    if (value == null) return TransactionType.expense;
+    final normalized = value.toLowerCase().trim();
+    if (normalized == 'income' || normalized == 'credit') {
+      return TransactionType.income;
+    }
+    return TransactionType.expense;
+  }
+}
+
+/// Represents an individual user transaction (expense/debit or income/credit) in ExpenCircle.
 class Expense {
   /// Unique database identifier (auto-incremented integer for SQLite and BigInt for cloud DB).
   final int? id;
 
-  /// Supabase auth user UID owning this personal expense.
+  /// Supabase auth user UID owning this personal transaction.
   final String? userId;
 
   /// Financial monetary value in INR (e.g. 250.00).
   final double amount;
 
-  /// User-defined or preset category (e.g. 'Food', 'Travel', 'Shopping').
+  /// User-defined or preset category (e.g. 'Food', 'Salary', 'Shopping').
   final String category;
 
   /// Transaction instrument (e.g. 'UPI', 'Credit Card', 'Cash', 'NetBanking').
   final String paymentMethod;
 
-  /// Optional remark, note, or merchant name.
+  /// Optional remark, note, or merchant/payee name.
   final String? comment;
 
   /// Optional receipt or invoice image URL hosted on CDN.
@@ -30,6 +50,9 @@ class Expense {
   /// Record last update timestamp in milliseconds since Unix epoch.
   final int updatedAt;
 
+  /// Transaction flow type (expense/debit or income/credit). Defaults to expense.
+  final TransactionType type;
+
   Expense({
     this.id,
     this.userId,
@@ -41,9 +64,16 @@ class Expense {
     required this.expenseDate,
     required this.createdAt,
     required this.updatedAt,
+    this.type = TransactionType.expense,
   });
 
-  /// Serializes the expense to a key-value Map for SQLite or Supabase database operations.
+  /// True if this transaction is an outflow/debit.
+  bool get isExpense => type == TransactionType.expense;
+
+  /// True if this transaction is an inflow/credit.
+  bool get isIncome => type == TransactionType.income;
+
+  /// Serializes the transaction to a key-value Map for SQLite or Supabase database operations.
   Map<String, dynamic> toMap() {
     final map = <String, dynamic>{
       'id': id,
@@ -55,6 +85,7 @@ class Expense {
       'expense_date': expenseDate,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'type': type.toDbValue(),
     };
     if (userId != null) {
       map['user_id'] = userId;
@@ -67,6 +98,7 @@ class Expense {
     final expDate = (map['expense_date'] as num).toInt();
     final created = map['created_at'] != null ? (map['created_at'] as num).toInt() : expDate;
     final updated = map['updated_at'] != null ? (map['updated_at'] as num).toInt() : created;
+    final txType = TransactionType.fromDbValue(map['type'] as String?);
 
     return Expense(
       id: map['id'] is num ? (map['id'] as num).toInt() : (int.tryParse(map['id']?.toString() ?? '')),
@@ -79,6 +111,7 @@ class Expense {
       expenseDate: expDate,
       createdAt: created,
       updatedAt: updated,
+      type: txType,
     );
   }
 
@@ -97,6 +130,7 @@ class Expense {
     int? expenseDate,
     int? createdAt,
     int? updatedAt,
+    TransactionType? type,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -109,6 +143,7 @@ class Expense {
       expenseDate: expenseDate ?? this.expenseDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      type: type ?? this.type,
     );
   }
 }

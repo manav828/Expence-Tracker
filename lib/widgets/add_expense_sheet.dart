@@ -18,6 +18,7 @@ class AddExpenseSheet extends StatefulWidget {
   final String? initialComment;
   final bool isAutoDetected;
   final bool autoSaveOnDismiss;
+  final TransactionType? initialType;
 
   const AddExpenseSheet({
     super.key,
@@ -28,6 +29,7 @@ class AddExpenseSheet extends StatefulWidget {
     this.initialComment,
     this.isAutoDetected = false,
     this.autoSaveOnDismiss = false,
+    this.initialType,
   });
 
   @override
@@ -45,6 +47,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String? _newlyUploadedReceiptUrl;
   bool _isSaved = false;
   late DateTime _selectedDate;
+  late TransactionType _type;
 
   bool get isEditing => widget.expenseToEdit != null;
 
@@ -53,6 +56,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     super.initState();
     if (widget.expenseToEdit != null) {
       final e = widget.expenseToEdit!;
+      _type = e.type;
       _amountController.text = e.amount.toStringAsFixed(
         e.amount.truncateToDouble() == e.amount ? 0 : 2,
       );
@@ -62,6 +66,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
       _receiptUrl = e.receiptUrl;
       _selectedDate = DateTime.fromMillisecondsSinceEpoch(e.expenseDate);
     } else {
+      _type = widget.initialType ?? TransactionType.expense;
       if (widget.initialAmount != null && widget.initialAmount! > 0) {
         _amountController.text = widget.initialAmount!.toStringAsFixed(
           widget.initialAmount!.truncateToDouble() == widget.initialAmount! ? 0 : 2,
@@ -301,7 +306,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     if (_formKey.currentState!.validate()) {
       final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
       final provider = Provider.of<ExpenseProvider>(context, listen: false);
-      final finalCategory = _category ?? (provider.categories.isNotEmpty ? provider.categories.first : 'Food & Dining');
+      final defaultCategory = _type == TransactionType.income
+          ? 'Salary'
+          : (provider.categories.isNotEmpty ? provider.categories.first : 'Food & Dining');
+      final finalCategory = _category ?? defaultCategory;
       final finalPaymentMethod = _paymentMethod ?? (provider.paymentMethods.isNotEmpty ? provider.paymentMethods.first : 'UPI');
       final comment = _commentController.text.trim().isEmpty ? null : _commentController.text.trim();
 
@@ -315,17 +323,22 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
             receiptUrl: _receiptUrl,
             expenseDate: _selectedDate.millisecondsSinceEpoch,
             updatedAt: DateTime.now().millisecondsSinceEpoch,
+            type: _type,
           );
 
           await provider.updateExpense(updated);
           _isSaved = true;
           if (!mounted) return;
-          context.read<BudgetProvider>().checkForOverspend(updated, provider.expenses);
+          if (_type == TransactionType.expense) {
+            context.read<BudgetProvider>().checkForOverspend(updated, provider.expenses);
+          }
           Navigator.of(context).pop();
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Updated spend: ₹${amount.toStringAsFixed(2)} ($finalCategory)'),
+              content: Text(_type == TransactionType.income
+                  ? 'Updated income: ₹${amount.toStringAsFixed(2)} ($finalCategory)'
+                  : 'Updated spend: ₹${amount.toStringAsFixed(2)} ($finalCategory)'),
               backgroundColor: const Color(0xFF006948),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -341,12 +354,15 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
             expenseDate: _selectedDate.millisecondsSinceEpoch,
             createdAt: DateTime.now().millisecondsSinceEpoch,
             updatedAt: DateTime.now().millisecondsSinceEpoch,
+            type: _type,
           );
 
           await provider.addExpense(newExpense);
           _isSaved = true;
           if (!mounted) return;
-          final overspendWarning = context.read<BudgetProvider>().checkForOverspend(newExpense, provider.expenses);
+          final overspendWarning = _type == TransactionType.expense
+              ? context.read<BudgetProvider>().checkForOverspend(newExpense, provider.expenses)
+              : null;
           Navigator.of(context).pop();
 
           if (overspendWarning != null) {
@@ -373,7 +389,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Added ₹${amount.toStringAsFixed(2)} to $finalCategory'),
+                content: Text(_type == TransactionType.income
+                    ? 'Added income: ₹${amount.toStringAsFixed(2)} ($finalCategory)'
+                    : 'Added ₹${amount.toStringAsFixed(2)} to $finalCategory'),
                 backgroundColor: const Color(0xFF006948),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -390,8 +408,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to save expense: $e'),
-              backgroundColor: Colors.red,
+              content: Text('Failed to save transaction: $e'),
+              backgroundColor: const Color(0xFFBA1A1A),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -402,9 +421,11 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<ExpenseProvider>(context);
-    final categories = provider.categories.isNotEmpty
-        ? provider.categories
-        : ['Food & Dining', 'Shopping', 'Transport', 'Bills & Utilities', 'Entertainment', 'Health & Wellness', 'Investment', 'General'];
+    final categories = _type == TransactionType.income
+        ? provider.incomeCategories
+        : (provider.categories.isNotEmpty
+            ? provider.categories
+            : ['Food & Dining', 'Shopping', 'Transport', 'Bills & Utilities', 'Entertainment', 'Health & Wellness', 'Investment', 'General']);
     final paymentMethods = provider.paymentMethods.isNotEmpty
         ? provider.paymentMethods
         : ['UPI', 'Card', 'Cash', 'Transfer'];
@@ -469,13 +490,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
-                              Text(
+                            children: [
+                              const Text(
                                 'Transaction Auto-Detected',
                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
                               ),
-                              SizedBox(height: 1),
-                              Text(
+                              const SizedBox(height: 1),
+                              const Text(
                                 'Tap Cancel to discard, or Save to confirm',
                                 style: TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
                               ),
@@ -494,10 +515,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       children: [
                         Text(
                           isEditing
-                              ? 'Edit Expense'
+                              ? (_type == TransactionType.income ? 'Edit Income' : 'Edit Expense')
                               : widget.isAutoDetected
-                                  ? 'Transaction Detected'
-                                  : 'Add Spend',
+                                  ? (_type == TransactionType.income ? 'Income Detected' : 'Spend Detected')
+                                  : (_type == TransactionType.income ? 'Add Income' : 'Add Spend'),
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -509,8 +530,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                           isEditing
                               ? 'Modify or update transaction details'
                               : widget.isAutoDetected
-                                  ? 'Auto-filled from detected transaction'
-                                  : 'Record an outflow into ExpenCircle Private Ledger',
+                                  ? (_type == TransactionType.income ? 'Auto-filled from credit SMS' : 'Auto-filled from debit SMS')
+                                  : (_type == TransactionType.income
+                                      ? 'Record an inflow into ExpenCircle Private Ledger'
+                                      : 'Record an outflow into ExpenCircle Private Ledger'),
                           style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
                         ),
                       ],
@@ -538,18 +561,140 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                     ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // Transaction Type Pill Toggle (Expense vs Income)
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F3FF),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_type != TransactionType.expense) {
+                            setState(() {
+                              _type = TransactionType.expense;
+                              if (_category != null && !provider.categories.contains(_category)) {
+                                _category = provider.categories.isNotEmpty ? provider.categories.first : 'Food & Dining';
+                              }
+                            });
+                          }
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _type == TransactionType.expense ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: _type == TransactionType.expense
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 16,
+                                color: _type == TransactionType.expense ? const Color(0xFFBA1A1A) : const Color(0xFF6D7A72),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Expense (Debit)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _type == TransactionType.expense ? const Color(0xFFBA1A1A) : const Color(0xFF6D7A72),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_type != TransactionType.income) {
+                            setState(() {
+                              _type = TransactionType.income;
+                              if (_category != null && !provider.incomeCategories.contains(_category)) {
+                                _category = provider.incomeCategories.first;
+                              }
+                            });
+                          }
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _type == TransactionType.income ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: _type == TransactionType.income
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.arrow_downward_rounded,
+                                size: 16,
+                                color: _type == TransactionType.income ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Income (Credit)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _type == TransactionType.income ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Amount Field
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 autofocus: !isEditing,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: _type == TransactionType.income ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                ),
                 decoration: InputDecoration(
-                  prefixText: '₹ ',
-                  prefixStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
-                  labelText: 'Amount',
+                  prefixText: _type == TransactionType.income ? '+ ₹ ' : '₹ ',
+                  prefixStyle: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: _type == TransactionType.income ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                  ),
+                  labelText: _type == TransactionType.income ? 'Income Amount' : 'Spend Amount',
                   labelStyle: const TextStyle(color: Color(0xFF6D7A72)),
                   filled: true,
                   fillColor: const Color(0xFFF2F3FF),
@@ -631,15 +776,17 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               ),
               const SizedBox(height: 16),
 
-              // Category with Searchable Selection and Icon Picker
+              // Side-by-Side Category and Payment Method
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Category Dropdown
                   Expanded(
                     child: InkWell(
                       onTap: () async {
                         final selected = await SearchableSelectionSheet.show(
                           context,
-                          title: 'Select Category',
+                          title: _type == TransactionType.income ? 'Select Income Category' : 'Select Category',
                           items: categories,
                           selectedItem: effectiveCategory,
                           isCategory: true,
@@ -651,75 +798,40 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       },
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF2F3FF),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
-                            // Category Icon with tap to change icon
-                            Tooltip(
-                              message: 'Tap to change category icon',
-                              child: InkWell(
-                                onTap: () async {
-                                  final currentKey = CategoryIcons.getKeyForCategory(effectiveCategory);
-                                  final picked = await CategoryIconPickerDialog.show(
-                                    context,
-                                    currentIconKey: currentKey,
-                                  );
-                                  if (picked != null && mounted) {
-                                    await CategoryIcons.setCustomIcon(effectiveCategory, picked.key);
-                                    setState(() {});
-                                  }
-                                },
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF006948).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF006948).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Icon(
-                                        CategoryIcons.get(effectiveCategory),
-                                        size: 20,
-                                        color: const Color(0xFF006948),
-                                      ),
-                                      Positioned(
-                                        bottom: 1,
-                                        right: 1,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(1.5),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.edit, size: 8, color: Color(0xFF006948)),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                              ),
+                              child: Icon(
+                                CategoryIcons.get(effectiveCategory),
+                                size: 18,
+                                color: const Color(0xFF006948),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Category',
-                                    style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72), fontWeight: FontWeight.w600),
+                                  Text(
+                                    _type == TransactionType.income ? 'Category' : 'Category',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72), fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     effectiveCategory,
                                     style: const TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: Color(0xFF131B2E),
                                     ),
@@ -729,39 +841,20 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.arrow_drop_down, color: Color(0xFF6D7A72)),
+                            const Icon(Icons.arrow_drop_down, size: 20, color: Color(0xFF6D7A72)),
                           ],
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Container(
-                    height: 56,
-                    width: 56,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F3FF),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.add, color: Color(0xFF006948)),
-                      tooltip: 'Add Category',
-                      onPressed: () => _promptAddCustom(context, true),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Payment Method with Searchable Selection
-              Row(
-                children: [
+                  // Payment Method / Received In Dropdown
                   Expanded(
                     child: InkWell(
                       onTap: () async {
                         final selected = await SearchableSelectionSheet.show(
                           context,
-                          title: 'Select Payment Method',
+                          title: _type == TransactionType.income ? 'Select Received In' : 'Select Payment Method',
                           items: paymentMethods,
                           selectedItem: effectivePayment,
                           isCategory: false,
@@ -773,7 +866,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       },
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF2F3FF),
                           borderRadius: BorderRadius.circular(16),
@@ -781,32 +874,32 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         child: Row(
                           children: [
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
                                 color: const Color(0xFF3323CC).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 CategoryIcons.getPaymentMethodIcon(effectivePayment),
-                                size: 20,
+                                size: 18,
                                 color: const Color(0xFF3323CC),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Payment Method',
-                                    style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72), fontWeight: FontWeight.w600),
+                                  Text(
+                                    _type == TransactionType.income ? 'Received In' : 'Payment',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72), fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     effectivePayment,
                                     style: const TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: Color(0xFF131B2E),
                                     ),
@@ -816,24 +909,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.arrow_drop_down, color: Color(0xFF6D7A72)),
+                            const Icon(Icons.arrow_drop_down, size: 20, color: Color(0xFF6D7A72)),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    height: 56,
-                    width: 56,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F3FF),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.add, color: Color(0xFF006948)),
-                      tooltip: 'Add Payment Method',
-                      onPressed: () => _promptAddCustom(context, false),
                     ),
                   ),
                 ],
@@ -897,9 +976,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                             shadowColor: const Color(0xFF006948).withValues(alpha: 0.4),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
-                          child: const Text(
-                            'Save Spend',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+                          child: Text(
+                            _type == TransactionType.income ? 'Save Income' : 'Save Spend',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
                           ),
                         ),
                       ),
@@ -921,7 +1000,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: Text(
-                      isEditing ? 'Update Spend' : 'Save Spend',
+                      isEditing
+                          ? (_type == TransactionType.income ? 'Update Income' : 'Update Spend')
+                          : (_type == TransactionType.income ? 'Save Income' : 'Save Spend'),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,

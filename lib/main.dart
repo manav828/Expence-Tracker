@@ -14,6 +14,7 @@ import 'core/utils/invite_code_parser.dart';
 import 'providers/budget_provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/split_provider.dart';
+import 'providers/reminder_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/main_screen.dart';
@@ -52,6 +53,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => BudgetProvider()),
         ChangeNotifierProvider(create: (_) => SplitProvider()),
+        ChangeNotifierProvider(create: (_) => ReminderProvider()..loadReminders()),
       ],
       child: const ExpenseTrackerApp(),
     ),

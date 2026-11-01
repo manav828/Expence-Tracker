@@ -10,6 +10,7 @@ import '../core/utils/invite_code_parser.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/split_provider.dart';
+import '../providers/reminder_provider.dart';
 import '../services/split_service.dart';
 import '../services/transaction_detection_service.dart';
 import '../widgets/add_expense_sheet.dart';
@@ -20,6 +21,7 @@ import '../widgets/user_profile_avatar.dart';
 import 'analytics_screen.dart';
 import 'budget_screen.dart';
 import 'dashboard_screen.dart';
+import 'payment_reminders_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 import 'split/join_group_screen.dart';
@@ -391,26 +393,47 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 icon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 24),
                 tooltip: 'Search & Filter',
               ),
-              IconButton(
-                onPressed: () {},
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 24),
-                    Positioned(
-                      top: 1,
-                      right: 1,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                      ),
+              Consumer<ReminderProvider>(
+                builder: (context, remProvider, _) {
+                  final badgeCount = remProvider.notificationBadgeCount;
+                  return IconButton(
+                    tooltip: 'Payment Reminders & Bills',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PaymentRemindersScreen()),
+                      );
+                    },
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_outlined, color: AppColors.textSecondary, size: 24),
+                        if (badgeCount > 0)
+                          Positioned(
+                            top: -2,
+                            right: -3,
+                            child: Container(
+                              padding: const EdgeInsets.all(3.5),
+                              decoration: const BoxDecoration(
+                                color: AppColors.error,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                              child: Text(
+                                badgeCount > 9 ? '9+' : '$badgeCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.0,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
               const SizedBox(width: 6),
               UserProfileAvatar(

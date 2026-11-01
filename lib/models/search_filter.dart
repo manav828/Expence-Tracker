@@ -1,3 +1,5 @@
+import 'expense.dart';
+
 /// Sort options for filtering and searching expenses.
 enum ExpenseSortOption {
   dateDesc('Date: Newest First'),
@@ -33,6 +35,7 @@ class SearchFilter {
   final double? minAmount;
   final double? maxAmount;
   final ExpenseSortOption sortBy;
+  final TransactionType? type;
 
   const SearchFilter({
     this.query = '',
@@ -44,6 +47,7 @@ class SearchFilter {
     this.minAmount,
     this.maxAmount,
     this.sortBy = ExpenseSortOption.dateDesc,
+    this.type,
   });
 
   /// Factory constructor for empty/initial filter state.
@@ -57,7 +61,8 @@ class SearchFilter {
         paymentMethods.isNotEmpty ||
         minAmount != null ||
         maxAmount != null ||
-        sortBy != ExpenseSortOption.dateDesc;
+        sortBy != ExpenseSortOption.dateDesc ||
+        type != null;
   }
 
   /// Calculates total count of active applied filter chips.
@@ -69,6 +74,7 @@ class SearchFilter {
     if (paymentMethods.isNotEmpty) count += paymentMethods.length;
     if (minAmount != null || maxAmount != null) count++;
     if (sortBy != ExpenseSortOption.dateDesc) count++;
+    if (type != null) count++;
     return count;
   }
 
@@ -83,6 +89,8 @@ class SearchFilter {
     double? minAmount,
     double? maxAmount,
     ExpenseSortOption? sortBy,
+    TransactionType? type,
+    bool clearType = false,
     bool clearMinAmount = false,
     bool clearMaxAmount = false,
     bool clearCustomDates = false,
@@ -98,6 +106,7 @@ class SearchFilter {
       minAmount: (clearAmounts || clearMinAmount) ? null : (minAmount ?? this.minAmount),
       maxAmount: (clearAmounts || clearMaxAmount) ? null : (maxAmount ?? this.maxAmount),
       sortBy: sortBy ?? this.sortBy,
+      type: clearType ? null : (type ?? this.type),
     );
   }
 

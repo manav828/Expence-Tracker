@@ -31,7 +31,7 @@
    - [4.3 Keystore & Signing Rules for In-Place Upgrades](#43-keystore--signing-rules-for-in-place-upgrades)
 5. [Industry Comparison: How Real-World Finance Apps Store Data](#5-industry-comparison-how-real-world-finance-apps-store-data)
    - [5.1 Storage Architecture Comparison Matrix](#51-storage-architecture-comparison-matrix)
-   - [5.2 Why Apex Uses a Hybrid Local-First Architecture](#52-why-apex-uses-a-hybrid-local-first-architecture)
+   - [5.2 Why ExpenCircle Uses a Hybrid Local-First Architecture](#52-why-expencircle-uses-a-hybrid-local-first-architecture)
 6. [High-Scale Data Synchronization Mechanics](#6-high-scale-data-synchronization-mechanics)
    - [6.1 The Scaling Challenge: Hundreds of Entries Per User](#61-the-scaling-challenge-hundreds-of-entries-per-user)
    - [6.2 Delta Sync / Change Data Capture (CDC)](#62-delta-sync--change-data-capture-cdc)
@@ -48,10 +48,10 @@
 **ExpenCircle** is a production-grade personal finance management and collaborative group-splitting system. Built as a high-performance cross-platform Flutter application, it operates seamlessly on Android, iOS, and Web browsers, backed by Supabase (PostgreSQL 17, Mumbai Region).
 
 ### The Core Problems It Solves
-1. **The Privacy Dilemma in Personal Finance**: Most commercial financial apps force users to upload their sensitive personal income, bank balances, and expense records to proprietary third-party servers. Apex solves this by offering a **100% Offline-First Local Mode** where financial data resides exclusively within an encrypted on-device SQLite database.
-2. **Frictionless Shared Splitting**: Roommates, travel groups, and couples require shared ledgers with real-time sync. Apex provides a built-in Splitwise engine powered by Supabase Cloud, supporting equal, unequal, and percentage splits with 1-click debt settlement.
-3. **Manual Logging Fatigue**: Entering expenses by hand leads to abandoned apps. Apex incorporates an on-device bank SMS parser that extracts amounts, merchants, categories, and payment channels without transmitting raw SMS text off the device.
-4. **Information Overload in Financial Analytics**: Traditional analytics screens present dense tables. Apex implements **Option A UX Architecture**: high-level executive cards, an interactive category donut with tap-to-filter, an adaptive spending rhythm bar chart, an interactive daily heatmap calendar, and an instant filterable ledger.
+1. **The Privacy Dilemma in Personal Finance**: Most commercial financial apps force users to upload their sensitive personal income, bank balances, and expense records to proprietary third-party servers. ExpenCircle solves this by offering a **100% Offline-First Local Mode** where financial data resides exclusively within an encrypted on-device SQLite database.
+2. **Frictionless Shared Splitting**: Roommates, travel groups, and couples require shared ledgers with real-time sync. ExpenCircle provides a built-in Splitwise engine powered by Supabase Cloud, supporting equal, unequal, and percentage splits with 1-click debt settlement.
+3. **Manual Logging Fatigue**: Entering expenses by hand leads to abandoned apps. ExpenCircle incorporates an on-device bank SMS parser that extracts amounts, merchants, categories, and payment channels without transmitting raw SMS text off the device.
+4. **Information Overload in Financial Analytics**: Traditional analytics screens present dense tables. ExpenCircle implements **Option A UX Architecture**: high-level executive cards, an interactive category donut with tap-to-filter, an adaptive spending rhythm bar chart, an interactive daily heatmap calendar, and an instant filterable ledger.
 
 ---
 
@@ -183,7 +183,7 @@
 ## 3. System Architecture & Technical Implementation
 
 ### 3.1 Architecture Overview (MVVM + Provider Pattern)
-Apex adopts the **Model-View-ViewModel (MVVM)** pattern combined with Provider for dependency injection and state propagation.
+ExpenCircle adopts the **Model-View-ViewModel (MVVM)** pattern combined with Provider for dependency injection and state propagation.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -422,12 +422,12 @@ To perform an in-place update without uninstalling:
 | **Walnut / Axio** | **Hybrid / Cloud-Centric** | Yes (Local SQLite) | Yes (Proprietary cloud) | No | Auto-reads bank SMS locally, syncs financial profiles to server for credit/loan offers. |
 | **Money Lover** | **Cloud-Centric** | Yes (Offline SQLite) | Yes (Paid subscription) | Basic | Free tier has sync limits. Syncs via REST APIs. |
 | **Cashew** | **Local-First** | Yes (SQLite) | Optional Google Drive | No | Open-source, extreme privacy focus, no proprietary cloud. |
-| **Apex (This App)** | **Configurable Hybrid** | **100% Complete Offline Mode** | **Yes (Supabase Mumbai)** | **Full Splitwise Engine** | **User explicitly chooses Local or Cloud.** Zero vendor lock-in. |
+| **ExpenCircle (This App)** | **Configurable Hybrid** | **100% Complete Offline Mode** | **Yes (Supabase Mumbai)** | **Full Splitwise Engine** | **User explicitly chooses Local or Cloud.** Zero vendor lock-in. |
 
-### 5.2 Why Apex Uses a Hybrid Local-First Architecture
+### 5.2 Why ExpenCircle Uses a Hybrid Local-First Architecture
 1. **Zero Latency**: Reading from an on-device SQLite database takes $\sim 1\text{ to }3\text{ milliseconds}$. The app opens instantly, even in an elevator or on airplane mode, without any spinner or skeleton screen.
 2. **User Sovereignty**: Users who do not trust third-party clouds with their financial records can select "Local Storage Only" and use the entire personal finance suite indefinitely with complete peace of mind.
-3. **Selective Cloud Collaboration**: Group splitting by definition requires network synchronization so friends can see who paid what. By utilizing Supabase only where collaboration is required, Apex minimizes server costs while maximizing user privacy.
+3. **Selective Cloud Collaboration**: Group splitting by definition requires network synchronization so friends can see who paid what. By utilizing Supabase only where collaboration is required, ExpenCircle minimizes server costs while maximizing user privacy.
 
 ---
 
@@ -437,7 +437,7 @@ To perform an in-place update without uninstalling:
 A common concern for developers is:
 > *"If every user has hundreds or thousands of expense entries, isn't fetching all entries every time a huge bottleneck for the server and mobile data?"*
 
-Real-world production applications (and Apex) solve this using four specific engineering mechanisms:
+Real-world production applications (and ExpenCircle) solve this using four specific engineering mechanisms:
 
 ### 6.2 Delta Sync / Change Data Capture (CDC)
 Production finance apps **never download the entire database on every app launch**. Instead, they perform **Incremental Sync (Delta Sync)**:

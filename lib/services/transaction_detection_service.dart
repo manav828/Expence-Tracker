@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../models/expense.dart';
 import '../widgets/add_expense_sheet.dart';
 
 class TransactionDetectionService {
@@ -18,6 +19,10 @@ class TransactionDetectionService {
         final category = data['category'] as String?;
         final paymentMethod = data['paymentMethod'] as String?;
         final comment = data['comment'] as String?;
+        final isExpense = data['isExpense'] as bool? ?? (data['type'] == 'income' ? false : true);
+        final type = (data['type'] == 'income' || isExpense == false)
+            ? TransactionType.income
+            : TransactionType.expense;
 
         if (amount > 0 && navigatorKey.currentContext != null) {
           showDetectedTransactionPopup(
@@ -26,6 +31,7 @@ class TransactionDetectionService {
             category: category,
             paymentMethod: paymentMethod,
             comment: comment,
+            type: type,
           );
         }
       }
@@ -41,6 +47,7 @@ class TransactionDetectionService {
     String? category,
     String? paymentMethod,
     String? comment,
+    TransactionType? type,
   }) {
     showModalBottomSheet(
       context: context,
@@ -53,6 +60,7 @@ class TransactionDetectionService {
         initialComment: comment,
         isAutoDetected: true,
         autoSaveOnDismiss: false,
+        initialType: type,
       ),
     );
   }

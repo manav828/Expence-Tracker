@@ -58,6 +58,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
       category: result.category,
       paymentMethod: result.paymentMethod,
       comment: 'SMS from ${result.bank}: ${result.payee}',
+      type: result.isExpense ? TransactionType.expense : TransactionType.income,
     );
   }
 
@@ -65,6 +66,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
     if (_parsedResult == null) return;
 
     final now = DateTime.now();
+    final isExpense = _parsedResult!.isExpense;
     final expense = Expense(
       amount: _parsedResult!.amount,
       category: _parsedResult!.category,
@@ -73,6 +75,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
       expenseDate: now.millisecondsSinceEpoch,
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
+      type: isExpense ? TransactionType.expense : TransactionType.income,
     );
 
     Provider.of<ExpenseProvider>(context, listen: false).addExpense(expense);
@@ -80,7 +83,9 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Auto-Added ₹${_parsedResult!.amount.toStringAsFixed(2)} (${_parsedResult!.category}) via Bank SMS'),
+        content: Text(isExpense
+            ? 'Auto-Added Outflow: ₹${_parsedResult!.amount.toStringAsFixed(2)} (${_parsedResult!.category}) via Bank SMS'
+            : 'Auto-Added Inflow: ₹${_parsedResult!.amount.toStringAsFixed(2)} (${_parsedResult!.category}) via Bank SMS'),
         backgroundColor: const Color(0xFF006948),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

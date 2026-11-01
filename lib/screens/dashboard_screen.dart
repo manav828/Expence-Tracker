@@ -9,6 +9,10 @@ import '../widgets/receipt_attachment_sheet.dart';
 import '../providers/budget_provider.dart';
 import 'budget_screen.dart';
 import 'category_detail_screen.dart';
+import '../models/expense.dart';
+import '../utils/category_icons.dart';
+import '../widgets/reminder_carousel_banner.dart';
+import '../services/auth_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -91,7 +95,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             // 1. Executive Header & Greeting Pill
             _buildGreetingRow(context),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Payment Reminders & Upcoming Bills Carousel Banner
+            const ReminderCarouselBanner(),
+            const SizedBox(height: 8),
 
             // 2. Monthly Category Budget Snapshot Card
             _buildBudgetSnapshotCard(context, provider),
@@ -119,46 +127,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final lastDay = DateTime(now.year, now.month + 1, 0);
     final dateRangeStr = '${DateFormat('MMM 1').format(firstDay)} – ${DateFormat('MMM d').format(lastDay)}';
 
+    final hour = now.hour;
+    final timeGreeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+
+    final displayName = AuthService.instance.userDisplayName;
+    final String greeting;
+    if (displayName.isEmpty || displayName.toLowerCase() == 'guest user') {
+      greeting = timeGreeting;
+    } else {
+      final firstName = displayName.split(' ').first;
+      greeting = '$timeGreeting, $firstName';
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF006948),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'APEX PRIVATE LEDGER',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: Color(0xFF3D4A42),
-                  ),
-                ),
-              ],
+        Expanded(
+          child: Text(
+            greeting,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF131B2E),
+              letterSpacing: -0.5,
             ),
-            const SizedBox(height: 2),
-            const Text(
-              'Good evening, Alex',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF131B2E),
-                letterSpacing: -0.5,
-              ),
-            ),
-          ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -173,6 +175,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.calendar_today, size: 14, color: Color(0xFF006577)),
               const SizedBox(width: 6),
@@ -1095,19 +1098,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final title = expense.comment != null && expense.comment!.isNotEmpty
                 ? expense.comment!
                 : expense.category;
+            final isInc = expense.isIncome;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               child: _buildLedgerItem(
-                icon: _getCategoryIcon(expense.category),
-                color: const Color(0xFF006948),
+                icon: CategoryIcons.get(expense.category),
+                color: isInc ? const Color(0xFF006948) : const Color(0xFF006948),
                 title: title,
                 category: expense.category,
-                categoryBg: const Color(0xFFE2DFFF),
-                categoryColor: const Color(0xFF3323CC),
+                categoryBg: isInc ? const Color(0xFF85F8C4).withValues(alpha: 0.35) : const Color(0xFFE2DFFF),
+                categoryColor: isInc ? const Color(0xFF005137) : const Color(0xFF3323CC),
                 time: '$dateStr • ${expense.paymentMethod}',
-                amount: '-₹${expense.amount.toStringAsFixed(2)}',
-                status: 'Cleared',
+                amount: isInc ? '+₹${expense.amount.toStringAsFixed(2)}' : '-₹${expense.amount.toStringAsFixed(2)}',
+                amountColor: isInc ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                status: isInc ? 'Inflow' : 'Cleared',
                 receiptUrl: expense.receiptUrl,
                 onTap: () {
                   showModalBottomSheet(
@@ -1124,34 +1129,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food & dining':
-      case 'food':
-        return Icons.restaurant;
-      case 'tech & gear':
-      case 'tech':
-        return Icons.devices;
-      case 'housing':
-        return Icons.apartment;
-      case 'entertainment':
-        return Icons.local_activity;
-      case 'wellness':
-      case 'health':
-        return Icons.spa;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'investment':
-        return Icons.trending_up;
-      case 'bills & utilities':
-        return Icons.receipt;
-      default:
-        return Icons.receipt_long;
-    }
-  }
-
   Widget _buildLedgerItem({
     required IconData icon,
     required Color color,
@@ -1161,6 +1138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color categoryColor,
     required String time,
     required String amount,
+    Color? amountColor,
     required String status,
     String? receiptUrl,
     VoidCallback? onTap,
@@ -1289,10 +1267,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Text(
                       amount,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF131B2E),
+                        color: amountColor ?? const Color(0xFF131B2E),
                       ),
                     ),
                     const SizedBox(height: 2),

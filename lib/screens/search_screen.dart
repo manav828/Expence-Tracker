@@ -6,6 +6,7 @@ import '../models/search_filter.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/receipt_attachment_sheet.dart';
+import '../utils/category_icons.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialCategory;
@@ -581,10 +582,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF006948).withValues(alpha: 0.1),
+                          color: expense.isIncome
+                              ? const Color(0xFF006948).withValues(alpha: 0.12)
+                              : const Color(0xFF006948).withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.receipt_long, color: Color(0xFF006948), size: 22),
+                        child: Icon(
+                          CategoryIcons.get(expense.category),
+                          color: const Color(0xFF006948),
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -661,26 +668,30 @@ class _SearchScreenState extends State<SearchScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '-₹${expense.amount.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                            expense.isIncome
+                                ? '+₹${expense.amount.toStringAsFixed(2)}'
+                                : '-₹${expense.amount.toStringAsFixed(2)}',
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF131B2E),
+                              color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
                             ),
                           ),
                           const SizedBox(height: 3),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF2F3FF),
+                              color: expense.isIncome
+                                  ? const Color(0xFF85F8C4).withValues(alpha: 0.35)
+                                  : const Color(0xFFF2F3FF),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               expense.paymentMethod,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF3D4A42),
+                                color: expense.isIncome ? const Color(0xFF005137) : const Color(0xFF3D4A42),
                               ),
                             ),
                           ),

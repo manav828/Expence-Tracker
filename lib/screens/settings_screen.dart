@@ -11,6 +11,7 @@ import '../widgets/export_data_sheet.dart';
 import '../widgets/legal_sheets.dart';
 import '../widgets/user_profile_avatar.dart';
 import 'history_screen.dart';
+import 'payment_reminders_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -119,6 +120,18 @@ class SettingsScreen extends StatelessWidget {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (_) => const SetBudgetSheet(),
+                    );
+                  },
+                ),
+                const Divider(height: 1, indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.alarm_on_rounded, color: Color(0xFF4B41E1)),
+                  title: const Text('Payment Reminders & Bills', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Recurring & one-time bill alerts with 1-tap pay', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PaymentRemindersScreen()),
                     );
                   },
                 ),

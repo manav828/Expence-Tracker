@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'storage_preference_service.dart';
 import '../models/expense.dart';
 import '../models/budget.dart';
+import '../models/payment_reminder.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -37,6 +38,7 @@ class DatabaseService {
   final List<String> _webPaymentMethods = List<String>.from(defaultPaymentMethods);
   final List<Budget> _webBudgets = [];
   int _nextWebBudgetId = 1;
+  final List<PaymentReminder> _webReminders = [];
 
   DatabaseService._init() {
     // Clean initial state: no dummy data
@@ -95,12 +97,14 @@ class DatabaseService {
           receipt_url TEXT,
           expense_date INTEGER NOT NULL,
           created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL
+          updated_at INTEGER NOT NULL,
+          type TEXT NOT NULL DEFAULT 'expense'
       )
     ''');
     await db.execute('CREATE INDEX idx_expense_date ON expenses(expense_date)');
     await db.execute('CREATE INDEX idx_category ON expenses(category)');
     await db.execute('CREATE INDEX idx_payment_method ON expenses(payment_method)');
+    await db.execute('CREATE INDEX idx_expense_type ON expenses(type)');
 
     await _ensureMetaTables(db);
   }
@@ -113,6 +117,11 @@ class DatabaseService {
     }
     try {
       await db.execute('ALTER TABLE expenses ADD COLUMN receipt_url TEXT');
+    } catch (_) {
+      // Column already exists
+    }
+    try {
+      await db.execute("ALTER TABLE expenses ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
     } catch (_) {
       // Column already exists
     }
@@ -281,6 +290,36 @@ class DatabaseService {
       )
     ''');
 
+    // Recurring & One-Time Payment Reminders table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS payment_reminders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          title TEXT NOT NULL,
+          amount REAL NOT NULL,
+          category TEXT NOT NULL,
+          payment_method TEXT NOT NULL,
+          frequency TEXT NOT NULL DEFAULT 'monthly',
+          custom_interval_days INTEGER,
+          due_day INTEGER,
+          due_date INTEGER,
+          next_due_date INTEGER NOT NULL,
+          last_paid_date INTEGER,
+          notified_day_before_at INTEGER,
+          notified_due_day_at INTEGER,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          is_completed INTEGER NOT NULL DEFAULT 0,
+          split_group_id TEXT,
+          split_type TEXT DEFAULT 'personal',
+          split_target_member_id TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_reminders_dashboard ON payment_reminders(is_active, is_completed, next_due_date ASC)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_reminders_split ON payment_reminders(split_group_id)');
+
     final catCount = sqflite.Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM categories')) ?? 0;
     if (catCount == 0) {
       for (var cat in defaultCategories) {
@@ -318,7 +357,11 @@ class DatabaseService {
           res = await client.from('user_expenses').insert(map).select().single();
         } catch (insertErr) {
           final errStr = insertErr.toString().toLowerCase();
-          if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
+          if (errStr.contains('type') && map.containsKey('type')) {
+            debugPrint('type column missing on user_expenses table, retrying without type');
+            final fallbackMap = Map<String, dynamic>.from(map)..remove('type');
+            res = await client.from('user_expenses').insert(fallbackMap).select().single();
+          } else if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
             debugPrint('receipt_url column missing on user_expenses table, retrying without receipt_url');
             final fallbackMap = Map<String, dynamic>.from(map)..remove('receipt_url');
             res = await client.from('user_expenses').insert(fallbackMap).select().single();
@@ -350,6 +393,7 @@ class DatabaseService {
         expenseDate: expense.expenseDate,
         createdAt: expense.createdAt,
         updatedAt: expense.updatedAt,
+        type: expense.type,
       );
       _webExpenses.add(newExpense);
       return newExpense;
@@ -367,6 +411,7 @@ class DatabaseService {
       expenseDate: expense.expenseDate,
       createdAt: expense.createdAt,
       updatedAt: expense.updatedAt,
+      type: expense.type,
     );
   }
 
@@ -494,7 +539,15 @@ class DatabaseService {
               .eq('user_id', currentUser.id);
         } catch (updateErr) {
           final errStr = updateErr.toString().toLowerCase();
-          if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
+          if (errStr.contains('type') && map.containsKey('type')) {
+            debugPrint('type column missing on user_expenses table, updating without type');
+            final fallbackMap = Map<String, dynamic>.from(map)..remove('type');
+            await client
+                .from('user_expenses')
+                .update(fallbackMap)
+                .eq('id', expense.id!)
+                .eq('user_id', currentUser.id);
+          } else if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
             debugPrint('receipt_url column missing on user_expenses table, updating without receipt_url');
             final fallbackMap = Map<String, dynamic>.from(map)..remove('receipt_url');
             await client
@@ -985,5 +1038,169 @@ class DatabaseService {
     }
     final db = await instance.database;
     return await db.delete('budgets', where: 'category = ?', whereArgs: [category]);
+  }
+
+  // ==============================================================================
+  // PAYMENT REMINDERS (Offline SQLite + Supabase Cloud)
+  // ==============================================================================
+
+  Future<List<PaymentReminder>> getPaymentReminders({String? userId}) async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    final currentUser = Supabase.instance.client.auth.currentUser;
+
+    List<PaymentReminder> localList = [];
+    if (!kIsWeb) {
+      try {
+        final db = await instance.database;
+        final res = await db.query(
+          'payment_reminders',
+          orderBy: 'next_due_date ASC',
+        );
+        localList = res.map((m) => PaymentReminder.fromMap(m)).toList();
+      } catch (e) {
+        debugPrint('Local getPaymentReminders error: $e');
+      }
+    } else {
+      localList = List.from(_webReminders);
+      localList.sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
+    }
+
+    if (isCloud && currentUser != null) {
+      try {
+        final client = Supabase.instance.client;
+        final res = await client
+            .from('payment_reminders')
+            .select()
+            .order('next_due_date', ascending: true);
+        final cloudList = (res as List).map((m) => PaymentReminder.fromMap(m)).toList();
+
+        if (!kIsWeb && cloudList.isNotEmpty) {
+          final db = await instance.database;
+          final batch = db.batch();
+          for (final rem in cloudList) {
+            batch.insert(
+              'payment_reminders',
+              rem.toMap(),
+              conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+            );
+          }
+          await batch.commit(noResult: true);
+        }
+
+        if (kIsWeb) {
+          _webReminders.clear();
+          _webReminders.addAll(cloudList);
+        }
+
+        if (cloudList.isNotEmpty) {
+          return cloudList;
+        }
+      } catch (e) {
+        debugPrint('Cloud getPaymentReminders error: $e');
+      }
+    }
+
+    return localList;
+  }
+
+  Future<void> savePaymentReminder(PaymentReminder reminder) async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final payload = reminder.copyWith(userId: currentUser?.id ?? reminder.userId);
+
+    if (kIsWeb) {
+      _webReminders.removeWhere((r) => r.id == payload.id);
+      _webReminders.add(payload);
+    } else {
+      try {
+        final db = await instance.database;
+        await db.insert(
+          'payment_reminders',
+          payload.toMap(),
+          conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+        );
+      } catch (e) {
+        debugPrint('Local savePaymentReminder error: $e');
+      }
+    }
+
+    if (isCloud && currentUser != null) {
+      try {
+        await Supabase.instance.client
+            .from('payment_reminders')
+            .upsert(payload.toMap());
+      } catch (e) {
+        debugPrint('Cloud savePaymentReminder error: $e');
+      }
+    }
+  }
+
+  Future<void> deletePaymentReminder(String id) async {
+    final isCloud = await StoragePreferenceService.isCloud();
+    final currentUser = Supabase.instance.client.auth.currentUser;
+
+    if (kIsWeb) {
+      _webReminders.removeWhere((r) => r.id == id);
+    } else {
+      try {
+        final db = await instance.database;
+        await db.delete('payment_reminders', where: 'id = ?', whereArgs: [id]);
+      } catch (e) {
+        debugPrint('Local deletePaymentReminder error: $e');
+      }
+    }
+
+    if (isCloud && currentUser != null) {
+      try {
+        await Supabase.instance.client
+            .from('payment_reminders')
+            .delete()
+            .eq('id', id);
+      } catch (e) {
+        debugPrint('Cloud deletePaymentReminder error: $e');
+      }
+    }
+  }
+
+  Future<void> updateReminderNotificationTimestamps(
+    String id, {
+    int? dayBefore,
+    int? dueDay,
+  }) async {
+    final updates = <String, dynamic>{};
+    if (dayBefore != null) updates['notified_day_before_at'] = dayBefore;
+    if (dueDay != null) updates['notified_due_day_at'] = dueDay;
+    if (updates.isEmpty) return;
+
+    if (!kIsWeb) {
+      try {
+        final db = await instance.database;
+        await db.update('payment_reminders', updates, where: 'id = ?', whereArgs: [id]);
+      } catch (e) {
+        debugPrint('updateReminderNotificationTimestamps local error: $e');
+      }
+    } else {
+      final idx = _webReminders.indexWhere((r) => r.id == id);
+      if (idx != -1) {
+        final r = _webReminders[idx];
+        _webReminders[idx] = r.copyWith(
+          notifiedDayBeforeAt: dayBefore != null ? DateTime.fromMillisecondsSinceEpoch(dayBefore) : null,
+          notifiedDueDayAt: dueDay != null ? DateTime.fromMillisecondsSinceEpoch(dueDay) : null,
+        );
+      }
+    }
+
+    final isCloud = await StoragePreferenceService.isCloud();
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (isCloud && currentUser != null) {
+      try {
+        await Supabase.instance.client
+            .from('payment_reminders')
+            .update(updates)
+            .eq('id', id);
+      } catch (e) {
+        debugPrint('updateReminderNotificationTimestamps cloud error: $e');
+      }
+    }
   }
 }
