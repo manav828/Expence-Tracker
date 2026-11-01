@@ -181,7 +181,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
         0.0,
         (sum, id) => sum + (double.tryParse(_percentCtrls[id]?.text ?? '0') ?? 0.0),
       );
-      if ((totalPct - 100.0).abs() > 0.1) {
+      if ((totalPct - 100.0).abs() > 0.15) {
         return false;
       }
     }

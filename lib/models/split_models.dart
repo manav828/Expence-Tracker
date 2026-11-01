@@ -484,21 +484,28 @@ CombinedBalancesResult aggregateCombinedBalances({
 }) {
   final memberToGroupMap = <String, SplitSettlementGroup>{};
   final settlementGroupMap = <String, SplitSettlementGroup>{};
+  final claimedMembers = <String>{};
 
   for (final sg in settlementGroups) {
     settlementGroupMap['sg_${sg.id}'] = sg;
     for (final mid in sg.memberIds) {
-      memberToGroupMap[mid] = sg;
+      if (!claimedMembers.contains(mid)) {
+        claimedMembers.add(mid);
+        memberToGroupMap[mid] = sg;
+      }
     }
   }
 
   final entityBalances = <String, double>{};
 
   // 1. Grouped members: calculate sum of individual balances for each settlement group
+  // (only attributing each member to the single group that claimed them to avoid double accumulation)
   for (final sg in settlementGroups) {
     double sum = 0.0;
     for (final mid in sg.memberIds) {
-      sum += (individualBalances[mid] ?? 0.0);
+      if (memberToGroupMap[mid] == sg) {
+        sum += (individualBalances[mid] ?? 0.0);
+      }
     }
     entityBalances['sg_${sg.id}'] = double.parse(sum.toStringAsFixed(2));
   }
@@ -522,13 +529,13 @@ CombinedBalancesResult aggregateCombinedBalances({
 /// returns the minimal list of transactions to settle everyone.
 List<Debt> simplifyDebts(Map<String, double> balances) {
   final debts = <Debt>[];
-  final creditors = <MapEntry<String, double>>[];
-  final debtors = <MapEntry<String, double>>[];
+  final creditors = <MapEntry<String, int>>[];
+  final debtors = <MapEntry<String, int>>[];
 
   balances.forEach((id, bal) {
-    final rounded = double.parse(bal.toStringAsFixed(2));
-    if (rounded > 0.009) creditors.add(MapEntry(id, rounded));
-    if (rounded < -0.009) debtors.add(MapEntry(id, rounded.abs()));
+    final cents = (bal * 100).round();
+    if (cents > 0) creditors.add(MapEntry(id, cents));
+    if (cents < 0) debtors.add(MapEntry(id, cents.abs()));
   });
 
   creditors.sort((a, b) => b.value.compareTo(a.value));
@@ -536,21 +543,21 @@ List<Debt> simplifyDebts(Map<String, double> balances) {
 
   int c = 0, d = 0;
   while (c < creditors.length && d < debtors.length) {
-    final credAmt = creditors[c].value;
-    final debtAmt = debtors[d].value;
-    final minAmt = credAmt < debtAmt ? credAmt : debtAmt;
+    final credCents = creditors[c].value;
+    final debtCents = debtors[d].value;
+    final minCents = credCents < debtCents ? credCents : debtCents;
 
     debts.add(Debt(
       fromMemberId: debtors[d].key,
       toMemberId: creditors[c].key,
-      amount: double.parse(minAmt.toStringAsFixed(2)),
+      amount: minCents / 100.0,
     ));
 
-    creditors[c] = MapEntry(creditors[c].key, credAmt - minAmt);
-    debtors[d] = MapEntry(debtors[d].key, debtAmt - minAmt);
+    creditors[c] = MapEntry(creditors[c].key, credCents - minCents);
+    debtors[d] = MapEntry(debtors[d].key, debtCents - minCents);
 
-    if (creditors[c].value < 0.009) c++;
-    if (debtors[d].value < 0.009) d++;
+    if (creditors[c].value == 0) c++;
+    if (debtors[d].value == 0) d++;
   }
 
   return debts;
@@ -642,13 +649,13 @@ List<Debt> simplifyDebtsWithGroups({
   );
 
   final debts = <Debt>[];
-  final creditors = <MapEntry<String, double>>[];
-  final debtors = <MapEntry<String, double>>[];
+  final creditors = <MapEntry<String, int>>[];
+  final debtors = <MapEntry<String, int>>[];
 
   aggregated.entityBalances.forEach((id, bal) {
-    final rounded = double.parse(bal.toStringAsFixed(2));
-    if (rounded > 0.009) creditors.add(MapEntry(id, rounded));
-    if (rounded < -0.009) debtors.add(MapEntry(id, rounded.abs()));
+    final cents = (bal * 100).round();
+    if (cents > 0) creditors.add(MapEntry(id, cents));
+    if (cents < 0) debtors.add(MapEntry(id, cents.abs()));
   });
 
   creditors.sort((a, b) => b.value.compareTo(a.value));
@@ -656,9 +663,9 @@ List<Debt> simplifyDebtsWithGroups({
 
   int c = 0, d = 0;
   while (c < creditors.length && d < debtors.length) {
-    final credAmt = creditors[c].value;
-    final debtAmt = debtors[d].value;
-    final minAmt = credAmt < debtAmt ? credAmt : debtAmt;
+    final credCents = creditors[c].value;
+    final debtCents = debtors[d].value;
+    final minCents = credCents < debtCents ? credCents : debtCents;
 
     final debtorKey = debtors[d].key;
     final creditorKey = creditors[c].key;
@@ -673,7 +680,7 @@ List<Debt> simplifyDebtsWithGroups({
       toMemberId: toGroup != null && toGroup.memberIds.isNotEmpty
           ? toGroup.memberIds.first
           : creditorKey,
-      amount: double.parse(minAmt.toStringAsFixed(2)),
+      amount: minCents / 100.0,
       fromSettlementGroupId: fromGroup?.id,
       toSettlementGroupId: toGroup?.id,
       fromGroupName: fromGroup?.name,
@@ -682,11 +689,11 @@ List<Debt> simplifyDebtsWithGroups({
       toGroupMemberIds: toGroup?.memberIds,
     ));
 
-    creditors[c] = MapEntry(creditors[c].key, credAmt - minAmt);
-    debtors[d] = MapEntry(debtors[d].key, debtAmt - minAmt);
+    creditors[c] = MapEntry(creditorKey, credCents - minCents);
+    debtors[d] = MapEntry(debtorKey, debtCents - minCents);
 
-    if (creditors[c].value < 0.009) c++;
-    if (debtors[d].value < 0.009) d++;
+    if (creditors[c].value == 0) c++;
+    if (debtors[d].value == 0) d++;
   }
 
   return debts;

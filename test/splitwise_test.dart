@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:expense_tracker/models/split_models.dart';
+import 'package:expense_tracker/services/split_service.dart';
 
 void main() {
   group('Splitwise Simplification & Debt Algorithm Tests', () {
@@ -208,6 +209,90 @@ void main() {
       expect(directDebts.first.fromMemberId, 'bob');
       expect(directDebts.first.toMemberId, 'alice');
       expect(directDebts.first.amount, 60.0);
+    });
+
+    test('5 members with 2 settlement groups (2 members each) and 1 individual: members visible and balances non-zero', () {
+      final now = DateTime.now();
+      // 5 members total
+      final me = SplitMember(id: 'me', groupId: 'g1', name: 'Me (Individual)', joinedAt: now);
+      final m1 = SplitMember(id: 'm1', groupId: 'g1', name: 'Group 1 Member A', joinedAt: now);
+      final m2 = SplitMember(id: 'm2', groupId: 'g1', name: 'Group 1 Member B', joinedAt: now);
+      final m3 = SplitMember(id: 'm3', groupId: 'g1', name: 'Group 2 Member A', joinedAt: now);
+      final m4 = SplitMember(id: 'm4', groupId: 'g1', name: 'Group 2 Member B', joinedAt: now);
+
+      final members = [me, m1, m2, m3, m4];
+      final memberMap = {for (final m in members) m.id: m};
+
+      // 2 settlement groups (2 members each)
+      final sg1 = SplitSettlementGroup(
+        id: 'sg1',
+        groupId: 'g1',
+        name: 'Couple 1',
+        memberIds: ['m1', 'm2'],
+        createdAt: now,
+        updatedAt: now,
+      );
+      final sg2 = SplitSettlementGroup(
+        id: 'sg2',
+        groupId: 'g1',
+        name: 'Couple 2',
+        memberIds: ['m3', 'm4'],
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Verify that memberMap successfully resolves members for both settlement groups
+      final sg1Members = sg1.memberIds.map((mid) => memberMap[mid]).whereType<SplitMember>().toList();
+      final sg2Members = sg2.memberIds.map((mid) => memberMap[mid]).whereType<SplitMember>().toList();
+      expect(sg1Members.length, 2);
+      expect(sg2Members.length, 2);
+      expect(sg1Members.map((m) => m.name), containsAll(['Group 1 Member A', 'Group 1 Member B']));
+      expect(sg2Members.map((m) => m.name), containsAll(['Group 2 Member A', 'Group 2 Member B']));
+
+      // An expense of 500 paid by 'me', split equally among all 5 members (100 each)
+      final exp = SplitExpense(
+        id: 'exp1',
+        groupId: 'g1',
+        title: 'Villa Stay',
+        totalAmount: 500.0,
+        paidByMemberId: 'me',
+        splitType: SplitType.equal,
+        addedByMemberId: 'me',
+        createdAt: now,
+      );
+      final shares = [
+        SplitShare(id: 's0', expenseId: 'exp1', memberId: 'me', shareAmount: 100.0),
+        SplitShare(id: 's1', expenseId: 'exp1', memberId: 'm1', shareAmount: 100.0),
+        SplitShare(id: 's2', expenseId: 'exp1', memberId: 'm2', shareAmount: 100.0),
+        SplitShare(id: 's3', expenseId: 'exp1', memberId: 'm3', shareAmount: 100.0),
+        SplitShare(id: 's4', expenseId: 'exp1', memberId: 'm4', shareAmount: 100.0),
+      ];
+
+      // Calculate balances using computeBalancesFromData
+      final individualBalances = SplitService.instance.computeBalancesFromData(
+        members: members,
+        expenses: [exp],
+        settlements: [],
+        shares: shares,
+      );
+
+      final combined = aggregateCombinedBalances(
+        individualBalances: individualBalances,
+        settlementGroups: [sg1, sg2],
+      );
+
+      // Couple 1 combined owes 200, Couple 2 combined owes 200, Me gets back 400
+      expect(combined.entityBalances['sg_sg1'], -200.0);
+      expect(combined.entityBalances['sg_sg2'], -200.0);
+      expect(combined.entityBalances['me'], 400.0);
+
+      // Debts should be non-empty (never "All payments settled")
+      final debts = simplifyDebtsWithGroups(
+        individualBalances: individualBalances,
+        settlementGroups: [sg1, sg2],
+      );
+      expect(debts.isNotEmpty, isTrue);
+      expect(debts.length, 2);
     });
   });
 }

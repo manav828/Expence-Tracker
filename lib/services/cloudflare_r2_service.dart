@@ -19,6 +19,10 @@ class CloudflareR2Service {
     required String path,
     String contentType = 'image/jpeg',
   }) async {
+    if (!AppConfig.hasR2Configured) {
+      debugPrint('R2 credentials not configured');
+      return null;
+    }
     try {
       final accountId = AppConfig.r2AccountId;
       final bucket = AppConfig.r2BucketName;
@@ -129,8 +133,21 @@ class CloudflareR2Service {
     );
   }
 
+  /// Deletes an object from Cloudflare R2 by file path or URL.
+  Future<bool> deleteFile(String path) async {
+    if (!AppConfig.hasR2Configured) {
+      debugPrint('R2 credentials not configured');
+      return false;
+    }
+    return deleteByUrl(path);
+  }
+
   /// Deletes an object from Cloudflare R2 by its public URL.
   Future<bool> deleteByUrl(String publicUrl) async {
+    if (!AppConfig.hasR2Configured) {
+      debugPrint('R2 credentials not configured');
+      return false;
+    }
     try {
       final accountId = AppConfig.r2AccountId;
       final bucket = AppConfig.r2BucketName;

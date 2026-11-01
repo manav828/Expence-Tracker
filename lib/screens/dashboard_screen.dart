@@ -9,7 +9,6 @@ import '../widgets/receipt_attachment_sheet.dart';
 import '../providers/budget_provider.dart';
 import 'budget_screen.dart';
 import 'category_detail_screen.dart';
-import '../models/expense.dart';
 import '../utils/category_icons.dart';
 import '../widgets/reminder_carousel_banner.dart';
 import '../services/auth_service.dart';
@@ -639,7 +638,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Build timeline points grouped by calendar day based on current month
     final List<_TrajectoryDataPoint> points = [];
     final monthlyExpenses = provider.getExpensesForMonth(now.year, now.month);
-    final validExpenses = monthlyExpenses.where((e) => e.amount > 0).toList();
+    final validExpenses = monthlyExpenses.where((e) => e.isExpense && e.amount > 0).toList();
 
     if (validExpenses.isNotEmpty) {
       validExpenses.sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
@@ -647,9 +646,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Group spending by calendar day
       final Map<DateTime, double> dailySpendMap = {};
       for (final exp in validExpenses) {
-        final dt = exp.dateTime;
-        final dayKey = DateTime(dt.year, dt.month, dt.day);
-        dailySpendMap[dayKey] = (dailySpendMap[dayKey] ?? 0.0) + exp.amount;
+        if (exp.isExpense) {
+          final dt = exp.dateTime;
+          final dayKey = DateTime(dt.year, dt.month, dt.day);
+          dailySpendMap[dayKey] = (dailySpendMap[dayKey] ?? 0.0) + exp.amount;
+        }
       }
 
       final sortedDays = dailySpendMap.keys.toList()..sort();

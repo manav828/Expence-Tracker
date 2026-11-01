@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 
 enum ReminderFrequency {
@@ -153,7 +154,10 @@ class PaymentReminder {
     final base = referenceDate ?? nextDueDate;
     switch (frequency) {
       case ReminderFrequency.oneTime:
-        return dueDate ?? nextDueDate;
+        if (dueDate != null) {
+          return DateTime.fromMillisecondsSinceEpoch(dueDate!.millisecondsSinceEpoch);
+        }
+        return DateTime.fromMillisecondsSinceEpoch(nextDueDate.millisecondsSinceEpoch);
       case ReminderFrequency.weekly:
         return base.add(const Duration(days: 7));
       case ReminderFrequency.monthly:
@@ -164,9 +168,9 @@ class PaymentReminder {
           nextYear++;
         }
         final targetDay = dueDay ?? base.day;
-        final maxDay = daysInMonth(nextYear, nextMonth);
-        final finalDay = targetDay.clamp(1, maxDay);
-        return DateTime(nextYear, nextMonth, finalDay, base.hour, base.minute);
+        final daysInNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
+        final scheduledDay = math.min(targetDay, daysInNextMonth);
+        return DateTime(nextYear, nextMonth, scheduledDay, base.hour, base.minute);
       case ReminderFrequency.quarterly:
         int nextYear = base.year;
         int nextMonth = base.month + 3;
@@ -175,15 +179,15 @@ class PaymentReminder {
           nextYear++;
         }
         final targetDay = dueDay ?? base.day;
-        final maxDay = daysInMonth(nextYear, nextMonth);
-        final finalDay = targetDay.clamp(1, maxDay);
-        return DateTime(nextYear, nextMonth, finalDay, base.hour, base.minute);
+        final daysInNextMonth = DateTime(nextYear, nextMonth + 1, 0).day;
+        final scheduledDay = math.min(targetDay, daysInNextMonth);
+        return DateTime(nextYear, nextMonth, scheduledDay, base.hour, base.minute);
       case ReminderFrequency.yearly:
         int nextYear = base.year + 1;
         final targetDay = dueDay ?? base.day;
-        final maxDay = daysInMonth(nextYear, base.month);
-        final finalDay = targetDay.clamp(1, maxDay);
-        return DateTime(nextYear, base.month, finalDay, base.hour, base.minute);
+        final daysInNextMonth = DateTime(nextYear, base.month + 1, 0).day;
+        final scheduledDay = math.min(targetDay, daysInNextMonth);
+        return DateTime(nextYear, base.month, scheduledDay, base.hour, base.minute);
       case ReminderFrequency.customDays:
         final days = (customIntervalDays != null && customIntervalDays! > 0)
             ? customIntervalDays!
@@ -192,12 +196,16 @@ class PaymentReminder {
     }
   }
 
+  /// Alias for calculateNextCycleDate
+  DateTime calculateNextDueDate([DateTime? referenceDate]) => calculateNextCycleDate(referenceDate);
+
   /// Calendar days until due from today (0 = due today, negative = overdue)
   int get daysUntilDue {
+    final due = DateTime.fromMillisecondsSinceEpoch(nextDueDate.millisecondsSinceEpoch);
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final due = DateTime(nextDueDate.year, nextDueDate.month, nextDueDate.day);
-    return due.difference(today).inDays;
+    final dueUtc = DateTime.utc(due.year, due.month, due.day);
+    final nowUtc = DateTime.utc(now.year, now.month, now.day);
+    return dueUtc.difference(nowUtc).inDays;
   }
 
   bool get isOverdue => !isCompleted && isActive && daysUntilDue < 0;

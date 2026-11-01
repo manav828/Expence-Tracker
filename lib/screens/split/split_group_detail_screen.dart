@@ -1849,7 +1849,10 @@ class _MembersTabState extends State<_MembersTab> {
       final settlementGroups = sp.getSettlementGroupsForGroup(widget.group.id);
       final memberMap = {for (final m in members) m.id: m};
 
-      final currentUid = Supabase.instance.client.auth.currentUser?.id;
+      String? currentUid;
+      try {
+        currentUid = Supabase.instance.client.auth.currentUser?.id;
+      } catch (_) {}
       final currentMemberName = sp.currentMemberName ?? AuthService.instance.userDisplayName;
       final isGroupCreator = (widget.group.userId != null && currentUid != null && widget.group.userId == currentUid) ||
           (widget.group.createdBy.trim().toLowerCase() == currentMemberName.trim().toLowerCase());
@@ -1995,10 +1998,16 @@ class _MembersTabState extends State<_MembersTab> {
                     ),
                   ),
                   ...displayGroups.map((group) {
-                    final groupMembers = group.memberIds
-                        .map((mid) => memberMap[mid])
-                        .whereType<SplitMember>()
-                        .toList();
+                    final groupMembers = group.memberIds.map((mid) {
+                      final found = memberMap[mid];
+                      if (found != null) return found;
+                      return SplitMember(
+                        id: mid,
+                        groupId: widget.group.id,
+                        name: 'Member ${mid.length > 4 ? mid.substring(0, 4) : mid}',
+                        joinedAt: DateTime.now(),
+                      );
+                    }).toList();
                     final isCollapsed = _collapsedGroupIds.contains(group.id);
 
                     return Container(

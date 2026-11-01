@@ -16,7 +16,42 @@ class SplitService {
   SupabaseClient get _db => Supabase.instance.client;
   static const _uuid = Uuid();
 
+  // Web in-memory fallback stores
+  final Map<String, List<SplitMember>> _webMembers = {};
+  final Map<String, List<SplitExpense>> _webExpenses = {};
+  final Map<String, List<SplitShare>> _webShares = {};
+  final Map<String, List<Settlement>> _webSettlements = {};
+  final Map<String, List<SplitExpenseGroup>> _webExpenseGroups = {};
+  final Map<String, List<SplitSettlementGroup>> _webSettlementGroups = {};
+
   Future<sqflite.Database> get _localDb async => await DatabaseService.instance.database;
+
+  /// Deletes all local SQLite rows across split tables on logout / switch-user
+  /// without deleting cloud Supabase tables.
+  Future<void> clearLocalDatabaseOnly() async {
+    if (kIsWeb) {
+      _webMembers.clear();
+      _webExpenses.clear();
+      _webShares.clear();
+      _webSettlements.clear();
+      _webExpenseGroups.clear();
+      _webSettlementGroups.clear();
+      return;
+    }
+    try {
+      final db = await _localDb;
+      await db.delete('split_shares');
+      await db.delete('split_expenses');
+      await db.delete('settlements');
+      await db.delete('split_members');
+      await db.delete('split_groups');
+      await db.delete('split_expense_groups');
+      await db.delete('split_settlement_groups');
+      await db.delete('split_sync_queue');
+    } catch (e) {
+      debugPrint('Split clearLocalDatabaseOnly error: $e');
+    }
+  }
 
   // Internet check helper
   Future<bool> _isOnline() async {
@@ -610,19 +645,23 @@ class SplitService {
       } catch (e) {
         debugPrint('Local addMember error: $e');
       }
+    } else {
+      final list = _webMembers.putIfAbsent(groupId, () => []);
+      list.removeWhere((m) => m.id == member.id);
+      list.add(member);
     }
 
     try {
       final payload = Map<String, dynamic>.from(member.toMap());
-      if (member.userId == null || member.userId!.isEmpty) {
-        payload.remove('user_id');
-      }
+      // Explicitly set user_id (null for manual members) so Supabase does not apply default auth.uid()!
+      payload['user_id'] = member.userId;
       await _db.from('split_members').insert(payload);
     } catch (e) {
       debugPrint('Cloud addMember error: $e');
       bool cloudSuccess = false;
       try {
-        final clean = Map<String, dynamic>.from(member.toMap())..remove('user_id');
+        final clean = Map<String, dynamic>.from(member.toMap());
+        clean['user_id'] = null;
         await _db.from('split_members').insert(clean);
         cloudSuccess = true;
       } catch (e2) {
@@ -636,7 +675,9 @@ class SplitService {
   }
 
   Future<List<SplitMember>> getMembers(String groupId) async {
-    List<SplitMember> localMembers = [];
+    final Map<String, SplitMember> memberMap = {};
+
+    // 1. Load local SQLite members (offline-first foundation)
     if (!kIsWeb) {
       try {
         final db = await _localDb;
@@ -646,12 +687,23 @@ class SplitService {
           whereArgs: [groupId],
           orderBy: 'joined_at ASC',
         );
-        localMembers = res.map((m) => SplitMember.fromMap(m)).toList();
+        for (final row in res) {
+          final m = SplitMember.fromMap(row);
+          memberMap[m.id] = m;
+        }
       } catch (e) {
         debugPrint('Local getMembers error: $e');
       }
+    } else {
+      final cached = _webMembers[groupId];
+      if (cached != null) {
+        for (final m in cached) {
+          memberMap[m.id] = m;
+        }
+      }
     }
 
+    // 2. Fetch cloud members and merge (additive merge - NEVER destructive delete!)
     try {
       final res = await _db
           .from('split_members')
@@ -660,74 +712,81 @@ class SplitService {
           .order('joined_at', ascending: true);
       final rawCloudMembers = (res as List).map((m) => SplitMember.fromMap(m)).toList();
 
-      // STRICT USER ID DEDUPLICATION:
-      // Each authenticated user_id can appear AT MOST ONCE in a group!
-      final List<SplitMember> cloudMembers = [];
-      final Set<String> seenUserIds = {};
-      final List<String> duplicatesToMerge = [];
-
-      for (final m in rawCloudMembers) {
-        if (m.userId != null && m.userId!.isNotEmpty) {
-          if (seenUserIds.contains(m.userId)) {
-            duplicatesToMerge.add(m.id);
-            continue; // Skip duplicate row with same user_id
-          }
-          seenUserIds.add(m.userId!);
-        }
-        cloudMembers.add(m);
+      for (final cm in rawCloudMembers) {
+        memberMap[cm.id] = cm;
       }
 
-      // Cleanup duplicate member rows in background in Supabase
-      if (duplicatesToMerge.isNotEmpty) {
-        for (final dupId in duplicatesToMerge) {
-          final dup = rawCloudMembers.firstWhere((c) => c.id == dupId);
-          final primary = cloudMembers.where((u) => u.userId == dup.userId).firstOrNull;
-          if (primary != null && primary.id != dupId) {
-            unawaited(mergeMembers(groupId, dupId, primary.id));
-          }
-        }
-      }
-
-      // Authoritative Sync: update local SQLite cache with exact cloud members
-      // and purge any local rows that were removed in the cloud
-      if (!kIsWeb) {
+      // Upsert cloud members into local SQLite cache (preserving existing local members)
+      if (!kIsWeb && rawCloudMembers.isNotEmpty) {
         try {
           final db = await _localDb;
-          final cloudIds = cloudMembers.map((m) => m.id).toList();
-          if (cloudIds.isNotEmpty) {
-            final placeholders = List.filled(cloudIds.length, '?').join(',');
-            await db.delete(
-              'split_members',
-              where: 'group_id = ? AND id NOT IN ($placeholders)',
-              whereArgs: [groupId, ...cloudIds],
-            );
-          } else {
-            await db.delete('split_members', where: 'group_id = ?', whereArgs: [groupId]);
-          }
           final batch = db.batch();
-          for (final m in cloudMembers) {
+          for (final m in rawCloudMembers) {
             batch.insert('split_members', m.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
           }
           await batch.commit(noResult: true);
         } catch (e) {
-          debugPrint('Local SQLite sync error in getMembers: $e');
+          debugPrint('Local SQLite cache error in getMembers: $e');
         }
       }
-
-      // Online: Return authoritative cloud members directly (do not resurrect deleted local members)
-      cloudMembers.sort((a, b) => a.joinedAt.compareTo(b.joinedAt));
-      return cloudMembers;
     } catch (e) {
-      debugPrint('Cloud getMembers error, returning local cached: $e');
+      debugPrint('Cloud getMembers error: $e');
     }
 
-    return localMembers;
+    // 3. Self-healing: Check if any settlement groups reference member IDs that might be
+    // missing from split_members (e.g. from previous accidental deletion/merges)
+    try {
+      if (!kIsWeb) {
+        final db = await _localDb;
+        final sgmRows = await db.query(
+          'split_settlement_group_members',
+          where: 'group_id = ?',
+          whereArgs: [groupId],
+        );
+        for (final r in sgmRows) {
+          final mid = r['member_id'] as String?;
+          if (mid != null && !memberMap.containsKey(mid)) {
+            // Restore missing member so settlement groups never display (0) members!
+            final restored = SplitMember(
+              id: mid,
+              groupId: groupId,
+              name: 'Member ${mid.substring(0, mid.length > 4 ? 4 : mid.length)}',
+              joinedAt: DateTime.now(),
+            );
+            memberMap[mid] = restored;
+            await db.insert('split_members', restored.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Self-healing member check error: $e');
+    }
+
+    final result = memberMap.values.toList();
+    result.sort((a, b) => a.joinedAt.compareTo(b.joinedAt));
+
+    if (kIsWeb) {
+      _webMembers[groupId] = result;
+    }
+
+    return result;
   }
 
   Future<void> removeMember(String memberId) async {
     if (!kIsWeb) {
       try {
         final db = await _localDb;
+        final paidExpenses = await db.query(
+          'split_expenses',
+          columns: ['id'],
+          where: 'paid_by_member_id = ?',
+          whereArgs: [memberId],
+        );
+        for (final exp in paidExpenses) {
+          final expId = exp['id'] as String;
+          await db.delete('split_shares', where: 'split_expense_id = ?', whereArgs: [expId]);
+        }
+        await db.delete('split_expenses', where: 'paid_by_member_id = ?', whereArgs: [memberId]);
         await db.delete('split_shares', where: 'member_id = ?', whereArgs: [memberId]);
         await db.delete('settlements', where: 'from_member_id = ? OR to_member_id = ?', whereArgs: [memberId, memberId]);
         await db.delete('split_members', where: 'id = ?', whereArgs: [memberId]);
@@ -737,6 +796,15 @@ class SplitService {
     }
 
     try {
+      final paidExpenses = await _db
+          .from('split_expenses')
+          .select('id')
+          .eq('paid_by_member_id', memberId);
+      for (final exp in (paidExpenses as List)) {
+        final expId = exp['id'] as String;
+        await _db.from('split_shares').delete().eq('split_expense_id', expId);
+      }
+      await _db.from('split_expenses').delete().eq('paid_by_member_id', memberId);
       await _db.from('split_shares').delete().eq('member_id', memberId);
       await _db.from('settlements').delete().eq('from_member_id', memberId);
       await _db.from('settlements').delete().eq('to_member_id', memberId);
@@ -841,6 +909,12 @@ class SplitService {
       createdAt: DateTime.now(),
     );
 
+    for (final entry in shares.entries) {
+      if (entry.value < 0) {
+        throw ArgumentError('Share amount cannot be negative');
+      }
+    }
+
     final sharesObjects = shares.entries.map((e) => SplitShare(
       id: _uuid.v4(),
       expenseId: expense.id,
@@ -919,6 +993,12 @@ class SplitService {
       'note': note,
       'receipt_url': receiptUrl,
     };
+
+    for (final entry in shares.entries) {
+      if (entry.value < 0) {
+        throw ArgumentError('Share amount cannot be negative');
+      }
+    }
 
     final sharesObjects = shares.entries.map((e) => SplitShare(
       id: _uuid.v4(),
@@ -1700,17 +1780,26 @@ class SplitService {
     required List<Settlement> settlements,
     required List<SplitShare> shares,
   }) {
+    final memberIds = members.map((m) => m.id).toSet();
     final balances = <String, double>{for (final m in members) m.id: 0.0};
 
     for (final exp in expenses) {
-      balances[exp.paidByMemberId] = (balances[exp.paidByMemberId] ?? 0) + exp.totalAmount;
+      if (memberIds.contains(exp.paidByMemberId)) {
+        balances[exp.paidByMemberId] = (balances[exp.paidByMemberId] ?? 0) + exp.totalAmount;
+      }
     }
     for (final share in shares) {
-      balances[share.memberId] = (balances[share.memberId] ?? 0) - share.shareAmount;
+      if (memberIds.contains(share.memberId)) {
+        balances[share.memberId] = (balances[share.memberId] ?? 0) - share.shareAmount;
+      }
     }
     for (final s in settlements) {
-      balances[s.fromMemberId] = (balances[s.fromMemberId] ?? 0) + s.amount;
-      balances[s.toMemberId] = (balances[s.toMemberId] ?? 0) - s.amount;
+      if (memberIds.contains(s.fromMemberId)) {
+        balances[s.fromMemberId] = (balances[s.fromMemberId] ?? 0) + s.amount;
+      }
+      if (memberIds.contains(s.toMemberId)) {
+        balances[s.toMemberId] = (balances[s.toMemberId] ?? 0) - s.amount;
+      }
     }
     return balances;
   }

@@ -60,12 +60,12 @@ class AppConfig {
 
   static const String r2AccessKeyId = String.fromEnvironment(
     'R2_ACCESS_KEY_ID',
-    defaultValue: '0a858b98473475974aa638978a326d68',
+    defaultValue: '',
   );
 
   static const String r2SecretAccessKey = String.fromEnvironment(
     'R2_SECRET_ACCESS_KEY',
-    defaultValue: '4c7404639cac7ef4a153d7cc4326c689d29d5c50e97f2d6c8ded76044abdec5f',
+    defaultValue: '',
   );
 
   static const String r2PublicBaseUrl = String.fromEnvironment(

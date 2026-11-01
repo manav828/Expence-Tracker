@@ -40,16 +40,42 @@ class DatabaseService {
   int _nextWebBudgetId = 1;
   final List<PaymentReminder> _webReminders = [];
 
+  SupabaseClient? get _supabaseClient {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
   DatabaseService._init() {
     // Clean initial state: no dummy data
   }
 
+  /// Clears only local SQLite tables (or Web in-memory stores) for expenses and
+  /// payment reminders on logout/switch-user without wiping cloud Supabase data.
+  Future<void> clearLocalDatabaseOnly() async {
+    if (kIsWeb) {
+      _webExpenses.clear();
+      _webReminders.clear();
+      return;
+    }
+    try {
+      final db = await instance.database;
+      await db.delete('expenses');
+      await db.delete('payment_reminders');
+    } catch (e) {
+      debugPrint('Local clearLocalDatabaseOnly error: $e');
+    }
+  }
+
   Future<void> clearAllExpenses() async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (isCloud && currentUser != null) {
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (isCloud && currentUser != null && client != null) {
       try {
-        await Supabase.instance.client
+        await client
             .from('user_expenses')
             .delete()
             .eq('user_id', currentUser.id);
@@ -345,10 +371,10 @@ class DatabaseService {
 
   Future<Expense> insertExpense(Expense expense) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (isCloud && currentUser != null) {
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (isCloud && currentUser != null && client != null) {
       try {
-        final client = Supabase.instance.client;
         final map = expense.toMap();
         map.remove('id');
         map['user_id'] = currentUser.id;
@@ -431,10 +457,10 @@ class DatabaseService {
     }
 
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (isCloud && currentUser != null) {
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (isCloud && currentUser != null && client != null) {
       try {
-        final client = Supabase.instance.client;
         // Query user's expenses or legacy entries with null user_id
         final res = await client
             .from('user_expenses')
@@ -505,7 +531,8 @@ class DatabaseService {
         final cloudKeys = cloudList.map((r) =>
           '${r.createdAt}_${r.expenseDate}_${r.amount}_${r.category}').toSet();
 
-        final client = Supabase.instance.client;
+        final client = _supabaseClient;
+        if (client == null) return;
         for (final exp in localList) {
           final key = '${exp.createdAt}_${exp.expenseDate}_${exp.amount}_${exp.category}';
           if (!cloudKeys.contains(key)) {
@@ -524,10 +551,10 @@ class DatabaseService {
 
   Future<int> updateExpense(Expense expense) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (isCloud && currentUser != null && expense.id != null) {
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (isCloud && currentUser != null && client != null && expense.id != null) {
       try {
-        final client = Supabase.instance.client;
         final map = expense.toMap();
         map.remove('id');
         map['user_id'] = currentUser.id;
@@ -584,10 +611,10 @@ class DatabaseService {
 
   Future<int> deleteExpense(int id) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (isCloud && currentUser != null) {
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (isCloud && currentUser != null && client != null) {
       try {
-        final client = Supabase.instance.client;
         await client
             .from('user_expenses')
             .delete()
@@ -612,10 +639,10 @@ class DatabaseService {
   }
 
   Future<int> syncLocalToCloud() async {
-    final client = Supabase.instance.client;
-    final currentUser = client.auth.currentUser;
-    if (currentUser == null) {
-      debugPrint('syncLocalToCloud aborted: User is not authenticated.');
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (client == null || currentUser == null) {
+      debugPrint('syncLocalToCloud aborted: User is not authenticated or Supabase uninitialized.');
       return 0;
     }
 
@@ -656,10 +683,10 @@ class DatabaseService {
   }
 
   Future<int> syncCloudToLocal() async {
-    final client = Supabase.instance.client;
-    final currentUser = client.auth.currentUser;
-    if (currentUser == null) {
-      debugPrint('syncCloudToLocal aborted: User is not authenticated.');
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (client == null || currentUser == null) {
+      debugPrint('syncCloudToLocal aborted: User is not authenticated or Supabase uninitialized.');
       return 0;
     }
 
@@ -1046,7 +1073,8 @@ class DatabaseService {
 
   Future<List<PaymentReminder>> getPaymentReminders({String? userId}) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
 
     List<PaymentReminder> localList = [];
     if (!kIsWeb) {
@@ -1065,9 +1093,8 @@ class DatabaseService {
       localList.sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
     }
 
-    if (isCloud && currentUser != null) {
+    if (isCloud && currentUser != null && client != null) {
       try {
-        final client = Supabase.instance.client;
         final res = await client
             .from('payment_reminders')
             .select()
@@ -1105,7 +1132,8 @@ class DatabaseService {
 
   Future<void> savePaymentReminder(PaymentReminder reminder) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
     final payload = reminder.copyWith(userId: currentUser?.id ?? reminder.userId);
 
     if (kIsWeb) {
@@ -1124,9 +1152,9 @@ class DatabaseService {
       }
     }
 
-    if (isCloud && currentUser != null) {
+    if (isCloud && currentUser != null && client != null) {
       try {
-        await Supabase.instance.client
+        await client
             .from('payment_reminders')
             .upsert(payload.toMap());
       } catch (e) {
@@ -1137,7 +1165,8 @@ class DatabaseService {
 
   Future<void> deletePaymentReminder(String id) async {
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
 
     if (kIsWeb) {
       _webReminders.removeWhere((r) => r.id == id);
@@ -1150,9 +1179,9 @@ class DatabaseService {
       }
     }
 
-    if (isCloud && currentUser != null) {
+    if (isCloud && currentUser != null && client != null) {
       try {
-        await Supabase.instance.client
+        await client
             .from('payment_reminders')
             .delete()
             .eq('id', id);
@@ -1191,10 +1220,11 @@ class DatabaseService {
     }
 
     final isCloud = await StoragePreferenceService.isCloud();
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (isCloud && currentUser != null) {
+    final client = _supabaseClient;
+    final currentUser = client?.auth.currentUser;
+    if (isCloud && currentUser != null && client != null) {
       try {
-        await Supabase.instance.client
+        await client
             .from('payment_reminders')
             .update(updates)
             .eq('id', id);

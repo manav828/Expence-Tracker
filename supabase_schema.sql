@@ -156,9 +156,10 @@ CREATE INDEX IF NOT EXISTS idx_split_expenses_group_created ON public.split_expe
 CREATE INDEX IF NOT EXISTS idx_settlements_group_settled ON public.settlements(group_id, settled_at DESC);
 CREATE INDEX IF NOT EXISTS idx_split_shares_expense_member ON public.split_shares(expense_id, member_id);
 
--- Set safe defaults to guarantee user_id is never null on inserts
+-- Set safe defaults to guarantee user_id is never null on inserts for split_groups
 ALTER TABLE public.split_groups ALTER COLUMN user_id SET DEFAULT auth.uid()::text;
-ALTER TABLE public.split_members ALTER COLUMN user_id SET DEFAULT auth.uid()::text;
+-- For split_members, manual members MUST have user_id as NULL! Drop default if previously set.
+ALTER TABLE public.split_members ALTER COLUMN user_id DROP DEFAULT;
 
 -- ==============================================================================
 -- SAFE MIGRATION & BACKFILL FOR LEGACY UNOWNED DATA
@@ -177,16 +178,23 @@ BEGIN
         SET user_id = v_single_user_id
         WHERE user_id IS NULL;
 
-        -- 2. Backfill unowned creator member rows
-        UPDATE public.split_members
-        SET user_id = v_single_user_id
-        WHERE user_id IS NULL
-          AND (
-            group_id IN (SELECT id FROM public.split_groups WHERE user_id = v_single_user_id)
-            OR name IN (SELECT created_by FROM public.split_groups)
-          );
+        -- 2. Backfill unowned creator member rows ONLY (matching created_by name)
+        UPDATE public.split_members m
+        SET user_id = g.user_id
+        FROM public.split_groups g
+        WHERE m.group_id = g.id
+          AND m.user_id IS NULL
+          AND LOWER(TRIM(m.name)) = LOWER(TRIM(g.created_by));
 
-        -- 3. Backfill unowned personal user_expenses
+        -- 3. Cleanup: If any non-creator manual members were accidentally given user_id, restore them to NULL
+        UPDATE public.split_members m
+        SET user_id = NULL
+        FROM public.split_groups g
+        WHERE m.group_id = g.id
+          AND m.user_id IS NOT NULL
+          AND LOWER(TRIM(m.name)) != LOWER(TRIM(g.created_by));
+
+        -- 4. Backfill unowned personal user_expenses
         UPDATE public.user_expenses
         SET user_id = v_single_user_id::uuid
         WHERE user_id IS NULL;
@@ -261,6 +269,34 @@ AS $$
         )
     );
 $$;
+
+-- Check if current authenticated user is the creator of a split group
+CREATE OR REPLACE FUNCTION public.is_group_creator(p_group_id TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+    SELECT (auth.uid() IS NOT NULL) AND EXISTS (
+        SELECT 1 FROM public.split_groups 
+        WHERE id = p_group_id 
+          AND (
+            user_id = auth.uid()::text
+            OR (
+              user_id IS NULL
+              AND LOWER(TRIM(created_by)) = LOWER(TRIM(COALESCE(
+                  auth.jwt()->'user_metadata'->>'full_name',
+                  auth.jwt()->'user_metadata'->>'name',
+                  split_part(auth.jwt()->>'email', '@', 1),
+                  ''
+              )))
+            )
+          )
+    );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_group_creator(TEXT) TO authenticated;
 
 -- 2. Check if the current authenticated user belongs to the group of a split expense
 CREATE OR REPLACE FUNCTION public.is_expense_member(p_expense_id TEXT)
@@ -349,11 +385,101 @@ BEGIN
 END;
 $$;
 
+-- 6. Atomic join group by invite code RPC
+-- Validates auth, looks up group by invite code, handles existing/unowned member claiming, or inserts a new member
+CREATE OR REPLACE FUNCTION public.join_group_by_invite_code(
+    p_code TEXT,
+    p_name TEXT,
+    p_phone TEXT DEFAULT NULL
+)
+RETURNS public.split_groups
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid TEXT := auth.uid()::text;
+    v_group public.split_groups%ROWTYPE;
+    v_clean_code TEXT := UPPER(TRIM(p_code));
+    v_clean_name TEXT := TRIM(p_name);
+    v_existing_member_id TEXT;
+    v_unowned_member_id TEXT;
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    IF v_clean_code IS NULL OR v_clean_code = '' THEN
+        RAISE EXCEPTION 'Invite code is required';
+    END IF;
+
+    IF v_clean_name IS NULL OR v_clean_name = '' THEN
+        RAISE EXCEPTION 'Member name is required';
+    END IF;
+
+    -- Lookup group by invite code
+    SELECT * INTO v_group
+    FROM public.split_groups
+    WHERE UPPER(invite_code) = v_clean_code
+    LIMIT 1;
+
+    IF v_group.id IS NULL THEN
+        RAISE EXCEPTION 'Invalid invite code';
+    END IF;
+
+    -- Check if user is already enrolled in split_members
+    SELECT id INTO v_existing_member_id
+    FROM public.split_members
+    WHERE group_id = v_group.id
+      AND user_id = v_uid
+    LIMIT 1;
+
+    IF v_existing_member_id IS NOT NULL THEN
+        -- User is already enrolled: update name and phone if provided, then return group
+        UPDATE public.split_members
+        SET name = v_clean_name,
+            phone = COALESCE(p_phone, phone)
+        WHERE id = v_existing_member_id;
+
+        RETURN v_group;
+    END IF;
+
+    -- If there is an existing member row with matching name and user_id IS NULL, claim it
+    SELECT id INTO v_unowned_member_id
+    FROM public.split_members
+    WHERE group_id = v_group.id
+      AND user_id IS NULL
+      AND LOWER(TRIM(name)) = LOWER(v_clean_name)
+    LIMIT 1;
+
+    IF v_unowned_member_id IS NOT NULL THEN
+        UPDATE public.split_members
+        SET user_id = v_uid,
+            phone = COALESCE(p_phone, phone)
+        WHERE id = v_unowned_member_id;
+    ELSE
+        -- Otherwise insert a new member row into split_members
+        INSERT INTO public.split_members (id, group_id, user_id, name, phone, joined_at)
+        VALUES (
+            gen_random_uuid()::text,
+            v_group.id,
+            v_uid,
+            v_clean_name,
+            p_phone,
+            NOW()
+        );
+    END IF;
+
+    RETURN v_group;
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.is_group_member(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_expense_member(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_expense_group_member(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_group_by_invite_code(TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.claim_user_groups(TEXT[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_group_by_invite_code(TEXT, TEXT, TEXT) TO authenticated;
 
 -- Single-query batch shares fetcher (resolves N+1 query bottleneck)
 CREATE OR REPLACE FUNCTION public.get_group_shares(p_group_id TEXT)
@@ -422,136 +548,265 @@ DROP POLICY IF EXISTS "Split settlement group members policy" ON public.split_se
 
 -- 1. SPLIT GROUPS
 CREATE POLICY "Split groups select policy" ON public.split_groups
-    FOR SELECT TO authenticated
+    FOR SELECT TO authenticated, anon
     USING (
         user_id = auth.uid()::text 
         OR public.is_group_member(id)
         OR (
             user_id IS NULL
-            AND LOWER(TRIM(created_by)) = LOWER(TRIM(COALESCE(
-                auth.jwt()->'user_metadata'->>'full_name',
-                auth.jwt()->'user_metadata'->>'name',
-                split_part(auth.jwt()->>'email', '@', 1),
-                ''
-            )))
+            AND (
+                auth.uid() IS NULL 
+                OR LOWER(TRIM(created_by)) = LOWER(TRIM(COALESCE(
+                    auth.jwt()->'user_metadata'->>'full_name',
+                    auth.jwt()->'user_metadata'->>'name',
+                    split_part(auth.jwt()->>'email', '@', 1),
+                    ''
+                )))
+            )
         )
     );
 
 CREATE POLICY "Split groups insert policy" ON public.split_groups
-    FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() IS NOT NULL AND (user_id IS NULL OR user_id = auth.uid()::text));
+    FOR INSERT TO authenticated, anon
+    WITH CHECK (auth.uid() IS NOT NULL OR user_id IS NULL);
 
 CREATE POLICY "Split groups update policy" ON public.split_groups
-    FOR UPDATE TO authenticated
-    USING (user_id = auth.uid()::text OR public.is_group_member(id))
-    WITH CHECK (user_id = auth.uid()::text OR public.is_group_member(id));
+    FOR UPDATE TO authenticated, anon
+    USING (user_id = auth.uid()::text OR public.is_group_member(id) OR user_id IS NULL)
+    WITH CHECK (user_id = auth.uid()::text OR public.is_group_member(id) OR user_id IS NULL);
 
 CREATE POLICY "Split groups delete policy" ON public.split_groups
-    FOR DELETE TO authenticated
-    USING (user_id = auth.uid()::text OR public.is_group_member(id));
+    FOR DELETE TO authenticated, anon
+    USING (user_id = auth.uid()::text OR user_id IS NULL);
 
 -- 2. SPLIT MEMBERS
 CREATE POLICY "Split members select policy" ON public.split_members
-    FOR SELECT TO authenticated
-    USING (public.is_group_member(group_id) OR user_id = auth.uid()::text);
+    FOR SELECT TO authenticated, anon
+    USING (
+        public.is_group_member(group_id) 
+        OR user_id = auth.uid()::text
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_members.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split members insert policy" ON public.split_members
-    FOR INSERT TO authenticated
-    WITH CHECK (public.is_group_member(group_id) OR user_id = auth.uid()::text);
+    FOR INSERT TO authenticated, anon
+    WITH CHECK (
+        public.is_group_creator(group_id) 
+        OR public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_members.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split members update policy" ON public.split_members
-    FOR UPDATE TO authenticated
-    USING (public.is_group_member(group_id) OR user_id = auth.uid()::text)
-    WITH CHECK (public.is_group_member(group_id) OR user_id = auth.uid()::text);
+    FOR UPDATE TO authenticated, anon
+    USING (
+        public.is_group_creator(group_id) 
+        OR user_id = auth.uid()::text
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_members.group_id AND user_id IS NULL)
+    )
+    WITH CHECK (
+        public.is_group_creator(group_id) 
+        OR user_id = auth.uid()::text
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_members.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split members delete policy" ON public.split_members
-    FOR DELETE TO authenticated
-    USING (public.is_group_member(group_id) OR user_id = auth.uid()::text);
+    FOR DELETE TO authenticated, anon
+    USING (
+        public.is_group_creator(group_id) 
+        OR user_id = auth.uid()::text
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_members.group_id AND user_id IS NULL)
+    );
 
 -- 3. SPLIT EXPENSES
 CREATE POLICY "Split expenses select policy" ON public.split_expenses
-    FOR SELECT TO authenticated
-    USING (public.is_group_member(group_id));
+    FOR SELECT TO authenticated, anon
+    USING (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expenses.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split expenses insert policy" ON public.split_expenses
-    FOR INSERT TO authenticated
-    WITH CHECK (public.is_group_member(group_id));
+    FOR INSERT TO authenticated, anon
+    WITH CHECK (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expenses.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split expenses update policy" ON public.split_expenses
-    FOR UPDATE TO authenticated
-    USING (public.is_group_member(group_id))
-    WITH CHECK (public.is_group_member(group_id));
+    FOR UPDATE TO authenticated, anon
+    USING (
+        public.is_group_creator(group_id)
+        OR paid_by_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expenses.group_id AND user_id IS NULL)
+    )
+    WITH CHECK (
+        public.is_group_creator(group_id)
+        OR paid_by_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expenses.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split expenses delete policy" ON public.split_expenses
-    FOR DELETE TO authenticated
-    USING (public.is_group_member(group_id));
+    FOR DELETE TO authenticated, anon
+    USING (
+        public.is_group_creator(group_id)
+        OR paid_by_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expenses.group_id AND user_id IS NULL)
+    );
 
 -- 4. SPLIT SHARES
 CREATE POLICY "Split shares select policy" ON public.split_shares
-    FOR SELECT TO authenticated
-    USING (public.is_expense_member(expense_id));
+    FOR SELECT TO authenticated, anon
+    USING (
+        public.is_expense_member(expense_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expenses e 
+            JOIN public.split_groups g ON g.id = e.group_id 
+            WHERE e.id = split_shares.expense_id AND g.user_id IS NULL
+        )
+    );
 
 CREATE POLICY "Split shares insert policy" ON public.split_shares
-    FOR INSERT TO authenticated
-    WITH CHECK (public.is_expense_member(expense_id));
+    FOR INSERT TO authenticated, anon
+    WITH CHECK (
+        public.is_expense_member(expense_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expenses e 
+            JOIN public.split_groups g ON g.id = e.group_id 
+            WHERE e.id = split_shares.expense_id AND g.user_id IS NULL
+        )
+    );
 
 CREATE POLICY "Split shares update policy" ON public.split_shares
-    FOR UPDATE TO authenticated
-    USING (public.is_expense_member(expense_id))
-    WITH CHECK (public.is_expense_member(expense_id));
+    FOR UPDATE TO authenticated, anon
+    USING (
+        public.is_expense_member(expense_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expenses e 
+            JOIN public.split_groups g ON g.id = e.group_id 
+            WHERE e.id = split_shares.expense_id AND g.user_id IS NULL
+        )
+    )
+    WITH CHECK (
+        public.is_expense_member(expense_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expenses e 
+            JOIN public.split_groups g ON g.id = e.group_id 
+            WHERE e.id = split_shares.expense_id AND g.user_id IS NULL
+        )
+    );
 
 CREATE POLICY "Split shares delete policy" ON public.split_shares
-    FOR DELETE TO authenticated
-    USING (public.is_expense_member(expense_id));
+    FOR DELETE TO authenticated, anon
+    USING (
+        public.is_expense_member(expense_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expenses e 
+            JOIN public.split_groups g ON g.id = e.group_id 
+            WHERE e.id = split_shares.expense_id AND g.user_id IS NULL
+        )
+    );
 
 -- 5. SETTLEMENTS
 CREATE POLICY "Settlements select policy" ON public.settlements
-    FOR SELECT TO authenticated
-    USING (public.is_group_member(group_id));
+    FOR SELECT TO authenticated, anon
+    USING (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = settlements.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Settlements insert policy" ON public.settlements
-    FOR INSERT TO authenticated
-    WITH CHECK (public.is_group_member(group_id));
+    FOR INSERT TO authenticated, anon
+    WITH CHECK (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = settlements.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Settlements update policy" ON public.settlements
-    FOR UPDATE TO authenticated
-    USING (public.is_group_member(group_id))
-    WITH CHECK (public.is_group_member(group_id));
+    FOR UPDATE TO authenticated, anon
+    USING (
+        public.is_group_creator(group_id)
+        OR from_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR to_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = settlements.group_id AND user_id IS NULL)
+    )
+    WITH CHECK (
+        public.is_group_creator(group_id)
+        OR from_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR to_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = settlements.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Settlements delete policy" ON public.settlements
-    FOR DELETE TO authenticated
-    USING (public.is_group_member(group_id));
+    FOR DELETE TO authenticated, anon
+    USING (
+        public.is_group_creator(group_id)
+        OR from_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR to_member_id IN (SELECT id FROM public.split_members WHERE user_id = auth.uid()::text)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = settlements.group_id AND user_id IS NULL)
+    );
 
 -- 6. EXPENSE GROUPS & MEMBERS (Module A)
 CREATE POLICY "Split expense groups policy" ON public.split_expense_groups
-    FOR ALL TO authenticated
-    USING (public.is_group_member(group_id))
-    WITH CHECK (public.is_group_member(group_id));
+    FOR ALL TO authenticated, anon
+    USING (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expense_groups.group_id AND user_id IS NULL)
+    )
+    WITH CHECK (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_expense_groups.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split expense group members policy" ON public.split_expense_group_members
-    FOR ALL TO authenticated
-    USING (public.is_expense_group_member(expense_group_id))
-    WITH CHECK (public.is_expense_group_member(expense_group_id));
+    FOR ALL TO authenticated, anon
+    USING (
+        public.is_expense_group_member(expense_group_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expense_groups eg 
+            JOIN public.split_groups g ON g.id = eg.group_id 
+            WHERE eg.id = split_expense_group_members.expense_group_id AND g.user_id IS NULL
+        )
+    )
+    WITH CHECK (
+        public.is_expense_group_member(expense_group_id)
+        OR EXISTS (
+            SELECT 1 FROM public.split_expense_groups eg 
+            JOIN public.split_groups g ON g.id = eg.group_id 
+            WHERE eg.id = split_expense_group_members.expense_group_id AND g.user_id IS NULL
+        )
+    );
 
 -- 7. SETTLEMENT GROUPS & MEMBERS (Module B)
 CREATE POLICY "Split settlement groups policy" ON public.split_settlement_groups
-    FOR ALL TO authenticated
-    USING (public.is_group_member(group_id))
-    WITH CHECK (public.is_group_member(group_id));
+    FOR ALL TO authenticated, anon
+    USING (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_settlement_groups.group_id AND user_id IS NULL)
+    )
+    WITH CHECK (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_settlement_groups.group_id AND user_id IS NULL)
+    );
 
 CREATE POLICY "Split settlement group members policy" ON public.split_settlement_group_members
-    FOR ALL TO authenticated
-    USING (public.is_group_member(group_id))
-    WITH CHECK (public.is_group_member(group_id));
+    FOR ALL TO authenticated, anon
+    USING (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_settlement_group_members.group_id AND user_id IS NULL)
+    )
+    WITH CHECK (
+        public.is_group_member(group_id)
+        OR EXISTS (SELECT 1 FROM public.split_groups WHERE id = split_settlement_group_members.group_id AND user_id IS NULL)
+    );
 
 -- 8. PERSONAL EXPENSES
--- Strict multi-tenant user isolation with legacy unowned fallback
+-- Strict multi-tenant user isolation
 DROP POLICY IF EXISTS "Public read/write access for user_expenses" ON public.user_expenses;
 DROP POLICY IF EXISTS "Users can only access their own expenses" ON public.user_expenses;
 CREATE POLICY "Users can only access their own expenses" ON public.user_expenses
     FOR ALL
     TO authenticated
-    USING (auth.uid() = user_id OR user_id IS NULL)
+    USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
 -- ==============================================================================
@@ -599,5 +854,5 @@ CREATE POLICY "Users can only access their own payment reminders"
 ON public.payment_reminders
 FOR ALL
 TO authenticated
-USING (auth.uid()::text = user_id OR user_id IS NULL)
+USING (auth.uid()::text = user_id)
 WITH CHECK (auth.uid()::text = user_id);

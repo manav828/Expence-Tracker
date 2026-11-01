@@ -23,6 +23,13 @@ class BudgetProgress {
 
   String get category => budget.category;
   double get limit => budget.monthlyLimit;
+
+  double get progress {
+    if (budget.monthlyLimit <= 0) {
+      return spentThisMonth > 0 ? 1.0 : 0.0;
+    }
+    return (spentThisMonth / budget.monthlyLimit).clamp(0.0, 1.0);
+  }
 }
 
 class BudgetProvider with ChangeNotifier {
@@ -120,9 +127,14 @@ class BudgetProvider with ChangeNotifier {
   BudgetProgress getProgressForBudget(Budget budget, List<Expense> expenses) {
     final spent = getMonthlySpentForCategory(budget.category, expenses);
     final limit = budget.monthlyLimit;
-    final percentage = limit > 0 ? double.parse(((spent / limit) * 100).toStringAsFixed(2)) : 0.0;
+    final double percentage;
+    if (limit <= 0) {
+      percentage = spent > 0 ? 100.0 : 0.0;
+    } else {
+      percentage = double.parse(((spent / limit) * 100).toStringAsFixed(2));
+    }
     final remaining = (limit - spent).clamp(-double.infinity, limit);
-    final isOverspent = spent > limit;
+    final isOverspent = limit <= 0 ? spent > 0 : spent > limit;
     final isNearLimit = percentage >= 80.0 && !isOverspent;
 
     return BudgetProgress(
@@ -149,15 +161,19 @@ class BudgetProvider with ChangeNotifier {
 
   double getTotalBudgetSpent(List<Expense> expenses) {
     final now = DateTime.now();
-    final budgetedCategories = _budgets.map((b) => b.category).toSet();
+    final budgetedCategories = _budgets.map((b) => b.category.trim().toLowerCase()).toSet();
     return expenses.where((e) {
       final d = e.dateTime;
-      return budgetedCategories.contains(e.category) && d.year == now.year && d.month == now.month;
+      return e.isExpense &&
+          budgetedCategories.contains(e.category.trim().toLowerCase()) &&
+          d.year == now.year &&
+          d.month == now.month;
     }).fold(0.0, (sum, item) => sum + item.amount);
   }
 
   /// Checks whether adding an expense caused an overspending condition
   String? checkForOverspend(Expense newExpense, List<Expense> currentExpenses) {
+    if (!newExpense.isExpense) return null;
     final budget = getBudgetForCategory(newExpense.category);
     if (budget == null) return null;
 
@@ -167,19 +183,21 @@ class BudgetProvider with ChangeNotifier {
     if (newExpDate.year != now.year || newExpDate.month != now.month) return null;
 
     // Detect if newExpense has already been inserted into currentExpenses
+    final targetCategory = newExpense.category.trim().toLowerCase();
     final alreadyIncluded = currentExpenses.any((e) =>
         identical(e, newExpense) ||
         (newExpense.id != null && e.id == newExpense.id) ||
         (e.createdAt == newExpense.createdAt &&
             e.amount == newExpense.amount &&
-            e.category == newExpense.category));
+            e.category.trim().toLowerCase() == targetCategory));
 
     final currentCategorySpent = getMonthlySpentForCategory(newExpense.category, currentExpenses);
     final totalSpentWithNew = alreadyIncluded
         ? currentCategorySpent
         : currentCategorySpent + newExpense.amount;
 
-    if (totalSpentWithNew > budget.monthlyLimit) {
+    final isOver = budget.monthlyLimit <= 0 ? totalSpentWithNew > 0 : totalSpentWithNew > budget.monthlyLimit;
+    if (isOver) {
       final excess = totalSpentWithNew - budget.monthlyLimit;
       final warning = '⚠️ Budget exceeded for ${budget.category}! Limit: ₹${budget.monthlyLimit.toStringAsFixed(0)} • Spent: ₹${totalSpentWithNew.toStringAsFixed(0)} (Over by ₹${excess.toStringAsFixed(0)})';
       _recentOverspendWarning = warning;
@@ -187,7 +205,7 @@ class BudgetProvider with ChangeNotifier {
       return warning;
     } else {
       // If no longer overspent, clear warning for this category
-      if (_recentOverspendWarning != null && _recentOverspendWarning!.contains(budget.category)) {
+      if (_recentOverspendWarning != null && _recentOverspendWarning!.toLowerCase().contains(budget.category.trim().toLowerCase())) {
         _recentOverspendWarning = null;
         notifyListeners();
       }

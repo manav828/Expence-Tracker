@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/config/app_config.dart';
 import '../core/errors/error_handler.dart';
 import 'storage_preference_service.dart';
+import 'database_service.dart';
+import 'split_service.dart';
 
 class AuthService {
   static final AuthService instance = AuthService._();
@@ -249,6 +251,17 @@ class AuthService {
       _cachedDisplayName = null;
       _cachedPhotoUrl = null;
     } catch (_) {}
+
+    try {
+      await DatabaseService.instance.clearLocalDatabaseOnly();
+    } catch (e, st) {
+      ErrorHandler.log('AuthService.signOut.clearLocalDatabase', e, st);
+    }
+    try {
+      await SplitService.instance.clearLocalDatabaseOnly();
+    } catch (e, st) {
+      ErrorHandler.log('AuthService.signOut.clearSplitDatabase', e, st);
+    }
 
     await setGuestMode(false);
     await StoragePreferenceService.setMode(StorageMode.local);

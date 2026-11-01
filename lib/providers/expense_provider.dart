@@ -279,8 +279,11 @@ class ExpenseProvider with ChangeNotifier {
   double get netSavings => totalIncome - totalExpenses;
 
   double get savingsRate {
-    if (totalIncome <= 0) return 0.0;
-    return ((netSavings / totalIncome) * 100).clamp(-100.0, 100.0);
+    final income = totalIncome;
+    final expenses = totalExpenses;
+    if (income <= 0) return 0.0;
+    final rate = ((income - expenses) / income) * 100.0;
+    return rate.clamp(0.0, 100.0);
   }
 
   Map<String, double> get categoryTotals {
@@ -318,8 +321,11 @@ class ExpenseProvider with ChangeNotifier {
   double get netSavingsThisMonth => incomeThisMonth - expensesThisMonth;
 
   double get savingsRateThisMonth {
-    if (incomeThisMonth <= 0) return 0.0;
-    return ((netSavingsThisMonth / incomeThisMonth) * 100).clamp(-100.0, 100.0);
+    final income = incomeThisMonth;
+    final expenses = expensesThisMonth;
+    if (income <= 0) return 0.0;
+    final rate = ((income - expenses) / income) * 100.0;
+    return rate.clamp(0.0, 100.0);
   }
 
   double get expensesThisWeek {
@@ -380,10 +386,24 @@ class ExpenseProvider with ChangeNotifier {
     return map;
   }
 
-  List<Expense> getExpensesForMonth(int year, int month) {
+  List<Expense> getExpensesForMonth(dynamic yearOrDate, [int? month]) {
+    final int targetYear;
+    final int targetMonth;
+    if (yearOrDate is DateTime) {
+      targetYear = yearOrDate.year;
+      targetMonth = yearOrDate.month;
+    } else if (yearOrDate is int && month != null) {
+      targetYear = yearOrDate;
+      targetMonth = month;
+    } else {
+      final now = DateTime.now();
+      targetYear = now.year;
+      targetMonth = now.month;
+    }
+
     return _expenses.where((e) {
       final d = e.dateTime;
-      return d.year == year && d.month == month;
+      return e.isExpense && d.year == targetYear && d.month == targetMonth;
     }).toList();
   }
 
@@ -566,7 +586,7 @@ class ExpenseProvider with ChangeNotifier {
     return _expenses.where((e) {
       if (e.category.toLowerCase().trim() != lower) return false;
       final d = e.dateTime;
-      return !d.isBefore(start) && !d.isAfter(end);
+      return e.isExpense && !d.isBefore(start) && !d.isAfter(end);
     }).toList()
       ..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
   }
@@ -575,7 +595,7 @@ class ExpenseProvider with ChangeNotifier {
   Map<int, double> getCategoryDailyTotals(String category, int year, int month) {
     final lower = category.toLowerCase().trim();
     final map = <int, double>{};
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
       final d = e.dateTime;
       if (e.category.toLowerCase().trim() == lower && d.year == year && d.month == month) {
         map[d.day] = (map[d.day] ?? 0.0) + e.amount;
@@ -590,7 +610,7 @@ class ExpenseProvider with ChangeNotifier {
     final now = DateTime.now();
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
     final result = List<double>.filled(7, 0.0);
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
       if (e.category.toLowerCase().trim() != lower) continue;
       final d = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
       final diff = d.difference(monday).inDays;
@@ -605,7 +625,7 @@ class ExpenseProvider with ChangeNotifier {
   Map<int, double> getCategoryMonthlyTotals(String category, int year) {
     final lower = category.toLowerCase().trim();
     final map = <int, double>{};
-    for (var e in _expenses) {
+    for (var e in _expenses.where((e) => e.isExpense)) {
       final d = e.dateTime;
       if (e.category.toLowerCase().trim() == lower && d.year == year) {
         map[d.month] = (map[d.month] ?? 0.0) + e.amount;
@@ -623,7 +643,7 @@ class ExpenseProvider with ChangeNotifier {
     for (int i = 0; i < monthCount; i++) {
       final target = DateTime(now.year, now.month - i, 1);
       double total = 0.0;
-      for (var e in _expenses) {
+      for (var e in _expenses.where((e) => e.isExpense)) {
         final d = e.dateTime;
         if (e.category.toLowerCase().trim() == lower && d.year == target.year && d.month == target.month) {
           total += e.amount;

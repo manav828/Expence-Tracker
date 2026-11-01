@@ -12,18 +12,20 @@ class DataExportService {
   String generateCsv(List<Expense> expenses) {
     final buffer = StringBuffer();
     // CSV Header
-    buffer.writeln('ID,Date,Time,Category,Amount (INR),Payment Method,Note / Payee,Created Timestamp');
+    buffer.writeln('ID,Type,Date,Time,Category,Amount (INR),Payment Method,Note / Payee,Created Timestamp');
 
     for (final e in expenses) {
       final dt = e.dateTime;
       final dateStr = DateFormat('yyyy-MM-dd').format(dt);
       final timeStr = DateFormat('hh:mm a').format(dt);
 
+      final typeStr = e.isExpense ? 'Expense' : 'Income';
+      final formattedAmount = '${e.isExpense ? '-' : '+'}${e.amount.toStringAsFixed(2)}';
       final escapedCategory = _escapeCsv(e.category);
       final escapedMethod = _escapeCsv(e.paymentMethod);
       final escapedComment = _escapeCsv(e.comment ?? '');
 
-      buffer.writeln('${e.id ?? ""},$dateStr,$timeStr,$escapedCategory,${e.amount.toStringAsFixed(2)},$escapedMethod,$escapedComment,${e.createdAt}');
+      buffer.writeln('${e.id ?? ""},$typeStr,$dateStr,$timeStr,$escapedCategory,$formattedAmount,$escapedMethod,$escapedComment,${e.createdAt}');
     }
 
     return buffer.toString();
@@ -35,6 +37,8 @@ class DataExportService {
       final dt = e.dateTime;
       return {
         'id': e.id,
+        'type': e.isExpense ? 'expense' : 'income',
+        'isExpense': e.isExpense,
         'amount': e.amount,
         'category': e.category,
         'paymentMethod': e.paymentMethod,
@@ -84,13 +88,14 @@ class DataExportService {
 
   String _escapeCsv(String raw) {
     var val = raw;
+    final trimmed = val.trimLeft();
     // Prevent CSV Formula Injection (OWASP CWE-1236)
-    if (val.startsWith('=') ||
-        val.startsWith('+') ||
-        val.startsWith('-') ||
-        val.startsWith('@') ||
-        val.startsWith('\t') ||
-        val.startsWith('\r')) {
+    if (trimmed.startsWith('=') ||
+        trimmed.startsWith('+') ||
+        trimmed.startsWith('-') ||
+        trimmed.startsWith('@') ||
+        trimmed.startsWith('\t') ||
+        trimmed.startsWith('\r')) {
       val = "'$val";
     }
 

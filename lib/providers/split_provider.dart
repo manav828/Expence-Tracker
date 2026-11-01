@@ -24,22 +24,22 @@ class SplitProvider with ChangeNotifier {
   StreamSubscription<AuthState>? _authSub;
   final Map<String, Future<SplitGroup?>> _inFlightJoins = {};
 
-  String get _userGroupIdsKey {
+  User? get _currentAuthUser {
     try {
-      final uid = Supabase.instance.client.auth.currentUser?.id;
-      return uid != null ? 'split_group_ids_$uid' : 'split_group_ids_guest';
+      return Supabase.instance.client.auth.currentUser;
     } catch (_) {
-      return 'split_group_ids_guest';
+      return null;
     }
   }
 
+  String get _userGroupIdsKey {
+    final uid = _currentAuthUser?.id;
+    return uid != null ? 'split_group_ids_$uid' : 'split_group_ids_guest';
+  }
+
   String get _memberNameKey {
-    try {
-      final uid = Supabase.instance.client.auth.currentUser?.id;
-      return uid != null ? 'split_member_name_$uid' : 'split_member_name_guest';
-    } catch (_) {
-      return 'split_member_name_guest';
-    }
+    final uid = _currentAuthUser?.id;
+    return uid != null ? 'split_member_name_$uid' : 'split_member_name_guest';
   }
 
   List<SplitGroup> get groups => _groups;
@@ -63,6 +63,25 @@ class SplitProvider with ChangeNotifier {
   List<SplitExpense> getExpensesForGroup(String groupId) => _expenses[groupId] ?? [];
   List<Settlement> getSettlementsForGroup(String groupId) => _settlements[groupId] ?? [];
   Map<String, double> getBalancesForGroup(String groupId) => _balances[groupId] ?? {};
+
+  @visibleForTesting
+  void setGroupDetailForTesting({
+    required String groupId,
+    required List<SplitMember> members,
+    required List<SplitSettlementGroup> settlementGroups,
+    List<SplitExpenseGroup> expenseGroups = const [],
+    List<SplitExpense> expenses = const [],
+    List<Settlement> settlements = const [],
+    Map<String, double> balances = const {},
+  }) {
+    _members[groupId] = members;
+    _settlementGroups[groupId] = settlementGroups;
+    _expenseGroups[groupId] = expenseGroups;
+    _expenses[groupId] = expenses;
+    _settlements[groupId] = settlements;
+    _balances[groupId] = balances;
+    notifyListeners();
+  }
   List<SplitExpenseGroup> getExpenseGroupsForGroup(String groupId) => _expenseGroups[groupId] ?? [];
   List<SplitSettlementGroup> getSettlementGroupsForGroup(String groupId) => _settlementGroups[groupId] ?? [];
 
@@ -144,7 +163,7 @@ class SplitProvider with ChangeNotifier {
       final localIds = await SplitService.instance.getAllLocalGroupIds();
       final allLocalIds = {
         ...ids,
-        if (Supabase.instance.client.auth.currentUser != null) ...guestIds,
+        if (_currentAuthUser != null) ...guestIds,
         ...localIds
       }.toList();
 
@@ -243,7 +262,7 @@ class SplitProvider with ChangeNotifier {
       createdBy: createdByName,
     );
     // Add creator as first member with their auth user_id
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final currentUser = _currentAuthUser;
     await SplitService.instance.addMember(
       groupId: group.id,
       name: createdByName,
@@ -295,7 +314,7 @@ class SplitProvider with ChangeNotifier {
     final group = await SplitService.instance.getGroupByInviteCode(code);
     if (group == null) return null;
     final existingMembers = await SplitService.instance.getMembers(group.id);
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final currentUser = _currentAuthUser;
 
     // STRICT USER ID BASED JOIN:
     // Check if user is already enrolled by auth user_id
@@ -555,7 +574,12 @@ class SplitProvider with ChangeNotifier {
   }
 
   Future<void> addMember(String groupId, String name) async {
-    await SplitService.instance.addMember(groupId: groupId, name: name);
+    final newMember = await SplitService.instance.addMember(groupId: groupId, name: name);
+    final currentList = _members[groupId] ?? [];
+    if (!currentList.any((m) => m.id == newMember.id)) {
+      _members[groupId] = [...currentList, newMember];
+      notifyListeners();
+    }
     await loadGroupDetail(groupId);
     _checkPendingSync();
   }
