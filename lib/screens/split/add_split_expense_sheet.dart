@@ -264,6 +264,60 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
     );
   }
 
+  Future<void> _confirmDelete() async {
+    if (widget.expenseToEdit == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Expense?'),
+        content: Text('Are you sure you want to delete "${widget.expenseToEdit!.title}" from this group?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF6D7A72))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBA1A1A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        final expenseId = widget.expenseToEdit!.id;
+        final receipt = _receiptUrl;
+        await context.read<SplitProvider>().deleteExpense(widget.groupId, expenseId);
+        if (receipt != null && receipt.isNotEmpty) {
+          CloudflareR2Service.instance.deleteByUrl(receipt);
+        }
+        if (mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Expense deleted from group'),
+              backgroundColor: Color(0xFFBA1A1A),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          _showError('Failed to delete expense: $e');
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
   Widget _buildAllocationBanner(double total) {
     if (_splitType == SplitType.equal || total <= 0) {
       return const SizedBox.shrink();
@@ -844,9 +898,20 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              isEditing ? 'Edit Expense' : 'Add Expense',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isEditing ? 'Edit Expense' : 'Add Expense',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
+                ),
+                if (isEditing)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A)),
+                    tooltip: 'Delete expense',
+                    onPressed: _isLoading ? null : _confirmDelete,
+                  ),
+              ],
             ),
             const SizedBox(height: 20),
             // Title
@@ -961,6 +1026,25 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
+            if (isEditing) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _confirmDelete,
+                  icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
+                  label: const Text(
+                    'Delete Expense',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFFBA1A1A)),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFFFCDD2), width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
           ],
         ),

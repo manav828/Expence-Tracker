@@ -532,8 +532,8 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               : widget.isAutoDetected
                                   ? (_type == TransactionType.income ? 'Auto-filled from credit SMS' : 'Auto-filled from debit SMS')
                                   : (_type == TransactionType.income
-                                      ? 'Record an inflow into ExpenCircle Private Ledger'
-                                      : 'Record an outflow into ExpenCircle Private Ledger'),
+                                      ? 'Record an inflow into your personal ledger'
+                                      : 'Record an outflow into your personal ledger'),
                           style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
                         ),
                       ],
@@ -1011,6 +1011,25 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                     ),
                   ),
                 ),
+                if (isEditing) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: _confirmDelete,
+                      icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
+                      label: Text(
+                        _type == TransactionType.income ? 'Delete Income' : 'Delete Expense',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFFBA1A1A)),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFFFCDD2), width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ],
           ),

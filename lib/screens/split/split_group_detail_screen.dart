@@ -1820,6 +1820,76 @@ class _ExpenseCard extends StatelessWidget {
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF006948))),
                   ),
                 ]),
+                const SizedBox(width: 4),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFF6D7A72)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Options',
+                  onSelected: (val) async {
+                    if (val == 'edit') {
+                      await showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => AddSplitExpenseSheet(
+                          groupId: groupId,
+                          members: members,
+                          expenseToEdit: expense,
+                        ),
+                      );
+                    } else if (val == 'delete') {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: const Text('Delete Expense?'),
+                          content: Text('Are you sure you want to delete "${expense.title}"?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel', style: TextStyle(color: Color(0xFF6D7A72))),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFBA1A1A),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true && context.mounted) {
+                        context.read<SplitProvider>().deleteExpense(groupId, expense.id);
+                      }
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18, color: Color(0xFF131B2E)),
+                          SizedBox(width: 8),
+                          Text('Edit Expense'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline, size: 18, color: Color(0xFFBA1A1A)),
+                          SizedBox(width: 8),
+                          Text('Delete Expense', style: TextStyle(color: Color(0xFFBA1A1A), fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

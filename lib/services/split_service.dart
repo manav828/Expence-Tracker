@@ -1111,7 +1111,18 @@ class SplitService {
     return localExpenses;
   }
 
-  Future<void> deleteExpense(String expenseId) async {
+  Future<void> deleteExpense(String expenseId, [String? groupId]) async {
+    if (kIsWeb) {
+      if (groupId != null) {
+        _webExpenses[groupId]?.removeWhere((e) => e.id == expenseId);
+      } else {
+        for (final list in _webExpenses.values) {
+          list.removeWhere((e) => e.id == expenseId);
+        }
+      }
+      _webShares.remove(expenseId);
+    }
+
     if (!kIsWeb) {
       try {
         final db = await _localDb;

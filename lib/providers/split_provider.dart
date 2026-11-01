@@ -446,7 +446,9 @@ class SplitProvider with ChangeNotifier {
   }
 
   Future<void> deleteExpense(String groupId, String expenseId) async {
-    await SplitService.instance.deleteExpense(expenseId);
+    _expenses[groupId]?.removeWhere((e) => e.id == expenseId);
+    notifyListeners();
+    await SplitService.instance.deleteExpense(expenseId, groupId);
     await loadGroupDetail(groupId);
     _checkPendingSync();
   }
