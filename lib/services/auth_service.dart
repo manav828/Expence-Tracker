@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/config/app_config.dart';
 import '../core/errors/error_handler.dart';
+import '../core/utils/invite_code_parser.dart';
 import 'storage_preference_service.dart';
 import 'database_service.dart';
 import 'split_service.dart';
@@ -162,12 +163,10 @@ class AuthService {
 
       if (kIsWeb) {
         await StoragePreferenceService.setMode(StorageMode.cloud);
-        final code = Uri.base.queryParameters['code'] ??
-            Uri.base.queryParameters['join'] ??
-            Uri.base.queryParameters['split'];
-        if (code != null && code.trim().isNotEmpty) {
+        final code = InviteCodeParser.extractInviteCode(Uri.base);
+        if (code != null && code.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('pending_invite_code', code.trim().toUpperCase());
+          await prefs.setString('pending_invite_code', code.toUpperCase());
         }
         final redirectUri = Uri.base.origin;
         return await _client.auth.signInWithOAuth(
