@@ -240,12 +240,12 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   if (isCategory) {
                     await CategoryIcons.setCustomIcon(text, selectedIconKey);
                     await provider.addCategory(text);
-                    setState(() => _category = text);
+                    if (mounted) setState(() => _category = text);
                   } else {
                     await provider.addPaymentMethod(text);
-                    setState(() => _paymentMethod = text);
+                    if (mounted) setState(() => _paymentMethod = text);
                   }
-                  if (ctx.mounted) {
+                  if (dialogCtx.mounted) {
                     Navigator.pop(dialogCtx);
                   }
                 }

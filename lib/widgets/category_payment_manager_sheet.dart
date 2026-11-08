@@ -139,10 +139,10 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                     } else {
                       await provider.addPaymentMethod(text);
                     }
-                    if (mounted) setState(() {});
-                    if (ctx.mounted) {
+                    if (dialogCtx.mounted) {
                       Navigator.pop(dialogCtx);
                     }
+                    if (mounted) setState(() {});
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -273,10 +273,10 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                         await provider.updatePaymentMethod(currentName, newText);
                       }
                     }
-                    if (mounted) setState(() {});
-                    if (ctx.mounted) {
+                    if (dialogCtx.mounted) {
                       Navigator.pop(dialogCtx);
                     }
+                    if (mounted) setState(() {});
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -369,22 +369,38 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
   Widget build(BuildContext context) {
     final provider = Provider.of<ExpenseProvider>(context);
 
-    List<String> categories;
+    List<String> rawCategories;
     if (_categorySortMode == 'most_used') {
-      categories = provider.getSortedCategories(mostUsedFirst: true);
+      rawCategories = provider.getSortedCategories(mostUsedFirst: true);
     } else if (_categorySortMode == 'az') {
-      categories = List<String>.from(provider.categories)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      rawCategories = List<String>.from(provider.categories)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     } else {
-      categories = List<String>.from(provider.categories);
+      rawCategories = List<String>.from(provider.categories);
+    }
+    final categories = <String>[];
+    final seenCats = <String>{};
+    for (final c in rawCategories) {
+      final trimmed = c.trim();
+      if (trimmed.isNotEmpty && seenCats.add(trimmed.toLowerCase())) {
+        categories.add(trimmed);
+      }
     }
 
-    List<String> paymentMethods;
+    List<String> rawPaymentMethods;
     if (_paymentMethodSortMode == 'most_used') {
-      paymentMethods = provider.getSortedPaymentMethods(mostUsedFirst: true);
+      rawPaymentMethods = provider.getSortedPaymentMethods(mostUsedFirst: true);
     } else if (_paymentMethodSortMode == 'az') {
-      paymentMethods = List<String>.from(provider.paymentMethods)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      rawPaymentMethods = List<String>.from(provider.paymentMethods)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     } else {
-      paymentMethods = List<String>.from(provider.paymentMethods);
+      rawPaymentMethods = List<String>.from(provider.paymentMethods);
+    }
+    final paymentMethods = <String>[];
+    final seenPms = <String>{};
+    for (final p in rawPaymentMethods) {
+      final trimmed = p.trim();
+      if (trimmed.isNotEmpty && seenPms.add(trimmed.toLowerCase())) {
+        paymentMethods.add(trimmed);
+      }
     }
 
     return Container(

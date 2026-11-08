@@ -753,67 +753,88 @@ class DatabaseService {
   static const String _paymentMethodOrderPrefKey = 'custom_payment_method_order_v1';
 
   Future<List<String>> getCategories() async {
-    List<String> rawList;
+    final prefs = await SharedPreferences.getInstance();
+    final savedOrder = prefs.getStringList(_categoryOrderPrefKey);
+
     if (kIsWeb) {
-      rawList = List<String>.from(_webCategories);
-    } else {
+      if (savedOrder != null && savedOrder.isNotEmpty) {
+        _webCategories
+          ..clear()
+          ..addAll(savedOrder);
+        return List<String>.from(_webCategories);
+      }
+      _webCategories
+        ..clear()
+        ..addAll(defaultCategories);
+      await prefs.setStringList(_categoryOrderPrefKey, _webCategories);
+      return List<String>.from(_webCategories);
+    }
+
+    List<String> rawList = [];
+    try {
       final db = await instance.database;
       final res = await db.query('categories', orderBy: 'id ASC');
       rawList = res.map((e) => e['name'] as String).toList();
+    } catch (_) {
+      rawList = List<String>.from(_webCategories);
     }
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedOrder = prefs.getStringList(_categoryOrderPrefKey);
-      if (savedOrder != null && savedOrder.isNotEmpty) {
-        final ordered = <String>[];
-        for (final item in savedOrder) {
-          if (rawList.contains(item)) {
-            ordered.add(item);
-          }
+    if (savedOrder != null && savedOrder.isNotEmpty) {
+      final ordered = <String>[];
+      for (final item in savedOrder) {
+        if (rawList.contains(item)) {
+          ordered.add(item);
         }
-        for (final item in rawList) {
-          if (!ordered.contains(item)) {
-            ordered.add(item);
-          }
-        }
-        return ordered;
       }
-    } catch (_) {}
+      for (final item in rawList) {
+        if (!ordered.contains(item)) {
+          ordered.add(item);
+        }
+      }
+      return ordered;
+    }
 
     return rawList;
   }
 
   Future<void> saveCategoryOrder(List<String> order) async {
+    final cleanOrder = List<String>.from(order);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_categoryOrderPrefKey, order);
+      await prefs.setStringList(_categoryOrderPrefKey, cleanOrder);
     } catch (_) {}
-    if (kIsWeb) {
-      _webCategories
-        ..clear()
-        ..addAll(order);
-    }
+    _webCategories
+      ..clear()
+      ..addAll(cleanOrder);
   }
 
   Future<void> addCategory(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
     if (kIsWeb) {
-      if (!_webCategories.contains(trimmed)) _webCategories.add(trimmed);
-      await saveCategoryOrder(_webCategories);
+      final current = await getCategories();
+      if (!current.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+        current.add(trimmed);
+      }
+      await saveCategoryOrder(current);
       return;
     }
-    final db = await instance.database;
-    await db.insert(
-      'categories',
-      {'name': trimmed},
-      conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
-    );
+    try {
+      final db = await instance.database;
+      await db.insert(
+        'categories',
+        {'name': trimmed},
+        conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
+      );
+    } catch (_) {
+      if (!_webCategories.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+        _webCategories.add(trimmed);
+      }
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_categoryOrderPrefKey) ?? [];
-      if (!savedOrder.contains(trimmed)) {
+      if (!savedOrder.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
         savedOrder.add(trimmed);
         await prefs.setStringList(_categoryOrderPrefKey, savedOrder);
       }
@@ -824,11 +845,14 @@ class DatabaseService {
     final trimmed = newName.trim();
     if (trimmed.isEmpty || trimmed == oldName) return;
     if (kIsWeb) {
-      final idx = _webCategories.indexOf(oldName);
-      if (idx != -1) _webCategories[idx] = trimmed;
-      await saveCategoryOrder(_webCategories);
+      final current = await getCategories();
+      final idx = current.indexWhere((c) => c.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) {
+        current[idx] = trimmed;
+      }
+      await saveCategoryOrder(current);
       for (int i = 0; i < _webExpenses.length; i++) {
-        if (_webExpenses[i].category == oldName) {
+        if (_webExpenses[i].category.toLowerCase() == oldName.toLowerCase()) {
           _webExpenses[i] = Expense(
             id: _webExpenses[i].id,
             amount: _webExpenses[i].amount,
@@ -844,9 +868,11 @@ class DatabaseService {
       return;
     }
 
-    final db = await instance.database;
-    await db.update('categories', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
-    await db.update('expenses', {'category': trimmed}, where: 'category = ?', whereArgs: [oldName]);
+    try {
+      final db = await instance.database;
+      await db.update('categories', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
+      await db.update('expenses', {'category': trimmed}, where: 'category = ?', whereArgs: [oldName]);
+    } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_categoryOrderPrefKey) ?? [];
@@ -860,12 +886,15 @@ class DatabaseService {
 
   Future<void> deleteCategory(String name) async {
     if (kIsWeb) {
-      _webCategories.remove(name);
-      await saveCategoryOrder(_webCategories);
+      final current = await getCategories();
+      current.removeWhere((c) => c.toLowerCase() == name.toLowerCase());
+      await saveCategoryOrder(current);
       return;
     }
-    final db = await instance.database;
-    await db.delete('categories', where: 'name = ?', whereArgs: [name]);
+    try {
+      final db = await instance.database;
+      await db.delete('categories', where: 'name = ?', whereArgs: [name]);
+    } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_categoryOrderPrefKey) ?? [];
@@ -877,67 +906,88 @@ class DatabaseService {
 
   // --- Payment Method Management ---
   Future<List<String>> getPaymentMethods() async {
-    List<String> rawList;
+    final prefs = await SharedPreferences.getInstance();
+    final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey);
+
     if (kIsWeb) {
-      rawList = List<String>.from(_webPaymentMethods);
-    } else {
+      if (savedOrder != null && savedOrder.isNotEmpty) {
+        _webPaymentMethods
+          ..clear()
+          ..addAll(savedOrder);
+        return List<String>.from(_webPaymentMethods);
+      }
+      _webPaymentMethods
+        ..clear()
+        ..addAll(defaultPaymentMethods);
+      await prefs.setStringList(_paymentMethodOrderPrefKey, _webPaymentMethods);
+      return List<String>.from(_webPaymentMethods);
+    }
+
+    List<String> rawList = [];
+    try {
       final db = await instance.database;
       final res = await db.query('payment_methods', orderBy: 'id ASC');
       rawList = res.map((e) => e['name'] as String).toList();
+    } catch (_) {
+      rawList = List<String>.from(_webPaymentMethods);
     }
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey);
-      if (savedOrder != null && savedOrder.isNotEmpty) {
-        final ordered = <String>[];
-        for (final item in savedOrder) {
-          if (rawList.contains(item)) {
-            ordered.add(item);
-          }
+    if (savedOrder != null && savedOrder.isNotEmpty) {
+      final ordered = <String>[];
+      for (final item in savedOrder) {
+        if (rawList.contains(item)) {
+          ordered.add(item);
         }
-        for (final item in rawList) {
-          if (!ordered.contains(item)) {
-            ordered.add(item);
-          }
-        }
-        return ordered;
       }
-    } catch (_) {}
+      for (final item in rawList) {
+        if (!ordered.contains(item)) {
+          ordered.add(item);
+        }
+      }
+      return ordered;
+    }
 
     return rawList;
   }
 
   Future<void> savePaymentMethodOrder(List<String> order) async {
+    final cleanOrder = List<String>.from(order);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_paymentMethodOrderPrefKey, order);
+      await prefs.setStringList(_paymentMethodOrderPrefKey, cleanOrder);
     } catch (_) {}
-    if (kIsWeb) {
-      _webPaymentMethods
-        ..clear()
-        ..addAll(order);
-    }
+    _webPaymentMethods
+      ..clear()
+      ..addAll(cleanOrder);
   }
 
   Future<void> addPaymentMethod(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
     if (kIsWeb) {
-      if (!_webPaymentMethods.contains(trimmed)) _webPaymentMethods.add(trimmed);
-      await savePaymentMethodOrder(_webPaymentMethods);
+      final current = await getPaymentMethods();
+      if (!current.any((p) => p.toLowerCase() == trimmed.toLowerCase())) {
+        current.add(trimmed);
+      }
+      await savePaymentMethodOrder(current);
       return;
     }
-    final db = await instance.database;
-    await db.insert(
-      'payment_methods',
-      {'name': trimmed},
-      conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
-    );
+    try {
+      final db = await instance.database;
+      await db.insert(
+        'payment_methods',
+        {'name': trimmed},
+        conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
+      );
+    } catch (_) {
+      if (!_webPaymentMethods.any((p) => p.toLowerCase() == trimmed.toLowerCase())) {
+        _webPaymentMethods.add(trimmed);
+      }
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey) ?? [];
-      if (!savedOrder.contains(trimmed)) {
+      if (!savedOrder.any((p) => p.toLowerCase() == trimmed.toLowerCase())) {
         savedOrder.add(trimmed);
         await prefs.setStringList(_paymentMethodOrderPrefKey, savedOrder);
       }
@@ -948,11 +998,12 @@ class DatabaseService {
     final trimmed = newName.trim();
     if (trimmed.isEmpty || trimmed == oldName) return;
     if (kIsWeb) {
-      final idx = _webPaymentMethods.indexOf(oldName);
-      if (idx != -1) _webPaymentMethods[idx] = trimmed;
-      await savePaymentMethodOrder(_webPaymentMethods);
+      final current = await getPaymentMethods();
+      final idx = current.indexWhere((p) => p.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) current[idx] = trimmed;
+      await savePaymentMethodOrder(current);
       for (int i = 0; i < _webExpenses.length; i++) {
-        if (_webExpenses[i].paymentMethod == oldName) {
+        if (_webExpenses[i].paymentMethod.toLowerCase() == oldName.toLowerCase()) {
           _webExpenses[i] = Expense(
             id: _webExpenses[i].id,
             amount: _webExpenses[i].amount,
@@ -968,9 +1019,11 @@ class DatabaseService {
       return;
     }
 
-    final db = await instance.database;
-    await db.update('payment_methods', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
-    await db.update('expenses', {'payment_method': trimmed}, where: 'payment_method = ?', whereArgs: [oldName]);
+    try {
+      final db = await instance.database;
+      await db.update('payment_methods', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
+      await db.update('expenses', {'payment_method': trimmed}, where: 'payment_method = ?', whereArgs: [oldName]);
+    } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey) ?? [];
@@ -984,12 +1037,15 @@ class DatabaseService {
 
   Future<void> deletePaymentMethod(String name) async {
     if (kIsWeb) {
-      _webPaymentMethods.remove(name);
-      await savePaymentMethodOrder(_webPaymentMethods);
+      final current = await getPaymentMethods();
+      current.removeWhere((p) => p.toLowerCase() == name.toLowerCase());
+      await savePaymentMethodOrder(current);
       return;
     }
-    final db = await instance.database;
-    await db.delete('payment_methods', where: 'name = ?', whereArgs: [name]);
+    try {
+      final db = await instance.database;
+      await db.delete('payment_methods', where: 'name = ?', whereArgs: [name]);
+    } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey) ?? [];

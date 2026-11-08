@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/providers/expense_provider.dart';
+import 'package:expense_tracker/services/database_service.dart';
 import 'package:expense_tracker/utils/category_icons.dart';
 import 'package:expense_tracker/widgets/category_payment_manager_sheet.dart';
 import 'package:expense_tracker/widgets/searchable_selection_sheet.dart';
@@ -166,6 +167,46 @@ void main() {
       await tester.tap(find.text('A-Z'));
       await tester.pumpAndSettle();
       expect(provider.categories.first, 'Food & Dining');
+
+      // Test adding a category via dialog
+      await tester.tap(find.text('Add Category'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add New Category'), findsOneWidget);
+      await tester.enterText(find.widgetWithText(TextField, 'Category Name'), 'Gym & Fitness');
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+
+      // Ensure all categories remain visible and newly added category appears!
+      expect(find.text('Gym & Fitness'), findsOneWidget);
+      expect(find.text('Food & Dining'), findsOneWidget);
+      expect(find.text('Shopping'), findsOneWidget);
+    });
+
+    test('Adding and persisting categories and payment methods does not wipe data', () async {
+      final provider = ExpenseProvider(autoFetch: false);
+      final initialCategories = await DatabaseService.instance.getCategories();
+      expect(initialCategories, isNotEmpty);
+
+      await provider.addCategory('Pet Care');
+      expect(provider.categories.contains('Pet Care'), isTrue);
+      // Ensure previous categories still exist
+      expect(provider.categories.contains(initialCategories.first), isTrue);
+
+      // Verify persistence across getCategories call
+      final reloadedCategories = await DatabaseService.instance.getCategories();
+      expect(reloadedCategories.contains('Pet Care'), isTrue);
+
+      // Same for payment methods
+      final initialMethods = await DatabaseService.instance.getPaymentMethods();
+      expect(initialMethods, isNotEmpty);
+
+      await provider.addPaymentMethod('Cheque');
+      expect(provider.paymentMethods.contains('Cheque'), isTrue);
+      expect(provider.paymentMethods.contains(initialMethods.first), isTrue);
+
+      final reloadedMethods = await DatabaseService.instance.getPaymentMethods();
+      expect(reloadedMethods.contains('Cheque'), isTrue);
     });
 
     testWidgets('SearchableSelectionSheet filters categories and shows icons and usage badges', (tester) async {
