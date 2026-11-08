@@ -16,7 +16,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSyncing = false;
-  bool _autoSync = true;
+  bool _autoSync = false;
   String? _testStatusMessage;
   bool? _testSuccess;
   bool _isGuideExpanded = false;

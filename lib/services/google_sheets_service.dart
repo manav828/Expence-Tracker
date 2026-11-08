@@ -33,7 +33,7 @@ class GoogleSheetsService {
 
   Future<bool> isAutoSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefKeyAutoSync) ?? true;
+    return prefs.getBool(_prefKeyAutoSync) ?? false;
   }
 
   Future<void> setAutoSyncEnabled(bool enabled) async {
@@ -76,7 +76,7 @@ class GoogleSheetsService {
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
         body: jsonEncode(payload),
       );
 
@@ -101,7 +101,10 @@ class GoogleSheetsService {
   Future<void> syncExpenseIfEnabled(Expense expense) async {
     final autoSync = await isAutoSyncEnabled();
     if (autoSync) {
-      sendExpense(expense);
+      final url = await getWebhookUrl();
+      if (url.trim().isNotEmpty && url != defaultWebhookUrl) {
+        sendExpense(expense);
+      }
     }
   }
 
@@ -122,7 +125,7 @@ class GoogleSheetsService {
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
         body: jsonEncode(payload),
       );
 
@@ -177,7 +180,7 @@ class GoogleSheetsService {
 
       final response = await http.post(
         Uri.parse(targetUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
         body: jsonEncode(testPayload),
       );
 
