@@ -11,6 +11,7 @@ import 'budget_screen.dart';
 import 'category_detail_screen.dart';
 import '../utils/category_icons.dart';
 import '../widgets/reminder_carousel_banner.dart';
+import '../widgets/dashboard_shimmer.dart';
 import '../services/auth_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -89,31 +90,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Consumer<ExpenseProvider>(
       builder: (context, provider, child) {
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          children: [
-            // 1. Executive Header & Greeting Pill
-            _buildGreetingRow(context),
-            const SizedBox(height: 12),
+        if (provider.isLoading && provider.expenses.isEmpty) {
+          return const DashboardShimmer();
+        }
 
-            // Payment Reminders & Upcoming Bills Carousel Banner
-            const ReminderCarouselBanner(),
-            const SizedBox(height: 8),
+        return RefreshIndicator(
+          onRefresh: () => provider.fetchExpenses(showLoading: false),
+          color: const Color(0xFF006948),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              // 1. Executive Header & Greeting Pill
+              _buildGreetingRow(context),
+              const SizedBox(height: 12),
 
-            // 2. Monthly Category Budget Snapshot Card
-            _buildBudgetSnapshotCard(context, provider),
+              // Payment Reminders & Upcoming Bills Carousel Banner
+              const ReminderCarouselBanner(),
+              const SizedBox(height: 8),
 
-            // 3. Category Expense Allocation Donut Card
-            _buildCategoryDonutCard(context, provider),
-            const SizedBox(height: 20),
+              // 2. Monthly Category Budget Snapshot Card
+              _buildBudgetSnapshotCard(context, provider),
 
-            // 4. Cumulative Day-by-Day Escalation Trajectory Spline
-            _buildTrajectoryCard(context, provider),
-            const SizedBox(height: 20),
+              // 3. Category Expense Allocation Donut Card
+              _buildCategoryDonutCard(context, provider),
+              const SizedBox(height: 20),
 
-            // 5. Recent Verified Ledger
-            _buildVerifiedLedgerSection(context, provider),
-          ],
+              // 4. Cumulative Day-by-Day Escalation Trajectory Spline
+              _buildTrajectoryCard(context, provider),
+              const SizedBox(height: 20),
+
+              // 5. Recent Verified Ledger
+              _buildVerifiedLedgerSection(context, provider),
+            ],
+          ),
         );
       },
     );

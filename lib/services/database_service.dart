@@ -441,20 +441,26 @@ class DatabaseService {
     );
   }
 
+  /// Fast local path: retrieves all expenses directly from local SQLite or memory cache in <5ms.
+  Future<List<Expense>> getLocalExpenses() async {
+    if (kIsWeb) {
+      final list = List<Expense>.from(_webExpenses);
+      list.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+      return list;
+    }
+    try {
+      final db = await instance.database;
+      final result = await db.query('expenses', orderBy: 'expense_date DESC');
+      return result.map((json) => Expense.fromMap(json)).toList();
+    } catch (e) {
+      debugPrint('Local SQLite query error in getLocalExpenses: $e');
+      return [];
+    }
+  }
+
   Future<List<Expense>> getAllExpenses() async {
     // 1. Always read local SQLite first (safe, instant, zero data loss)
-    List<Expense> localList = [];
-    if (kIsWeb) {
-      localList = List<Expense>.from(_webExpenses);
-    } else {
-      try {
-        final db = await instance.database;
-        final result = await db.query('expenses', orderBy: 'expense_date DESC');
-        localList = result.map((json) => Expense.fromMap(json)).toList();
-      } catch (e) {
-        debugPrint('Local SQLite query error: $e');
-      }
-    }
+    final localList = await getLocalExpenses();
 
     final isCloud = await StoragePreferenceService.isCloud();
     final client = _supabaseClient;
@@ -478,27 +484,36 @@ class DatabaseService {
           });
         }
 
-        // If cloud has entries, mirror to local SQLite and return cloud entries
-        if (cloudList.isNotEmpty) {
-          if (!kIsWeb) {
-            _syncLocalAndCloudInBackground(currentUser.id, cloudList);
+        // Merge local & cloud: Never drop local entries that aren't synced to cloud yet!
+        // We match by unique timestamp/attribute keys and prefer the newer version if updated locally.
+        final Map<String, Expense> mergedMap = {};
+        for (final exp in cloudList) {
+          final key = '${exp.createdAt}_${exp.expenseDate}';
+          mergedMap[key] = exp;
+        }
+        for (final exp in localList) {
+          final key = '${exp.createdAt}_${exp.expenseDate}';
+          final existing = mergedMap[key];
+          if (existing == null) {
+            // New local-only expense (from SMS, QuickAdd notification, or offline)
+            mergedMap[key] = exp;
+          } else if (exp.updatedAt > existing.updatedAt) {
+            // Local has a newer modification (e.g. edited from notification)
+            mergedMap[key] = exp;
           }
-          return cloudList;
         }
 
-        // If cloud is empty but we have local expenses:
-        // Return local expenses immediately so the user NEVER loses their view!
-        // And automatically push them to Cloud in the background!
-        if (localList.isNotEmpty) {
-          Future.microtask(() async {
-            try {
-              await syncLocalToCloud();
-            } catch (e) {
-              debugPrint('Auto sync local to cloud error: $e');
-            }
-          });
-          return localList;
+        final merged = mergedMap.values.toList();
+        merged.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+
+        // Two-way background reconciliation:
+        // 1) Mirror fresh cloud entries into local SQLite
+        // 2) Push any unsynced local entries to cloud
+        if (!kIsWeb) {
+          _syncLocalAndCloudInBackground(currentUser.id, cloudList);
         }
+
+        return merged;
       } catch (e) {
         debugPrint('Cloud getAllExpenses error, falling back to local: $e');
       }
@@ -514,27 +529,34 @@ class DatabaseService {
       try {
         final db = await instance.database;
 
-        // 1. Mirror all cloud entries into local SQLite cache
+        // 1. Get current local entries
+        final localRes = await db.query('expenses');
+        final currentLocal = localRes.map((m) => Expense.fromMap(m)).toList();
+        final localKeys = currentLocal.map((r) =>
+          '${r.createdAt}_${r.expenseDate}').toSet();
+
+        // 2. Only insert cloud entries that do NOT exist in local SQLite yet
+        // Do NOT overwrite existing local rows with replace! Use safe insertion without 'id'
         final batch = db.batch();
         for (final exp in cloudList) {
-          batch.insert(
-            'expenses',
-            exp.toMap(),
-            conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
-          );
+          final key = '${exp.createdAt}_${exp.expenseDate}';
+          if (!localKeys.contains(key)) {
+            final map = exp.toMap();
+            map.remove('id'); // Allow local SQLite autoincrement to assign unique safe ID
+            batch.insert('expenses', map);
+            localKeys.add(key);
+          }
         }
         await batch.commit(noResult: true);
 
-        // 2. Mirror any offline-created local entries to cloud
-        final localRes = await db.query('expenses');
-        final localList = localRes.map((m) => Expense.fromMap(m)).toList();
+        // 3. Mirror any offline/locally-created entries to cloud
         final cloudKeys = cloudList.map((r) =>
-          '${r.createdAt}_${r.expenseDate}_${r.amount}_${r.category}').toSet();
+          '${r.createdAt}_${r.expenseDate}').toSet();
 
         final client = _supabaseClient;
         if (client == null) return;
-        for (final exp in localList) {
-          final key = '${exp.createdAt}_${exp.expenseDate}_${exp.amount}_${exp.category}';
+        for (final exp in currentLocal) {
+          final key = '${exp.createdAt}_${exp.expenseDate}';
           if (!cloudKeys.contains(key)) {
             final map = exp.toMap();
             map.remove('id');

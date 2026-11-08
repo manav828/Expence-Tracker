@@ -39,17 +39,44 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  @visibleForTesting
+  void setIsLoadingForTesting(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
   Future<void> fetchExpenses({bool showLoading = true}) async {
-    if (showLoading) {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
+    // 1. FAST PATH: Instant local retrieval (<5ms) to prevent empty / 0-data flash
+    try {
+      final local = await DatabaseService.instance.getLocalExpenses();
+      final localCats = await DatabaseService.instance.getCategories();
+      final localPms = await DatabaseService.instance.getPaymentMethods();
+
+      if (local.isNotEmpty || localCats.isNotEmpty) {
+        _expenses = local;
+        _categories = localCats;
+        _paymentMethods = localPms;
+        _isLoading = false;
+        notifyListeners(); // Immediate render! Real data displays instantly.
+      } else if (showLoading && _expenses.isEmpty) {
+        _isLoading = true;
+        _errorMessage = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Instant local load error in fetchExpenses: $e');
     }
 
+    // 2. CLOUD & RECONCILIATION PATH: Refresh and reconcile without blocking the UI
     try {
-      _expenses = await DatabaseService.instance.getAllExpenses();
-      _categories = await DatabaseService.instance.getCategories();
-      _paymentMethods = await DatabaseService.instance.getPaymentMethods();
+      final allExpenses = await DatabaseService.instance.getAllExpenses();
+      final allCats = await DatabaseService.instance.getCategories();
+      final allPms = await DatabaseService.instance.getPaymentMethods();
+
+      _expenses = allExpenses;
+      _categories = allCats;
+      _paymentMethods = allPms;
+      _errorMessage = null;
     } catch (e, st) {
       ErrorHandler.log('ExpenseProvider.fetchExpenses', e, st);
       _errorMessage = ErrorHandler.getUserMessage(e);
