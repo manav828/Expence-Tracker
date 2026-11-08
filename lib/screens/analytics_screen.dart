@@ -182,6 +182,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   void _showFilterOptionsSheet(BuildContext context) {
+    final provider = Provider.of<ExpenseProvider>(context, listen: false);
+
+    // Extract only user-configured and user-created payment methods (no static or fake methods)
+    final List<String> userPaymentMethods = [];
+    final seen = <String>{};
+
+    for (final pm in provider.paymentMethods) {
+      final trimmed = pm.trim();
+      if (trimmed.isNotEmpty && seen.add(trimmed.toLowerCase())) {
+        userPaymentMethods.add(trimmed);
+      }
+    }
+
+    for (final exp in provider.expenses) {
+      final pm = exp.paymentMethod.trim();
+      if (pm.isNotEmpty && seen.add(pm.toLowerCase())) {
+        userPaymentMethods.add(pm);
+      }
+    }
+
+    final paymentFilterOptions = ['All', ...userPaymentMethods];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -233,8 +255,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: ['All', 'UPI', 'Credit Card', 'Debit Card', 'Cash', 'Net Banking'].map((method) {
-                        final isSel = method == 'All' ? _selectedPaymentFilter == null : _selectedPaymentFilter == method;
+                      runSpacing: 8,
+                      children: paymentFilterOptions.map((method) {
+                        final isSel = method == 'All'
+                            ? _selectedPaymentFilter == null
+                            : (_selectedPaymentFilter != null && _selectedPaymentFilter!.trim().toLowerCase() == method.trim().toLowerCase());
                         return ChoiceChip(
                           label: Text(method),
                           selected: isSel,
@@ -455,10 +480,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               return false;
             }
           }
-          if (_selectedCategoryFilter != null && e.category != _selectedCategoryFilter) {
+          if (_selectedCategoryFilter != null &&
+              e.category.trim().toLowerCase() != _selectedCategoryFilter!.trim().toLowerCase()) {
             return false;
           }
-          if (_selectedPaymentFilter != null && e.paymentMethod != _selectedPaymentFilter) {
+          if (_selectedPaymentFilter != null &&
+              e.paymentMethod.trim().toLowerCase() != _selectedPaymentFilter!.trim().toLowerCase()) {
             return false;
           }
           if (_searchQuery.isNotEmpty) {

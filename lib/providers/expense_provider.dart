@@ -31,10 +31,13 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   @visibleForTesting
-  void setExpensesForTesting(List<Expense> list, {List<String>? categories}) {
+  void setExpensesForTesting(List<Expense> list, {List<String>? categories, List<String>? paymentMethods}) {
     _expenses = List.from(list);
     if (categories != null) {
       _categories = List.from(categories);
+    }
+    if (paymentMethods != null) {
+      _paymentMethods = List.from(paymentMethods);
     }
     notifyListeners();
   }

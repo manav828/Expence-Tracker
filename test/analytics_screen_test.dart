@@ -92,5 +92,20 @@ void main() {
     // Verify CustomPaint widgets used for timeline vertical tracks are present
     final customPaints = find.byType(CustomPaint);
     expect(customPaints, findsWidgets);
+
+    // Open Filter & Sort bottom sheet via tune icon
+    await tester.tap(find.byIcon(Icons.tune_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Filter & Sort Ledger'), findsOneWidget);
+    // User created payment methods should be present
+    expect(find.text('All'), findsWidgets);
+    expect(find.text('UPI'), findsOneWidget);
+    expect(find.text('Card'), findsOneWidget);
+
+    // Static/hardcoded methods should NOT exist
+    expect(find.text('Credit Card'), findsNothing);
+    expect(find.text('Debit Card'), findsNothing);
+    expect(find.text('Net Banking'), findsNothing);
   });
 }
