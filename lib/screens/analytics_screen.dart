@@ -1440,7 +1440,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               // Day Items in Timeline View
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.only(top: 4, bottom: 6),
                 child: Column(
                   children: [
                     for (int idx = 0; idx < dayExpenses.length; idx++)
@@ -1455,7 +1455,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // --- 7. Timeline Transaction Row with Vertical Connector, Dot, Brand Avatar & Payment Time ---
+  // --- 7. Timeline Transaction Row with Continuous Vertical Spine, Milestone Node & Branch ---
   Widget _buildTimelineTransactionItem(
     Expense expense,
     int idx,
@@ -1497,152 +1497,127 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         );
       },
       onLongPress: () => _confirmDeleteExpense(context, expense, provider),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Vertical Timeline Guide with Green Bullet Dot
-              SizedBox(
-                width: 22,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Top vertical connector line
-                    if (idx > 0)
-                      Positioned(
-                        top: 0,
-                        bottom: 18,
-                        child: Container(
-                          width: 2,
-                          color: const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                    // Bottom vertical connector line
-                    if (idx < totalInDay - 1)
-                      Positioned(
-                        top: 18,
-                        bottom: 0,
-                        child: Container(
-                          width: 2,
-                          color: const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                    // Vibrant Green Dot
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF006948),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x33006948),
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Continuous Timeline Spine Column
+            SizedBox(
+              width: 28,
+              child: CustomPaint(
+                painter: _TimelineTrackPainter(
+                  isFirst: idx == 0,
+                  isLast: idx == totalInDay - 1,
+                  totalInDay: totalInDay,
+                  isIncome: expense.isIncome,
                 ),
               ),
-              const SizedBox(width: 4),
+            ),
 
-              // Brand / Merchant Circular Avatar
-              _buildMerchantAvatar(expense),
-              const SizedBox(width: 10),
-
-              // Transaction details (Title, Category · Payment Method, Note Pill)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+            // Transaction details & Avatar
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(2, 9, 14, 9),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF131B2E),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${expense.category} · ${expense.paymentMethod}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (noteTag != null && noteTag.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.description_outlined, size: 10.5, color: Color(0xFF64748B)),
-                            const SizedBox(width: 3),
-                            Flexible(
-                              child: Text(
-                                noteTag,
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF475569),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                    // Brand / Merchant Circular Avatar
+                    _buildMerchantAvatar(expense),
+                    const SizedBox(width: 10),
+
+                    // Transaction details (Title, Category · Payment Method, Note Pill)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF131B2E),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${expense.category} · ${expense.paymentMethod}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (noteTag != null && noteTag.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.description_outlined, size: 10.5, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      noteTag,
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Payment Time & Formatted Amount
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          timeStr,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          expense.isIncome
+                              ? '+ ${currencyFmt.format(expense.amount)}'
+                              : '- ${currencyFmt.format(expense.amount)}',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-
-              // Payment Time & Formatted Amount
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    timeStr,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '- ${currencyFmt.format(expense.amount)}',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF131B2E),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2427,4 +2402,81 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ],
     );
   }
+}
+
+/// Custom painter for unbroken, continuous timeline tracks with milestone nodes.
+class _TimelineTrackPainter extends CustomPainter {
+  final bool isFirst;
+  final bool isLast;
+  final int totalInDay;
+  final bool isIncome;
+
+  const _TimelineTrackPainter({
+    required this.isFirst,
+    required this.isLast,
+    required this.totalInDay,
+    required this.isIncome,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+
+    // Timeline spine paint (clean, crisp vertical track)
+    final spinePaint = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    // 1. Continuous Vertical Timeline Line
+    if (totalInDay > 1) {
+      if (!isFirst) {
+        // Line from top of this cell down to node center
+        canvas.drawLine(Offset(centerX, 0), Offset(centerX, centerY), spinePaint);
+      }
+      if (!isLast) {
+        // Line from node center down to bottom of this cell
+        canvas.drawLine(Offset(centerX, centerY), Offset(centerX, size.height), spinePaint);
+      }
+    } else {
+      // Single transaction on this day: draw a vertical stem through the milestone node
+      canvas.drawLine(Offset(centerX, centerY - 14), Offset(centerX, centerY + 14), spinePaint);
+    }
+
+    // 2. Milestone Node
+    final nodeColor = isIncome ? const Color(0xFF006948) : const Color(0xFF006948);
+
+    // Outer glow / halo ring
+    final haloPaint = Paint()
+      ..color = nodeColor.withValues(alpha: 0.16)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(centerX, centerY), 7.5, haloPaint);
+
+    // Inner solid milestone dot
+    final dotPaint = Paint()
+      ..color = nodeColor
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(centerX, centerY), 4.5, dotPaint);
+
+    // Crisp white border ring
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(Offset(centerX, centerY), 4.5, borderPaint);
+
+    // Center white micro-core
+    final corePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(centerX, centerY), 1.8, corePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TimelineTrackPainter oldDelegate) =>
+      oldDelegate.isFirst != isFirst ||
+      oldDelegate.isLast != isLast ||
+      oldDelegate.totalInDay != totalInDay ||
+      oldDelegate.isIncome != isIncome;
 }

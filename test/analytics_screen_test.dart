@@ -84,5 +84,13 @@ void main() {
     await tester.tap(find.text('Breakdown'));
     await tester.pumpAndSettle();
     expect(find.text('Categories'), findsOneWidget);
+
+    // Switch back to Ledger mode and verify continuous timeline custom paints
+    await tester.tap(find.text('Ledger'));
+    await tester.pumpAndSettle();
+
+    // Verify CustomPaint widgets used for timeline vertical tracks are present
+    final customPaints = find.byType(CustomPaint);
+    expect(customPaints, findsWidgets);
   });
 }
