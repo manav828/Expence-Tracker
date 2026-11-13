@@ -192,12 +192,12 @@ A total of **24 distinct issues and bugs** were discovered and systematically re
 
 ---
 
-### 4.3 Notification Swipe-Away Leaves Phantom Records
+### 4.3 Notification Swipe-Away vs Manual Discard Action
 - **Severity:** 🟠 **High**
 - **File Reference:** [`SmsReceiver.kt`](file:///d:/Manav/website/expence%20tracker/android/app/src/main/kotlin/com/manav/expense/expense_tracker/SmsReceiver.kt)
-- **Defect:** Swiping away the transaction notification did not invoke `NotificationDismissReceiver` because `.setDeleteIntent()` was omitted.
+- **Defect:** Swiping away or clearing the transaction notification from the phone was discarding/deleting the logged expense entry because `.setDeleteIntent(discardPendingIntent)` was set on notification dismissal.
 - **Status:** ✅ **Fixed**
-- **Resolution Applied:** Added `.setDeleteIntent(discardPendingIntent)` on the notification builder, ensuring swiping away or clearing the notification triggers deletion of unapproved auto-logged records.
+- **Resolution Applied:** Removed `.setDeleteIntent(discardPendingIntent)` from the notification builder. Clearing or swiping away the notification now simply dismisses the notification alert and leaves the auto-logged expense safely saved in the database. Deletion occurs strictly only when the user explicitly clicks the manual "Discard" action button.
 
 ---
 

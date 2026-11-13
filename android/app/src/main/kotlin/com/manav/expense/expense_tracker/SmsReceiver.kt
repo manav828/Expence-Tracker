@@ -208,7 +208,6 @@ class SmsReceiver : BroadcastReceiver() {
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(editPendingIntent)
-            .setDeleteIntent(discardPendingIntent)
             .setAutoCancel(true)
             .addAction(android.R.drawable.ic_menu_edit, "Edit", editPendingIntent)
             .addAction(android.R.drawable.ic_menu_delete, "Discard", discardPendingIntent)
