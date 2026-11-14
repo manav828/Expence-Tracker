@@ -80,17 +80,55 @@ class SmsReceiver : BroadcastReceiver() {
 
         if (amount == null || amount <= 0) return
 
-        // 2. Determine transaction type
-        val isDebit = lowerMsg.contains("debited") || lowerMsg.contains("sent rs") || 
-                      lowerMsg.contains("txn rs") || lowerMsg.contains("spent") || 
-                      lowerMsg.contains("paid") || lowerMsg.contains("withdrawn")
-        val isCredit = lowerMsg.contains("deposited") || lowerMsg.contains("credited") || 
-                       lowerMsg.contains("received") || lowerMsg.contains("salary") || 
-                       lowerMsg.contains("deposit") || lowerMsg.contains("added")
-        val isBankTxn = lowerMsg.contains("a/c") || lowerMsg.contains("bank") || 
-                        lowerMsg.contains("inr") || lowerMsg.contains("avl bal")
+        // 2. Determine transaction type (Credit/Income vs Debit/Expense)
+        val hasDebitVerbs = lowerMsg.contains("debited") || lowerMsg.contains("sent rs") || 
+                            lowerMsg.contains("sent inr") || lowerMsg.contains("txn rs") || 
+                            lowerMsg.contains("spent") || lowerMsg.contains("paid") || 
+                            lowerMsg.contains("withdrawn") || lowerMsg.contains("charged") ||
+                            lowerMsg.contains("purchase of")
 
-        if (!isDebit && !isCredit && !isBankTxn) return
+        val hasCreditVerbs = lowerMsg.contains("credited") || lowerMsg.contains("deposited") || 
+                             lowerMsg.contains("received") || lowerMsg.contains("cashback") || 
+                             lowerMsg.contains("refund") || lowerMsg.contains("salary") || 
+                             lowerMsg.contains("reversal") || lowerMsg.contains("added to")
+
+        val isCredit: Boolean
+        val isDebit: Boolean
+
+        if (hasDebitVerbs && hasCreditVerbs) {
+            // Disambiguate when both appear (e.g. "debited from a/c ... credited towards card bill")
+            if (lowerMsg.contains("debited from") || lowerMsg.contains("debited for") || lowerMsg.contains("debited by")) {
+                isDebit = true
+                isCredit = false
+            } else if (lowerMsg.contains("credited to") || lowerMsg.contains("credited with") || lowerMsg.contains("credited by")) {
+                isCredit = true
+                isDebit = false
+            } else {
+                isDebit = true
+                isCredit = false
+            }
+        } else if (hasCreditVerbs) {
+            isCredit = true
+            isDebit = false
+        } else if (hasDebitVerbs) {
+            isDebit = true
+            isCredit = false
+        } else {
+            val isBankTxn = lowerMsg.contains("a/c") || lowerMsg.contains("bank") || 
+                            lowerMsg.contains("inr") || lowerMsg.contains("avl bal")
+            if (!isBankTxn) return
+
+            // Fallback for bank transactions lacking direct keywords
+            if (lowerMsg.contains("cr") || lowerMsg.contains("deposit")) {
+                isCredit = true
+                isDebit = false
+            } else {
+                isDebit = true
+                isCredit = false
+            }
+        }
+
+        val txType = if (isCredit) "income" else "expense"
 
         // 3. Smart payment method detection
         var paymentMethod = "UPI"
@@ -120,6 +158,10 @@ class SmsReceiver : BroadcastReceiver() {
             } else {
                 comment = "Salary Deposit"
             }
+        } else if (lowerMsg.contains("refund")) {
+            comment = "Refund Received"
+        } else if (lowerMsg.contains("cashback")) {
+            comment = "Cashback Received"
         } else {
             val merchantPattern = Pattern.compile("(?:at|to|for|from|info)\\s+([A-Za-z0-9@\\.\\-_\\s&]{3,35})(?:\\s+on|\\s+ref|\\s+by|\\s+avl|\\.|$)", Pattern.CASE_INSENSITIVE)
             val mMatcher = merchantPattern.matcher(messageBody)
@@ -135,6 +177,8 @@ class SmsReceiver : BroadcastReceiver() {
         var suggestedCategory = if (isCredit) "Salary" else "General"
         if (lowerMsg.contains("salary") || lowerMsg.contains("payroll") || lowerMsg.contains("stipend")) {
             suggestedCategory = "Salary"
+        } else if (isCredit && (lowerMsg.contains("refund") || lowerMsg.contains("cashback") || lowerMsg.contains("reversal"))) {
+            suggestedCategory = "General"
         } else if (lowerMsg.contains("swiggy") || lowerMsg.contains("zomato") || lowerMsg.contains("restaurant") || lowerMsg.contains("food") || lowerMsg.contains("cafe")) {
             suggestedCategory = "Food & Dining"
         } else if (lowerMsg.contains("amazon") || lowerMsg.contains("flipkart") || lowerMsg.contains("myntra") || lowerMsg.contains("shopping") || lowerMsg.contains("mart")) {
@@ -143,18 +187,18 @@ class SmsReceiver : BroadcastReceiver() {
             suggestedCategory = "Transport"
         } else if (lowerMsg.contains("hospital") || lowerMsg.contains("pharmacy") || lowerMsg.contains("med")) {
             suggestedCategory = "Health & Wellness"
-        } else if (lowerMsg.contains("mutual fund") || lowerMsg.contains("zerodha") || lowerMsg.contains("groww") || lowerMsg.contains("invest")) {
+        } else if (lowerMsg.contains("mutual fund") || lowerMsg.contains("zerodha") || lowerMsg.contains("groww") || lowerMsg.contains("invest") || lowerMsg.contains("dividend")) {
             suggestedCategory = "Investment"
         } else if (lowerMsg.contains("bill") || lowerMsg.contains("recharge") || lowerMsg.contains("electricity")) {
             suggestedCategory = "Bills & Utilities"
         }
 
-        // 6. IMMEDIATELY auto-log into Database
+        // 6. IMMEDIATELY auto-log into Database with proper transaction type
         val dbHelper = DatabaseHelper(context)
-        val expenseId = dbHelper.insertExpense(amount, suggestedCategory, paymentMethod, comment)
+        val expenseId = dbHelper.insertExpense(amount, suggestedCategory, paymentMethod, comment, System.currentTimeMillis(), txType)
         if (expenseId != -1L) {
             ExpenseWidgetProvider.sendUpdateBroadcast(context)
-            Log.d("SmsReceiver", "Auto-logged expense with ID: $expenseId")
+            Log.d("SmsReceiver", "Auto-logged transaction with ID: $expenseId, type: $txType")
         }
 
         val notificationId = (System.currentTimeMillis() % 100000).toInt()
@@ -173,6 +217,7 @@ class SmsReceiver : BroadcastReceiver() {
             putExtra("EXTRA_IS_AUTO_DETECTED", true)
             putExtra("EXTRA_IS_EDIT_MODE", true)
             putExtra("EXTRA_NOTIFICATION_ID", notificationId)
+            putExtra("EXTRA_TYPE", txType)
         }
 
         val editPendingIntent = PendingIntent.getActivity(
@@ -199,11 +244,18 @@ class SmsReceiver : BroadcastReceiver() {
 
         // 10. Show Notification with Edit & Discard actions
         val formattedAmount = if (amount % 1.0 == 0.0) amount.toInt().toString() else String.format(Locale.US, "%.2f", amount)
+        val notifTitle = if (isCredit) "₹$formattedAmount Credited via $paymentMethod" else "₹$formattedAmount Spent via $paymentMethod"
+        val bigText = if (isCredit) {
+            "Credited ₹$formattedAmount in $suggestedCategory for $comment ($paymentMethod).\nTap to edit details, or tap Discard to delete."
+        } else {
+            "Logged ₹$formattedAmount in $suggestedCategory for $comment ($paymentMethod).\nTap to edit details, or tap Discard to delete."
+        }
+
         val notifBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Transaction Logged: ₹$formattedAmount")
+            .setContentTitle(notifTitle)
             .setContentText("$comment · $suggestedCategory ($paymentMethod)")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("Logged ₹$formattedAmount in $suggestedCategory for $comment ($paymentMethod).\nTap to edit details, or tap Discard to delete."))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -217,7 +269,7 @@ class SmsReceiver : BroadcastReceiver() {
         notificationManager?.notify(notificationId, notifBuilder.build())
 
         // Notify running Flutter app if in foreground
-        MainActivity.notifyTransactionDetected(amount, suggestedCategory, paymentMethod, comment)
+        MainActivity.notifyTransactionDetected(amount, suggestedCategory, paymentMethod, comment, txType)
     }
 
     private fun createNotificationChannel(context: Context) {

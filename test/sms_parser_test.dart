@@ -88,5 +88,25 @@ Ref 126100685141''';
       final result2 = SmsParser.parse(sms2);
       expect(result2, isNull);
     });
+
+    test('Parses various credit keywords as income', () {
+      const sms1 = 'Dear SBI User, A/c 1234 credited by Rs 5000.00 on 14Nov26 by transfer from UPI/John. Avl Bal Rs 15000.00';
+      final res1 = SmsParser.parse(sms1);
+      expect(res1, isNotNull);
+      expect(res1!.amount, 5000.0);
+      expect(res1.isExpense, false);
+
+      const sms2 = 'Refund of Rs 799.00 processed and credited to your account XX4321 on 14-Nov-2026.';
+      final res2 = SmsParser.parse(sms2);
+      expect(res2, isNotNull);
+      expect(res2!.amount, 799.0);
+      expect(res2.isExpense, false);
+
+      const sms3 = 'Dear Customer, your a/c XX1234 is credited with INR 1,200.00 on 14-NOV-2026. Avl bal INR 8,000.00';
+      final res3 = SmsParser.parse(sms3);
+      expect(res3, isNotNull);
+      expect(res3!.amount, 1200.0);
+      expect(res3.isExpense, false);
+    });
   });
 }

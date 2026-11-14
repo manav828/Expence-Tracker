@@ -44,12 +44,36 @@ class AuthService {
   String? _cachedDisplayName;
   String? _cachedPhotoUrl;
 
+  final ValueNotifier<String> userNameNotifier = ValueNotifier<String>('Guest User');
+
   Future<void> initUserCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _cachedDisplayName = prefs.getString(_userNameKey);
       _cachedPhotoUrl = prefs.getString(_userPhotoKey);
+      userNameNotifier.value = userDisplayName;
     } catch (_) {}
+  }
+
+  Future<void> updateDisplayName(String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return;
+    _cachedDisplayName = trimmed;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userNameKey, trimmed);
+    } catch (_) {}
+    userNameNotifier.value = trimmed;
+
+    try {
+      if (isAuthenticated) {
+        await _client.auth.updateUser(
+          UserAttributes(data: {'full_name': trimmed, 'name': trimmed}),
+        );
+      }
+    } catch (e) {
+      debugPrint('AuthService.updateDisplayName error updating Supabase: $e');
+    }
   }
 
   String? get userAvatarUrl {
@@ -129,6 +153,7 @@ class AuthService {
       password: password,
     );
     await StoragePreferenceService.setMode(StorageMode.cloud);
+    userNameNotifier.value = userDisplayName;
     return response;
   }
 
@@ -149,6 +174,7 @@ class AuthService {
       _cachedDisplayName = fullName.trim();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_userNameKey, fullName.trim());
+      userNameNotifier.value = fullName.trim();
     } catch (_) {}
 
     return response;
@@ -215,6 +241,7 @@ class AuthService {
         accessToken: accessToken,
       );
       await StoragePreferenceService.setMode(StorageMode.cloud);
+      userNameNotifier.value = userDisplayName;
       return res;
     } catch (e, st) {
       ErrorHandler.log('AuthService.signInWithGoogle', e, st);
@@ -250,6 +277,8 @@ class AuthService {
       _cachedDisplayName = null;
       _cachedPhotoUrl = null;
     } catch (_) {}
+
+    userNameNotifier.value = 'Guest User';
 
     try {
       await DatabaseService.instance.clearLocalDatabaseOnly();

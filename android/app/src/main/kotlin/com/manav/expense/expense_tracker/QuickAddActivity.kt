@@ -38,12 +38,18 @@ class QuickAddActivity : Activity() {
 
     private var selectedCategory = "Food & Dining"
     private var selectedPaymentMethod = "UPI"
+    private var selectedType = "expense"
 
     private val categoryViews = mutableListOf<TextView>()
     private val paymentViews = mutableListOf<TextView>()
 
     private lateinit var categoryContainer: LinearLayout
     private lateinit var paymentContainer: LinearLayout
+    private lateinit var btnTypeExpense: TextView
+    private lateinit var btnTypeIncome: TextView
+    private lateinit var textCurrencySymbol: TextView
+    private lateinit var textTitle: TextView
+    private lateinit var btnSave: Button
 
     // Auto-detection & Edit tracking fields
     private var expenseId: Long = -1L
@@ -87,6 +93,8 @@ class QuickAddActivity : Activity() {
         incomingCategory = intent.getStringExtra("EXTRA_CATEGORY")
         incomingPaymentMethod = intent.getStringExtra("EXTRA_PAYMENT_METHOD")
         incomingComment = intent.getStringExtra("EXTRA_COMMENT")
+        val incomingType = intent.getStringExtra("EXTRA_TYPE") ?: if (isEditMode) dbHelper.getExpenseType(expenseId) else "expense"
+        selectedType = if (incomingType.equals("income", ignoreCase = true)) "income" else "expense"
 
         // Dismiss the alert notification since user opened the dialog
         dismissNotificationIfPresent()
@@ -104,33 +112,54 @@ class QuickAddActivity : Activity() {
             selectedPaymentMethod = incomingPaymentMethod?.takeIf { paymentMethods.contains(it) } ?: paymentMethods[0]
         }
 
-        val textTitle = findViewById<TextView>(R.id.textTitle)
+        textTitle = findViewById(R.id.textTitle)
         val editAmount = findViewById<EditText>(R.id.editAmount)
         val editComment = findViewById<EditText>(R.id.editComment)
-        val btnSave = findViewById<Button>(R.id.btnSave)
+        btnSave = findViewById(R.id.btnSave)
         val btnCancel = findViewById<Button>(R.id.btnCancel)
         val btnClose = findViewById<ImageButton>(R.id.btnClose)
         val layoutAutoDetectNotice = findViewById<LinearLayout>(R.id.layoutAutoDetectNotice)
         val textAutoDetectNotice = findViewById<TextView>(R.id.textAutoDetectNotice)
         categoryContainer = findViewById(R.id.categoryChipsContainer)
         paymentContainer = findViewById(R.id.paymentMethodContainer)
+        btnTypeExpense = findViewById(R.id.btnTypeExpense)
+        btnTypeIncome = findViewById(R.id.btnTypeIncome)
+        textCurrencySymbol = findViewById(R.id.textCurrencySymbol)
 
-        // Configure UI according to mode (Edit auto-logged spend vs New quick spend)
+        // Type Toggle Listeners
+        btnTypeExpense.setOnClickListener {
+            if (selectedType != "expense") {
+                selectedType = "expense"
+                updateTypeUI()
+            }
+        }
+
+        btnTypeIncome.setOnClickListener {
+            if (selectedType != "income") {
+                selectedType = "income"
+                if (selectedCategory == "Food & Dining" || selectedCategory == "General") {
+                    if (categories.contains("Salary")) {
+                        selectedCategory = "Salary"
+                        setupCategoryChips(categoryContainer)
+                    }
+                }
+                updateTypeUI()
+            }
+        }
+
+        // Configure UI according to mode and type
+        updateTypeUI()
+
         if (isEditMode) {
-            textTitle?.text = "Edit Logged Spend"
             layoutAutoDetectNotice?.visibility = View.VISIBLE
-            textAutoDetectNotice?.text = "⚡ Transaction Auto-Logged: Modify category or notes, or tap DISCARD to remove"
-            btnSave.text = "UPDATE SPEND"
+            textAutoDetectNotice?.text = "⚡ Transaction Auto-Logged: Modify details or tap DISCARD to remove"
             btnCancel.text = "DISCARD"
         } else if (isAutoDetected && incomingAmount > 0) {
             layoutAutoDetectNotice?.visibility = View.VISIBLE
             textAutoDetectNotice?.text = "⚡ Transaction Detected: Select category & tap SAVE, or CANCEL to discard"
-            btnSave.text = "SAVE SPEND"
             btnCancel.text = "CANCEL"
         } else {
-            textTitle?.text = "Quick Add Spend"
             layoutAutoDetectNotice?.visibility = View.GONE
-            btnSave.text = "SAVE SPEND"
             btnCancel.text = "CANCEL"
         }
 
@@ -266,25 +295,64 @@ class QuickAddActivity : Activity() {
             dismissNotificationIfPresent()
 
             if (isEditMode) {
-                // Update the existing auto-logged entry
-                val rows = dbHelper.updateExpense(expenseId, amount, selectedCategory, selectedPaymentMethod, comment, expenseDate)
+                // Update the existing auto-logged entry with selectedType
+                val rows = dbHelper.updateExpense(expenseId, amount, selectedCategory, selectedPaymentMethod, comment, expenseDate, selectedType)
                 if (rows > 0) {
                     ExpenseWidgetProvider.sendUpdateBroadcast(this)
-                    Toast.makeText(this, "Updated spend in $selectedCategory!", Toast.LENGTH_SHORT).show()
+                    val actionWord = if (selectedType == "income") "income" else "spend"
+                    Toast.makeText(this, "Updated $actionWord in $selectedCategory!", Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
-                    Toast.makeText(this, "Error updating expense", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Error updating transaction", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                // Insert brand new expense
-                val id = dbHelper.insertExpense(amount, selectedCategory, selectedPaymentMethod, comment, expenseDate)
+                // Insert brand new expense with selectedType
+                val id = dbHelper.insertExpense(amount, selectedCategory, selectedPaymentMethod, comment, expenseDate, selectedType)
                 if (id != -1L) {
                     ExpenseWidgetProvider.sendUpdateBroadcast(this)
-                    Toast.makeText(this, "₹${String.format(Locale.US, "%.2f", amount)} Recorded in $selectedCategory!", Toast.LENGTH_SHORT).show()
+                    val prefix = if (selectedType == "income") "+₹" else "₹"
+                    Toast.makeText(this, "$prefix${String.format(Locale.US, "%.2f", amount)} Recorded in $selectedCategory!", Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
-                    Toast.makeText(this, "Error saving expense", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Error saving transaction", Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+    }
+
+    private fun updateTypeUI() {
+        val isIncome = selectedType == "income"
+        if (isIncome) {
+            btnTypeIncome.setBackgroundResource(R.drawable.type_income_selected)
+            btnTypeIncome.setTextColor(Color.WHITE)
+            btnTypeExpense.setBackgroundColor(Color.TRANSPARENT)
+            btnTypeExpense.setTextColor(Color.parseColor("#6D7A72"))
+
+            textCurrencySymbol.text = "+₹ "
+            textCurrencySymbol.setTextColor(Color.parseColor("#006948"))
+
+            if (isEditMode) {
+                textTitle.text = "Edit Logged Income"
+                btnSave.text = "UPDATE INCOME"
+            } else {
+                textTitle.text = "Quick Add Income"
+                btnSave.text = "SAVE INCOME"
+            }
+        } else {
+            btnTypeExpense.setBackgroundResource(R.drawable.type_expense_selected)
+            btnTypeExpense.setTextColor(Color.WHITE)
+            btnTypeIncome.setBackgroundColor(Color.TRANSPARENT)
+            btnTypeIncome.setTextColor(Color.parseColor("#6D7A72"))
+
+            textCurrencySymbol.text = "₹ "
+            textCurrencySymbol.setTextColor(Color.parseColor("#BA1A1A"))
+
+            if (isEditMode) {
+                textTitle.text = "Edit Logged Spend"
+                btnSave.text = "UPDATE SPEND"
+            } else {
+                textTitle.text = "Quick Add Spend"
+                btnSave.text = "SAVE SPEND"
             }
         }
     }

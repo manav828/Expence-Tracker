@@ -19,12 +19,14 @@ class MainActivity : FlutterActivity() {
         private const val TX_CHANNEL = "com.manav.expense/transaction_detection"
         var transactionChannel: MethodChannel? = null
 
-        fun notifyTransactionDetected(amount: Double, category: String, paymentMethod: String, comment: String) {
+        fun notifyTransactionDetected(amount: Double, category: String, paymentMethod: String, comment: String, type: String = "expense") {
             val data = mapOf(
                 "amount" to amount,
                 "category" to category,
                 "paymentMethod" to paymentMethod,
-                "comment" to comment
+                "comment" to comment,
+                "type" to type,
+                "isExpense" to (type == "expense")
             )
             transactionChannel?.invokeMethod("onTransactionDetected", data)
         }

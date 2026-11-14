@@ -20,6 +20,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COLUMN_EXPENSE_DATE = "expense_date"
         private const val COLUMN_CREATED_AT = "created_at"
         private const val COLUMN_UPDATED_AT = "updated_at"
+        private const val COLUMN_TYPE = "type"
 
         private const val TABLE_CATEGORIES = "categories"
         private const val TABLE_PAYMENT_METHODS = "payment_methods"
@@ -54,7 +55,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 + "$COLUMN_COMMENT TEXT, "
                 + "$COLUMN_EXPENSE_DATE INTEGER NOT NULL, "
                 + "$COLUMN_CREATED_AT INTEGER NOT NULL, "
-                + "$COLUMN_UPDATED_AT INTEGER NOT NULL)")
+                + "$COLUMN_UPDATED_AT INTEGER NOT NULL, "
+                + "$COLUMN_TYPE TEXT NOT NULL DEFAULT 'expense')")
         
         db.execSQL(createTableQuery)
 
@@ -62,6 +64,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.execSQL("CREATE INDEX idx_expense_date ON $TABLE_EXPENSES($COLUMN_EXPENSE_DATE)")
         db.execSQL("CREATE INDEX idx_category ON $TABLE_EXPENSES($COLUMN_CATEGORY)")
         db.execSQL("CREATE INDEX idx_payment_method ON $TABLE_EXPENSES($COLUMN_PAYMENT_METHOD)")
+        db.execSQL("CREATE INDEX idx_expense_type ON $TABLE_EXPENSES($COLUMN_TYPE)")
 
         ensureMetaTables(db)
     }
@@ -72,6 +75,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     private fun ensureMetaTables(db: SQLiteDatabase) {
+        try {
+            db.execSQL("ALTER TABLE $TABLE_EXPENSES ADD COLUMN $COLUMN_TYPE TEXT NOT NULL DEFAULT 'expense'")
+        } catch (_: Exception) {}
+
         db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_CATEGORIES ($COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, $COLUMN_NAME TEXT UNIQUE NOT NULL)")
         db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_PAYMENT_METHODS ($COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, $COLUMN_NAME TEXT UNIQUE NOT NULL)")
 
@@ -110,11 +117,18 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         // Upgrade logic if needed in the future
     }
 
-    fun insertExpense(amount: Double, category: String, paymentMethod: String, comment: String?, expenseDate: Long = System.currentTimeMillis()): Long {
+    fun insertExpense(
+        amount: Double,
+        category: String,
+        paymentMethod: String,
+        comment: String?,
+        expenseDate: Long = System.currentTimeMillis(),
+        type: String = "expense"
+    ): Long {
         val db = this.writableDatabase
         val values = ContentValues()
-        
         val currentTime = System.currentTimeMillis()
+        val normalizedType = if (type.equals("income", ignoreCase = true)) "income" else "expense"
         
         values.put(COLUMN_AMOUNT, amount)
         values.put(COLUMN_CATEGORY, category)
@@ -123,10 +137,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         values.put(COLUMN_EXPENSE_DATE, expenseDate)
         values.put(COLUMN_CREATED_AT, currentTime)
         values.put(COLUMN_UPDATED_AT, currentTime)
+        values.put(COLUMN_TYPE, normalizedType)
 
         val id = db.insert(TABLE_EXPENSES, null, values)
         db.close()
-        Log.d("DatabaseHelper", "Inserted expense: ID=$id")
+        Log.d("DatabaseHelper", "Inserted expense: ID=$id, type=$normalizedType")
         return id
     }
 
@@ -138,8 +153,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return count
     }
 
-    fun updateExpense(id: Long, amount: Double, category: String, paymentMethod: String, comment: String?, expenseDate: Long): Int {
+    fun updateExpense(
+        id: Long,
+        amount: Double,
+        category: String,
+        paymentMethod: String,
+        comment: String?,
+        expenseDate: Long,
+        type: String = "expense"
+    ): Int {
         val db = this.writableDatabase
+        val normalizedType = if (type.equals("income", ignoreCase = true)) "income" else "expense"
         val values = ContentValues().apply {
             put(COLUMN_AMOUNT, amount)
             put(COLUMN_CATEGORY, category)
@@ -147,11 +171,32 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             put(COLUMN_COMMENT, comment)
             put(COLUMN_EXPENSE_DATE, expenseDate)
             put(COLUMN_UPDATED_AT, System.currentTimeMillis())
+            put(COLUMN_TYPE, normalizedType)
         }
         val count = db.update(TABLE_EXPENSES, values, "$COLUMN_ID = ?", arrayOf(id.toString()))
         db.close()
-        Log.d("DatabaseHelper", "Updated expense: ID=$id, count=$count")
+        Log.d("DatabaseHelper", "Updated expense: ID=$id, count=$count, type=$normalizedType")
         return count
+    }
+
+    fun getExpenseType(id: Long): String {
+        val db = this.readableDatabase
+        var type = "expense"
+        try {
+            val cursor = db.query(TABLE_EXPENSES, arrayOf(COLUMN_TYPE), "$COLUMN_ID = ?", arrayOf(id.toString()), null, null, null)
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(COLUMN_TYPE)
+                if (idx != -1 && !cursor.isNull(idx)) {
+                    type = cursor.getString(idx)
+                }
+            }
+            cursor.close()
+        } catch (e: Exception) {
+            Log.e("DatabaseHelper", "Error getting expense type for $id: ${e.message}")
+        } finally {
+            db.close()
+        }
+        return type
     }
 
     fun getCategories(): List<String> {
@@ -247,7 +292,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         val db = this.readableDatabase
         val cursor = db.rawQuery(
-            "SELECT SUM($COLUMN_AMOUNT) FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_DATE >= ? AND $COLUMN_EXPENSE_DATE < ?",
+            "SELECT SUM($COLUMN_AMOUNT) FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_DATE >= ? AND $COLUMN_EXPENSE_DATE < ? AND ($COLUMN_TYPE IS NULL OR $COLUMN_TYPE != 'income')",
             arrayOf(startOfDay.toString(), endOfDay.toString())
         )
         var total = 0.0
@@ -273,7 +318,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         val db = this.readableDatabase
         val cursor = db.rawQuery(
-            "SELECT SUM($COLUMN_AMOUNT) FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_DATE >= ? AND $COLUMN_EXPENSE_DATE < ?",
+            "SELECT SUM($COLUMN_AMOUNT) FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_DATE >= ? AND $COLUMN_EXPENSE_DATE < ? AND ($COLUMN_TYPE IS NULL OR $COLUMN_TYPE != 'income')",
             arrayOf(startOfMonth.toString(), endOfMonth.toString())
         )
         var total = 0.0
