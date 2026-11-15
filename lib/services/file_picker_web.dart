@@ -53,3 +53,48 @@ Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
 
   return completer.future;
 }
+
+Future<List<PickedFileData>> pickMultipleImageFiles() async {
+  final completer = Completer<List<PickedFileData>>();
+  final input = html.FileUploadInputElement()
+    ..accept = 'image/*'
+    ..multiple = true;
+  input.click();
+
+  input.onChange.listen((event) async {
+    final files = input.files;
+    if (files == null || files.isEmpty) {
+      if (!completer.isCompleted) completer.complete(<PickedFileData>[]);
+      return;
+    }
+
+    final List<PickedFileData> results = [];
+    int pending = files.length;
+
+    for (final file in files) {
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      reader.onLoadEnd.listen((e) {
+        final result = reader.result;
+        Uint8List? bytes;
+        if (result is Uint8List) {
+          bytes = result;
+        } else if (result is List<int>) {
+          bytes = Uint8List.fromList(result);
+        }
+
+        if (bytes != null) {
+          final ext = file.name.contains('.') ? file.name.split('.').last.toLowerCase() : 'jpg';
+          results.add(PickedFileData(bytes: bytes, name: file.name, extension: ext));
+        }
+
+        pending--;
+        if (pending == 0 && !completer.isCompleted) {
+          completer.complete(results);
+        }
+      });
+    }
+  });
+
+  return completer.future;
+}

@@ -12,6 +12,8 @@ import 'add_split_expense_sheet.dart';
 import 'settle_up_screen.dart';
 import 'group_banner_picker_sheet.dart';
 import '../../widgets/receipt_attachment_sheet.dart';
+import '../../providers/trip_photo_provider.dart';
+import 'trip_photo_vault_tab.dart';
 
 const List<Color> _avatarColors = [
   Color(0xFF006948), // Deep emerald
@@ -40,7 +42,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
   void initState() {
     super.initState();
     _group = widget.group;
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -878,10 +880,24 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                         indicatorColor: _primaryColor,
                         indicatorWeight: 3,
                         labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                        tabs: const [
-                          Tab(text: 'Balances'),
-                          Tab(text: 'Expenses'),
-                          Tab(text: 'Members'),
+                        tabs: [
+                          const Tab(text: 'Balances'),
+                          const Tab(text: 'Expenses'),
+                          const Tab(text: 'Members'),
+                          Builder(
+                            builder: (context) {
+                              TripPhotoProvider? photoProv;
+                              try {
+                                photoProv = Provider.of<TripPhotoProvider>(context);
+                              } catch (_) {
+                                photoProv = null;
+                              }
+                              final count = photoProv?.totalCount ?? 0;
+                              return Tab(
+                                text: count > 0 ? 'Photos ($count)' : 'Photos',
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -894,13 +910,30 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                   _BalancesTab(groupId: _group.id),
                   _ExpensesTab(groupId: _group.id),
                   _MembersTab(group: _group),
+                  Builder(
+                    builder: (context) {
+                      TripPhotoProvider? photoProv;
+                      try {
+                        photoProv = Provider.of<TripPhotoProvider>(context);
+                      } catch (_) {
+                        photoProv = null;
+                      }
+                      if (photoProv != null) {
+                        return TripPhotoVaultTab(
+                          group: _group,
+                          currentMemberName: sp.currentMemberName ?? 'Member',
+                        );
+                      }
+                      return const SizedBox();
+                    },
+                  ),
                 ],
               ),
             ),
           );
         },
       ),
-      floatingActionButton: _tabController.index == 2
+      floatingActionButton: _tabController.index >= 2
           ? null
           : FloatingActionButton.extended(
               onPressed: () async {
