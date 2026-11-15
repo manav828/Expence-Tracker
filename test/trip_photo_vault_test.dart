@@ -253,9 +253,11 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Verify Vault Status Card
-      expect(find.text('48-Hour Trip Vault'), findsOneWidget);
-      expect(find.textContaining('Photos auto-expire after 48 hrs'), findsOneWidget);
+      // Verify Compact Vault Status Strip & Samsung Gallery Zoom Selectors
+      expect(find.text('0 photos'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
+      expect(find.text('7'), findsOneWidget);
 
       // Verify Filter Chips: All and ❤️ Liked
       expect(find.text('All (0)'), findsOneWidget);

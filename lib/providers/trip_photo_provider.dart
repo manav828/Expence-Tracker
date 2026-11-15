@@ -24,13 +24,16 @@ class TripPhotoProvider with ChangeNotifier {
   int get likedCount => _photos.where((p) => _likedPhotoIds.contains(p.id)).length;
   int get totalSizeBytes => _photos.fold(0, (sum, p) => sum + p.fileSizeBytes);
 
-  /// Human-readable total storage string (e.g. "184 MB / 1.0 GB").
+  /// Human-readable total storage string (e.g. "8.3 MB", "540 KB").
   String get formattedStorageUsage {
+    if (totalSizeBytes <= 0) return '';
     final mb = totalSizeBytes / (1024 * 1024);
     if (mb < 1.0) {
-      return '${(totalSizeBytes / 1024).toStringAsFixed(0)} KB / 1.0 GB';
+      return '${(totalSizeBytes / 1024).toStringAsFixed(0)} KB';
+    } else if (mb >= 1024) {
+      return '${(mb / 1024).toStringAsFixed(2)} GB';
     }
-    return '${mb.toStringAsFixed(1)} MB / 1.0 GB';
+    return '${mb.toStringAsFixed(1)} MB';
   }
 
   /// Earliest remaining duration before the oldest active batch expires.
