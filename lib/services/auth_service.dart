@@ -167,6 +167,7 @@ class AuthService {
       email: email.trim(),
       password: password,
       data: {'full_name': fullName.trim()},
+      emailRedirectTo: kIsWeb ? Uri.base.origin : null,
     );
     await StoragePreferenceService.setMode(StorageMode.cloud);
 
@@ -250,7 +251,10 @@ class AuthService {
   }
 
   Future<void> resetPassword(String email) async {
-    await _client.auth.resetPasswordForEmail(email.trim());
+    await _client.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: kIsWeb ? Uri.base.origin : null,
+    );
   }
 
   Future<void> signOut() async {

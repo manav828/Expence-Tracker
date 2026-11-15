@@ -253,11 +253,12 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Verify Compact Vault Status Strip & Samsung Gallery Zoom Selectors
+      // Verify Compact Vault Status Strip & Samsung Gallery Zoom Icon Selectors
       expect(find.text('0 photos'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
-      expect(find.text('7'), findsOneWidget);
+      expect(find.textContaining('Storage:'), findsOneWidget);
+      expect(find.byIcon(Icons.view_module_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.grid_view_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.apps_rounded), findsOneWidget);
 
       // Verify Filter Chips: All and ❤️ Liked
       expect(find.text('All (0)'), findsOneWidget);

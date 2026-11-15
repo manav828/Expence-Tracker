@@ -176,71 +176,116 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
-                    // 1. Sleek Compact Timer & Status Strip (Small UI, No Limits)
+                    // 1. Sleek Compact Timer & Modern Max Storage Card
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: isUrgent ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
+                            color: isUrgent ? const Color(0xFFFEF3C7) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: isUrgent ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0),
                               width: 1,
                             ),
                           ),
-                          child: Row(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                isUrgent ? Icons.warning_amber_rounded : Icons.timer_outlined,
-                                color: isUrgent ? const Color(0xFFD97706) : const Color(0xFF006948),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                countdownText,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isUrgent ? const Color(0xFF92400E) : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              const Text(' • ', style: TextStyle(color: Color(0xFF94A3B8))),
-                              Text(
-                                '$totalCount photos',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                              if (provider.formattedStorageUsage.isNotEmpty) ...[
-                                Text(
-                                  ' (${provider.formattedStorageUsage})',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF94A3B8),
+                              // Row 1: Timer Pill, Photo Count & Gallery Density Switcher
+                              Row(
+                                children: [
+                                  // Timer Badge Pill
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: isUrgent ? const Color(0xFFD97706) : _primaryColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.timer_outlined, size: 12, color: Colors.white),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          countdownText,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                              const Spacer(),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '$totalCount photos',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const Spacer(),
 
-                              // Samsung Gallery Zoom Selector [3 | 4 | 7]
-                              Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _buildZoomButton(3, '3'),
-                                    _buildZoomButton(4, '4'),
-                                    _buildZoomButton(7, '7'),
-                                  ],
+                                  // Samsung Gallery Density Switcher (Icons)
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _buildZoomIconButton(3, Icons.view_module_rounded, 'Large (3 in row)'),
+                                        _buildZoomIconButton(4, Icons.grid_view_rounded, 'Standard (4 in row)'),
+                                        _buildZoomIconButton(7, Icons.apps_rounded, 'Compact (7 in row)'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              // Row 2: Storage Size & Micro Progress Bar
+                              Row(
+                                children: [
+                                  const Icon(Icons.cloud_outlined, size: 12, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Storage: ${provider.formattedUsedStorage} / ${provider.formattedStorageCapacity}',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${(provider.storageUsageRatio * 100).toStringAsFixed(1)}% used',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: provider.storageUsageRatio,
+                                  minHeight: 3.5,
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isUrgent ? const Color(0xFFD97706) : _primaryColor,
+                                  ),
                                 ),
                               ),
                             ],
@@ -423,51 +468,30 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                                         ),
                                       ),
 
-                                      // Heart icon in bottom-right corner
-                                      if (isLiked)
-                                        Positioned(
-                                          right: _crossAxisCount == 7 ? 2 : 4,
-                                          bottom: _crossAxisCount == 7 ? 2 : 4,
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              provider.toggleLike(widget.group.id, photo.id);
-                                            },
-                                            child: Container(
-                                              padding: EdgeInsets.all(_crossAxisCount == 7 ? 2 : 3.5),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black.withValues(alpha: 0.45),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(
-                                                Icons.favorite_rounded,
-                                                size: _crossAxisCount == 7 ? 10 : 13,
-                                                color: _likedHeartColor,
-                                              ),
+                                      // Heart icon in bottom-right corner for ALL photos (both liked and unliked in all zoom levels)
+                                      Positioned(
+                                        right: _crossAxisCount == 7 ? 2 : 4,
+                                        bottom: _crossAxisCount == 7 ? 2 : 4,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            provider.toggleLike(widget.group.id, photo.id);
+                                          },
+                                          child: Container(
+                                            padding: EdgeInsets.all(_crossAxisCount == 7 ? 2.5 : 3.5),
+                                            decoration: BoxDecoration(
+                                              color: isLiked
+                                                  ? Colors.black.withValues(alpha: 0.5)
+                                                  : Colors.black.withValues(alpha: 0.35),
+                                              shape: BoxShape.circle,
                                             ),
-                                          ),
-                                        )
-                                      else if (_crossAxisCount <= 4)
-                                        Positioned(
-                                          right: 4,
-                                          bottom: 4,
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              provider.toggleLike(widget.group.id, photo.id);
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.all(3.5),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black.withValues(alpha: 0.35),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.favorite_border_rounded,
-                                                size: 13,
-                                                color: Colors.white,
-                                              ),
+                                            child: Icon(
+                                              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                              size: _crossAxisCount == 7 ? 11 : 13,
+                                              color: isLiked ? _likedHeartColor : Colors.white,
                                             ),
                                           ),
                                         ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -503,25 +527,25 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
     );
   }
 
-  Widget _buildZoomButton(int count, String label) {
+  Widget _buildZoomIconButton(int count, IconData icon, String tooltip) {
     final isSelected = _crossAxisCount == count;
-    return InkWell(
-      onTap: () {
-        setState(() => _crossAxisCount = count);
-        HapticFeedback.selectionClick();
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected ? _primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () {
+          setState(() => _crossAxisCount = count);
+          HapticFeedback.selectionClick();
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? _primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            icon,
+            size: 15,
             color: isSelected ? Colors.white : const Color(0xFF64748B),
           ),
         ),

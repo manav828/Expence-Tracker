@@ -36,6 +36,38 @@ class TripPhotoProvider with ChangeNotifier {
     return '${mb.toStringAsFixed(1)} MB';
   }
 
+  /// Formatted storage used (e.g. "8.3 MB", "0 KB").
+  String get formattedUsedStorage {
+    if (totalSizeBytes <= 0) return '0 KB';
+    final mb = totalSizeBytes / (1024 * 1024);
+    if (mb < 1.0) {
+      return '${(totalSizeBytes / 1024).toStringAsFixed(0)} KB';
+    } else if (mb >= 1024) {
+      return '${(mb / 1024).toStringAsFixed(2)} GB';
+    }
+    return '${mb.toStringAsFixed(1)} MB';
+  }
+
+  /// Formatted storage capacity (default 1.0 GB or scales if exceeded).
+  String get formattedStorageCapacity {
+    final mb = totalSizeBytes / (1024 * 1024);
+    if (mb >= 1024) {
+      final gb = (mb / 1024).ceil().toDouble();
+      return '${gb.toStringAsFixed(0)} GB';
+    }
+    return '1.0 GB';
+  }
+
+  /// Ratio of storage used against capacity (0.0 to 1.0).
+  double get storageUsageRatio {
+    const defaultMaxBytes = 1024 * 1024 * 1024; // 1.0 GB
+    if (totalSizeBytes <= 0) return 0.0;
+    final maxBytes = totalSizeBytes > defaultMaxBytes
+        ? ((totalSizeBytes / defaultMaxBytes).ceil() * defaultMaxBytes).toDouble()
+        : defaultMaxBytes.toDouble();
+    return (totalSizeBytes / maxBytes).clamp(0.0, 1.0);
+  }
+
   /// Earliest remaining duration before the oldest active batch expires.
   Duration? get earliestExpiration {
     if (_photos.isEmpty) return null;
