@@ -27,6 +27,27 @@ class TripPhotoService {
     return _client?.auth.currentUser?.id ?? 'anonymous';
   }
 
+  /// Returns standard MIME type for an image extension.
+  static String getMimeType(String ext) {
+    final clean = ext.toLowerCase().replaceAll('.', '').trim();
+    switch (clean) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'heic':
+      case 'heif':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
   /// Fetches all active (unexpired) photos for a split group.
   Future<List<TripPhoto>> fetchGroupPhotos(String groupId) async {
     final client = _client;
@@ -68,33 +89,36 @@ class TripPhotoService {
 
     for (final file in files) {
       final photoId = _uuid.v4();
-      final ext = file.extension.isNotEmpty ? file.extension : 'jpg';
+      final ext = file.extension.isNotEmpty ? file.extension.toLowerCase() : 'jpg';
+      final mimeType = getMimeType(ext);
       final fileName = '${now.millisecondsSinceEpoch}_$photoId.$ext';
       final storagePath = 'vaults/$groupId/$uploaderId/$fileName';
 
       String? photoUrl;
 
-      // 1. Try Supabase Storage bucket first
-      try {
-        await client.storage.from(_bucketName).uploadBinary(
-              storagePath,
-              file.bytes,
-              fileOptions: FileOptions(
-                contentType: 'image/$ext',
-                upsert: true,
-              ),
-            );
-        photoUrl = client.storage.from(_bucketName).getPublicUrl(storagePath);
-      } catch (storageError) {
-        debugPrint('Supabase storage upload error: $storageError');
+      // 1. Try Cloudflare R2 first (app's primary media storage)
+      if (AppConfig.hasR2Configured) {
+        photoUrl = await CloudflareR2Service.instance.uploadBytes(
+          bytes: file.bytes,
+          path: storagePath,
+          contentType: mimeType,
+        );
+      }
 
-        // 2. Fallback to Cloudflare R2 if configured
-        if (AppConfig.hasR2Configured) {
-          photoUrl = await CloudflareR2Service.instance.uploadBytes(
-            bytes: file.bytes,
-            path: storagePath,
-            contentType: 'image/$ext',
-          );
+      // 2. Fallback to Supabase Storage bucket with standard image/jpeg MIME type
+      if (photoUrl == null || photoUrl.isEmpty) {
+        try {
+          await client.storage.from(_bucketName).uploadBinary(
+                storagePath,
+                file.bytes,
+                fileOptions: FileOptions(
+                  contentType: mimeType,
+                  upsert: true,
+                ),
+              );
+          photoUrl = client.storage.from(_bucketName).getPublicUrl(storagePath);
+        } catch (storageError) {
+          debugPrint('Storage fallback upload error: $storageError');
         }
       }
 
@@ -149,8 +173,11 @@ class TripPhotoService {
           .delete()
           .eq('id', photo.id);
 
-      // 2. Clean up from storage bucket
-      if (photo.storagePath != null && photo.storagePath!.isNotEmpty) {
+      // 2. Clean up from Cloudflare R2 or Supabase storage
+      if (photo.photoUrl.contains('r2.dev') ||
+          photo.photoUrl.contains('cloudflarestorage.com')) {
+        await CloudflareR2Service.instance.deleteByUrl(photo.photoUrl);
+      } else if (photo.storagePath != null && photo.storagePath!.isNotEmpty) {
         try {
           await client.storage.from(_bucketName).remove([photo.storagePath!]);
         } catch (_) {}

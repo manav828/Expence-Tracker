@@ -40,7 +40,13 @@ jobs:
         run: flutter pub get
 
       - name: Build Web Application Bundle
-        run: flutter build web --release --base-href /
+        run: |
+          flutter build web --release --base-href / \
+            --dart-define=R2_ACCOUNT_ID="${{ secrets.R2_ACCOUNT_ID || 'e8acbf2339145c4be33e745c659773a1' }}" \
+            --dart-define=R2_BUCKET_NAME="${{ secrets.R2_BUCKET_NAME || 'expencircle-storage' }}" \
+            --dart-define=R2_ACCESS_KEY_ID="${{ secrets.R2_ACCESS_KEY_ID || '0a858b98473475974aa638978a326d68' }}" \
+            --dart-define=R2_SECRET_ACCESS_KEY="${{ secrets.R2_SECRET_ACCESS_KEY || '4c7404639cac7ef4a153d7cc4326c689d29d5c50e97f2d6c8ded76044abdec5f' }}" \
+            --dart-define=R2_PUBLIC_BASE_URL="${{ secrets.R2_PUBLIC_BASE_URL || 'https://pub-5931ad4398be42b6a8a7426e57c49b6b.r2.dev' }}"
 
       - name: Copy Vercel Configuration to Build Output
         run: cp vercel.json build/web/vercel.json

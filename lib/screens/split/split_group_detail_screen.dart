@@ -14,6 +14,7 @@ import 'group_banner_picker_sheet.dart';
 import '../../widgets/receipt_attachment_sheet.dart';
 import '../../providers/trip_photo_provider.dart';
 import 'trip_photo_vault_tab.dart';
+import 'trip_photo_vault_screen.dart';
 
 const List<Color> _avatarColors = [
   Color(0xFF006948), // Deep emerald
@@ -552,6 +553,55 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                       ),
                       const SizedBox(width: 8),
 
+                      // Dedicated Photo Vault Pill Button
+                      Builder(
+                        builder: (ctx) {
+                          TripPhotoProvider? photoProv;
+                          try {
+                            photoProv = Provider.of<TripPhotoProvider>(ctx);
+                          } catch (_) {}
+                          final count = photoProv?.totalCount ?? 0;
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TripPhotoVaultScreen(
+                                    group: group,
+                                    currentMemberName: sp.currentMemberName ?? 'Member',
+                                  ),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF006948).withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.photo_library_rounded, size: 13, color: Colors.white),
+                                  const SizedBox(width: 4.5),
+                                  Text(
+                                    count > 0 ? 'Photos ($count)' : 'Photo Vault',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+
                       // Edit Translucent Pill Button
                       InkWell(
                         onTap: _showEditGroupDialog,
@@ -795,6 +845,36 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
         foregroundColor: const Color(0xFF131B2E),
         elevation: 0,
         actions: [
+          Builder(
+            builder: (ctx) {
+              TripPhotoProvider? photoProv;
+              try {
+                photoProv = Provider.of<TripPhotoProvider>(ctx);
+              } catch (_) {}
+              final count = photoProv?.totalCount ?? 0;
+              final splitProv = Provider.of<SplitProvider>(ctx, listen: false);
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: count > 0,
+                  label: Text('$count', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  backgroundColor: const Color(0xFF006948),
+                  child: const Icon(Icons.photo_library_outlined, size: 21),
+                ),
+                tooltip: 'Trip Photo Vault',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TripPhotoVaultScreen(
+                        group: _group,
+                        currentMemberName: splitProv.currentMemberName ?? 'Member',
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 20),
             tooltip: 'Edit Group',

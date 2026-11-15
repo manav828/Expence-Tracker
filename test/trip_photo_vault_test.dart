@@ -161,6 +161,10 @@ void main() {
         expiresAt: now.add(const Duration(hours: 40)),
       );
 
+      expect(p1.uploaderName, 'Manav');
+      expect(p2.uploaderName, 'Dinesh');
+      expect(p3.uploaderName, 'Dinesh');
+
       // Manually set photos via upload helper or internal state
       await provider.uploadPhotos(
         groupId: 'group_1',
