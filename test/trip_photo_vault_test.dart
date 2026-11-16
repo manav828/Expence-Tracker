@@ -8,6 +8,7 @@ import 'package:expense_tracker/providers/trip_photo_provider.dart';
 import 'package:expense_tracker/services/trip_photo_local_likes_service.dart';
 import 'package:expense_tracker/screens/split/trip_photo_vault_tab.dart';
 import 'package:expense_tracker/screens/split/trip_photo_viewer_screen.dart';
+import 'package:expense_tracker/widgets/shimmer_box.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -267,6 +268,43 @@ void main() {
       // Verify Upload Photos FAB
       expect(find.text('Upload Photos'), findsOneWidget);
       expect(find.byIcon(Icons.add_a_photo_rounded), findsOneWidget);
+    });
+
+    testWidgets('VaultGallerySkeleton renders complete shimmer layout during loading', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: VaultGallerySkeleton(crossAxisCount: 4),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      // Verify skeleton renders shimmer elements
+      expect(find.byType(ShimmerLoading), findsOneWidget);
+      expect(find.byType(ShimmerBox), findsWidgets);
+      expect(find.byType(PhotoShimmerPlaceholder), findsWidgets);
+    });
+
+    testWidgets('PhotoShimmerPlaceholder supports light and dark modes with image icon', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                PhotoShimmerPlaceholder(width: 80, height: 80, borderRadius: 8, isDark: false),
+                PhotoShimmerPlaceholder(width: 80, height: 80, borderRadius: 16, isDark: true),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(find.byIcon(Icons.image_outlined), findsNWidgets(2));
+      expect(find.byType(ShimmerBox), findsNWidgets(2));
     });
   });
 }

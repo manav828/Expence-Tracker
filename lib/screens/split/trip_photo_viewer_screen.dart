@@ -4,6 +4,7 @@ import '../../models/trip_photo.dart';
 import '../../providers/trip_photo_provider.dart';
 import '../../services/trip_photo_service.dart';
 import '../../services/photo_download_helper.dart';
+import '../../widgets/shimmer_box.dart';
 
 class TripPhotoViewerScreen extends StatefulWidget {
   final List<TripPhoto> photos;
@@ -245,6 +246,33 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
                   child: Image.network(
                     item.photoUrl,
                     fit: BoxFit.contain,
+                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                      if (wasSynchronouslyLoaded) return child;
+                      final isLoaded = frame != null;
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (!isLoaded)
+                            const Center(
+                              child: SizedBox(
+                                width: 260,
+                                height: 260,
+                                child: PhotoShimmerPlaceholder(
+                                  borderRadius: 16,
+                                  isDark: true,
+                                  showIcon: true,
+                                ),
+                              ),
+                            ),
+                          AnimatedOpacity(
+                            opacity: isLoaded ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOut,
+                            child: child,
+                          ),
+                        ],
+                      );
+                    },
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       final total = loadingProgress.expectedTotalBytes;

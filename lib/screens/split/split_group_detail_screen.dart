@@ -215,23 +215,6 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
     );
   }
 
-  String _getGroupEmoji(String name) {
-    final l = name.toLowerCase();
-    if (l.contains('trip') || l.contains('tour') || l.contains('travel') || l.contains('bali') || l.contains('goa') || l.contains('flight')) {
-      return '✈️';
-    }
-    if (l.contains('flat') || l.contains('room') || l.contains('house') || l.contains('rent') || l.contains('home')) {
-      return '🏠';
-    }
-    if (l.contains('office') || l.contains('work') || l.contains('commute') || l.contains('cab')) {
-      return '🚗';
-    }
-    if (l.contains('food') || l.contains('dinner') || l.contains('lunch') || l.contains('cafe') || l.contains('party')) {
-      return '🍴';
-    }
-    return '👥';
-  }
-
   String _getCoverImageUrl(String name) {
     final lower = name.toLowerCase();
     if (lower.contains('udaipur') || lower.contains('rajasthan') || lower.contains('palace') || lower.contains('lake') || lower.contains('jaipur')) {
@@ -421,29 +404,9 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
     );
   }
 
-  String _computeDateRange(SplitGroup group, List<SplitExpense> expenses) {
-    if (expenses.isNotEmpty) {
-      final sorted = List<SplitExpense>.from(expenses)
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      final start = sorted.first.createdAt;
-      final end = sorted.last.createdAt;
-      if (start.year == end.year && start.month == end.month && start.day == end.day) {
-        return DateFormat('d MMM yyyy').format(start);
-      } else if (start.year == end.year && start.month == end.month) {
-        return '${start.day}-${end.day} ${DateFormat('MMM yyyy').format(end)}';
-      } else if (start.year == end.year) {
-        return '${DateFormat('d MMM').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
-      } else {
-        return '${DateFormat('d MMM yyyy').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
-      }
-    }
-    return DateFormat('d MMM yyyy').format(group.createdAt);
-  }
-
   Widget _buildHeroBanner(BuildContext context, SplitGroup group, SplitProvider sp) {
     final expenses = sp.getExpensesForGroup(group.id);
     final members = sp.getMembersForGroup(group.id);
-    final dateRangeStr = _computeDateRange(group, expenses);
     final coverUrl = group.imageUrl ?? _getCoverImageUrl(group.name);
     final totalSpend = expenses.fold(0.0, (sum, exp) => sum + exp.totalAmount);
 
@@ -457,7 +420,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-      height: 220,
+      height: 200,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [
@@ -513,127 +476,11 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
 
             // Banner Content
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Row: Date range badge & Edit button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Date Range Pill Badge
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.38),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white),
-                              const SizedBox(width: 5),
-                              Flexible(
-                                child: Text(
-                                  dateRangeStr,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Dedicated Photo Vault Pill Button
-                      Builder(
-                        builder: (ctx) {
-                          TripPhotoProvider? photoProv;
-                          try {
-                            photoProv = Provider.of<TripPhotoProvider>(ctx);
-                          } catch (_) {}
-                          final count = photoProv?.totalCount ?? 0;
-                          return InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => TripPhotoVaultScreen(
-                                    group: group,
-                                    currentMemberName: sp.currentMemberName ?? 'Member',
-                                  ),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF006948).withValues(alpha: 0.9),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.photo_library_rounded, size: 13, color: Colors.white),
-                                  const SizedBox(width: 4.5),
-                                  Text(
-                                    count > 0 ? 'Photos ($count)' : 'Photo Vault',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Edit Translucent Pill Button
-                      InkWell(
-                        onTap: _showEditGroupDialog,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.42),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.edit_outlined, size: 13, color: Colors.white),
-                              SizedBox(width: 4.5),
-                              Text(
-                                'Edit',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
 
                   // Middle: Group Name & Tagline
                   Text(
@@ -794,11 +641,8 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     color: _primaryColor.withValues(alpha: 0.15),
-                    child: Center(
-                      child: Text(
-                        _getGroupEmoji(_group.name),
-                        style: const TextStyle(fontSize: 18),
-                      ),
+                    child: const Center(
+                      child: Icon(Icons.groups_rounded, color: _primaryColor, size: 22),
                     ),
                   ),
                 ),
@@ -810,19 +654,11 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          _group.name,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(_getGroupEmoji(_group.name), style: const TextStyle(fontSize: 14)),
-                    ],
+                  Text(
+                    _group.name,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Consumer<SplitProvider>(
                     builder: (context, sp, _) {
@@ -1059,16 +895,20 @@ class _BalancesTab extends StatelessWidget {
       final savingsCount = directDebts.length - simplifiedDebts.length;
       final memberMap = {for (final m in members) m.id: m.name};
       final expenses = sp.getExpensesForGroup(groupId);
+      final settlements = sp.getSettlementsForGroup(groupId);
       final hasUnsettled = debts.isNotEmpty || balances.values.any((b) => b.abs() >= 0.01);
       final settlementGroups = sp.getSettlementGroupsForGroup(groupId);
       final combinedResult = sp.getCombinedBalancesResult(groupId);
+      final activeSettlementGroups = settlementGroups.where((sg) {
+        return combinedResult.getGroupBalance(sg.id).abs() >= 0.01;
+      }).toList();
 
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          // Simplify Debts Toggle Card (allows user to choose between minimum payments or direct itemized)
-          if (members.length > 1)
+          // Simplify Debts Toggle Card: ONLY show if there are active debts to simplify
+          if (hasUnsettled && members.length > 1 && directDebts.isNotEmpty)
             _SimplifyDebtsCard(
               isSimplified: isSimplified,
               directCount: directDebts.length,
@@ -1079,21 +919,40 @@ class _BalancesTab extends StatelessWidget {
             ),
 
           if (!hasUnsettled) ...[
-            Center(child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(children: [
-                Icon(expenses.isEmpty ? Icons.receipt_long_outlined : Icons.check_circle_outline,
-                    size: 48, color: const Color(0xFF006948)),
-                const SizedBox(height: 8),
-                Text(expenses.isEmpty ? 'No expenses yet' : 'All settled up! 🎉',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                if (expenses.isEmpty) ...[
-                  const SizedBox(height: 4),
-                  const Text('Add expenses to start splitting with the group',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
-                ],
-              ]),
-            )),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8F7F0),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        expenses.isEmpty ? Icons.receipt_long_outlined : Icons.check_circle_rounded,
+                        size: 30,
+                        color: const Color(0xFF006948),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      expenses.isEmpty ? 'No expenses yet' : 'All settled up! 🎉',
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      expenses.isEmpty
+                          ? 'Add expenses to start splitting with the group'
+                          : 'No outstanding balances. Everyone is even.',
+                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF6D7A72)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ] else ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1142,47 +1001,50 @@ class _BalancesTab extends StatelessWidget {
                 );
               },
             )),
-          ],
 
-          if (settlementGroups.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Text(
-                  'Combined Settlement Balances',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4B41E1).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+            // Combined Settlement Balances: ONLY show active groups with non-zero balances!
+            if (activeSettlementGroups.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  const Text(
+                    'Combined Settlement Balances',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
                   ),
-                  child: Text(
-                    '${settlementGroups.length} ${settlementGroups.length == 1 ? "group" : "groups"}',
-                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF4B41E1)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4B41E1).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${activeSettlementGroups.length} ${activeSettlementGroups.length == 1 ? "group" : "groups"}',
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF4B41E1)),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Linked members are settled together. Tap any group to see individual breakdown.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 12),
-            ...settlementGroups.map((sg) {
-              final groupBal = combinedResult.getGroupBalance(sg.id);
-              final groupMembers = members.where((m) => sg.memberIds.contains(m.id)).toList();
-              return _CombinedGroupBalanceCard(
-                group: sg,
-                combinedBalance: groupBal,
-                members: groupMembers,
-                balances: balances,
-              );
-            }),
-            const SizedBox(height: 18),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Linked members are settled together. Tap any group to see individual breakdown.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              ...activeSettlementGroups.map((sg) {
+                final groupBal = combinedResult.getGroupBalance(sg.id);
+                final groupMembers = members.where((m) => sg.memberIds.contains(m.id)).toList();
+                return _CombinedGroupBalanceCard(
+                  group: sg,
+                  combinedBalance: groupBal,
+                  members: groupMembers,
+                  balances: balances,
+                );
+              }),
+            ],
+
+            // Individual Net Balances
+            const SizedBox(height: 20),
             const Text(
               'Individual Net Balances',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
@@ -1197,13 +1059,69 @@ class _BalancesTab extends StatelessWidget {
                 groupTag: linkedGroup?.name,
               );
             }),
-          ] else if (balances.isNotEmpty) ...[
+          ],
+
+          // Settlement History: Who Paid Whom How Much
+          if (settlements.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text('Individual Net Balances', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E))),
+            Row(
+              children: [
+                const Icon(Icons.history_rounded, size: 18, color: Color(0xFF006948)),
+                const SizedBox(width: 6),
+                const Text(
+                  'Settlement History',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${settlements.length} settled',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Payments recorded to settle group balances',
+              style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
+            ),
             const SizedBox(height: 12),
-            ...members.map((m) {
-              final bal = balances[m.id] ?? 0.0;
-              return _BalanceRow(name: m.name, balance: bal);
+            ...settlements.map((s) {
+              final fromName = memberMap[s.fromMemberId] ?? 'Member';
+              final toName = memberMap[s.toMemberId] ?? 'Member';
+              final dateStr = DateFormat('d MMM yyyy, h:mm a').format(s.settledAt);
+              return _SettlementRecordCard(
+                settlement: s,
+                fromName: fromName,
+                toName: toName,
+                dateStr: dateStr,
+                onDelete: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete Settlement?'),
+                      content: Text('Remove recorded payment of ₹${s.amount.toStringAsFixed(2)} from $fromName to $toName?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    await sp.deleteSettlement(s.id, groupId);
+                  }
+                },
+              );
             }),
           ],
         ],
@@ -1326,6 +1244,135 @@ class _SimplifyDebtsCard extends StatelessWidget {
             value: isSimplified,
             activeColor: const Color(0xFF006948),
             onChanged: onToggle,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettlementRecordCard extends StatelessWidget {
+  final Settlement settlement;
+  final String fromName;
+  final String toName;
+  final String dateStr;
+  final VoidCallback onDelete;
+
+  const _SettlementRecordCard({
+    required this.settlement,
+    required this.fromName,
+    required this.toName,
+    required this.dateStr,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x050F172A),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF006948).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFF006948),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 13.5, color: Color(0xFF131B2E)),
+                    children: [
+                      TextSpan(
+                        text: fromName,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const TextSpan(
+                        text: ' paid ',
+                        style: TextStyle(color: Color(0xFF6D7A72)),
+                      ),
+                      TextSpan(
+                        text: toName,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  settlement.note?.isNotEmpty == true
+                      ? '$dateStr · ${settlement.note}'
+                      : dateStr,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                currencyFmt.format(settlement.amount),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF006948),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006948).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Settled',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF006948),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+            tooltip: 'Delete settlement',
+            visualDensity: VisualDensity.compact,
+            onPressed: onDelete,
           ),
         ],
       ),

@@ -454,6 +454,30 @@ class Debt {
 
   bool get isFromGroup => fromSettlementGroupId != null;
   bool get isToGroup => toSettlementGroupId != null;
+
+  Debt copyWith({
+    String? fromMemberId,
+    String? toMemberId,
+    double? amount,
+    String? fromSettlementGroupId,
+    String? toSettlementGroupId,
+    String? fromGroupName,
+    String? toGroupName,
+    List<String>? fromGroupMemberIds,
+    List<String>? toGroupMemberIds,
+  }) {
+    return Debt(
+      fromMemberId: fromMemberId ?? this.fromMemberId,
+      toMemberId: toMemberId ?? this.toMemberId,
+      amount: amount ?? this.amount,
+      fromSettlementGroupId: fromSettlementGroupId ?? this.fromSettlementGroupId,
+      toSettlementGroupId: toSettlementGroupId ?? this.toSettlementGroupId,
+      fromGroupName: fromGroupName ?? this.fromGroupName,
+      toGroupName: toGroupName ?? this.toGroupName,
+      fromGroupMemberIds: fromGroupMemberIds ?? this.fromGroupMemberIds,
+      toGroupMemberIds: toGroupMemberIds ?? this.toGroupMemberIds,
+    );
+  }
 }
 
 // ─── Combined Balances Aggregation Result ────────────────────────────────────
@@ -792,4 +816,121 @@ List<Debt> calculateDirectDebtsWithGroups({
   debts.sort((x, y) => y.amount.compareTo(x.amount));
   return debts;
 }
+
+/// Eliminates circular debt cycles (e.g. A owes B ₹10, B owes C ₹10, C owes A ₹10)
+/// by subtracting the minimum flow along each directed cycle until no circular debts remain.
+List<Debt> eliminateDebtCycles(List<Debt> inputDebts) {
+  if (inputDebts.length < 2) return inputDebts;
+
+  // Build directed adjacency graph in cents
+  final graph = <String, Map<String, int>>{};
+  final templateDebt = <String, Debt>{};
+
+  for (final d in inputDebts) {
+    if (d.amount <= 0.009) continue;
+    final cents = (d.amount * 100).round();
+    graph.putIfAbsent(d.fromMemberId, () => {});
+    graph[d.fromMemberId]![d.toMemberId] =
+        (graph[d.fromMemberId]![d.toMemberId] ?? 0) + cents;
+    templateDebt['${d.fromMemberId}_${d.toMemberId}'] = d;
+  }
+
+  // Iteratively detect and subtract directed cycles using DFS
+  while (true) {
+    final visited = <String>{};
+    final recStack = <String>{};
+    final parent = <String, String>{};
+    List<String>? cycle;
+
+    bool dfs(String u) {
+      visited.add(u);
+      recStack.add(u);
+
+      final neighbors = graph[u];
+      if (neighbors != null) {
+        for (final entry in neighbors.entries) {
+          final v = entry.key;
+          final weight = entry.value;
+          if (weight <= 0) continue;
+
+          if (!visited.contains(v)) {
+            parent[v] = u;
+            if (dfs(v)) return true;
+          } else if (recStack.contains(v)) {
+            // Cycle detected: backtrack from u to v
+            cycle = [v];
+            String curr = u;
+            while (curr != v) {
+              cycle!.add(curr);
+              curr = parent[curr] ?? v;
+            }
+            cycle!.add(v);
+            cycle = cycle!.reversed.toList();
+            return true;
+          }
+        }
+      }
+
+      recStack.remove(u);
+      return false;
+    }
+
+    for (final node in graph.keys) {
+      if (!visited.contains(node)) {
+        if (dfs(node)) break;
+      }
+    }
+
+    if (cycle == null || cycle!.length < 2) break;
+
+    // Find min weight along cycle
+    int minWeight = 1 << 60;
+    for (int i = 0; i < cycle!.length - 1; i++) {
+      final u = cycle![i];
+      final v = cycle![i + 1];
+      final w = graph[u]?[v] ?? 0;
+      if (w < minWeight) minWeight = w;
+    }
+
+    if (minWeight <= 0 || minWeight == (1 << 60)) break;
+
+    // Subtract minWeight from all edges along the cycle
+    for (int i = 0; i < cycle!.length - 1; i++) {
+      final u = cycle![i];
+      final v = cycle![i + 1];
+      final current = graph[u]?[v] ?? 0;
+      final rem = current - minWeight;
+      if (rem <= 0) {
+        graph[u]!.remove(v);
+      } else {
+        graph[u]![v] = rem;
+      }
+    }
+  }
+
+  // Convert remaining edges back to Debt objects
+  final result = <Debt>[];
+  for (final u in graph.keys) {
+    for (final entry in graph[u]!.entries) {
+      final v = entry.key;
+      final cents = entry.value;
+      if (cents > 0) {
+        final existing = templateDebt['${u}_$v'];
+        if (existing != null) {
+          result.add(existing.copyWith(amount: cents / 100.0));
+        } else {
+          result.add(Debt(
+            fromMemberId: u,
+            toMemberId: v,
+            amount: cents / 100.0,
+          ));
+        }
+      }
+    }
+  }
+
+  result.sort((a, b) => b.amount.compareTo(a.amount));
+  return result;
+}
+
 

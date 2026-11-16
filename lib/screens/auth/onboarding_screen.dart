@@ -182,20 +182,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                       onPressed: _handleNext,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
-                            ),
+                      child: Center(
+                        child: Text(
+                          _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
+                        ),
                       ),
                     ),
                   ),

@@ -1356,6 +1356,24 @@ class SplitService {
     return localSettlements;
   }
 
+  Future<void> deleteSettlement(String settlementId) async {
+    if (!kIsWeb) {
+      try {
+        final db = await _localDb;
+        await db.delete('settlements', where: 'id = ?', whereArgs: [settlementId]);
+      } catch (e) {
+        debugPrint('Local deleteSettlement error: $e');
+      }
+    }
+
+    try {
+      await _db.from('settlements').delete().eq('id', settlementId);
+    } catch (e) {
+      debugPrint('Cloud deleteSettlement error, queued offline: $e');
+      await _enqueue('DELETE', 'settlements', settlementId, null);
+    }
+  }
+
   // --- Module A: Expense Member Groups ---
 
   Future<SplitExpenseGroup> createExpenseGroup({

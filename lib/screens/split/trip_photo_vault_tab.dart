@@ -5,6 +5,7 @@ import '../../models/split_models.dart';
 import '../../providers/trip_photo_provider.dart';
 import '../../services/trip_photo_service.dart';
 import '../../services/file_picker_service.dart';
+import '../../widgets/shimmer_box.dart';
 import 'trip_photo_viewer_screen.dart';
 import 'upload_photos_sheet.dart';
 
@@ -140,9 +141,7 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
     return Consumer<TripPhotoProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading && provider.allPhotos.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: _primaryColor),
-          );
+          return VaultGallerySkeleton(crossAxisCount: _crossAxisCount);
         }
 
         final photos = provider.filteredPhotos;
@@ -166,16 +165,18 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
         final double radius = _crossAxisCount == 7 ? 3.0 : (_crossAxisCount == 4 ? 6.0 : 10.0);
         final double horizontalPadding = _crossAxisCount == 7 ? 8.0 : 14.0;
 
-        return Stack(
-          children: [
-            GestureDetector(
-              onScaleUpdate: _handleScaleUpdate,
-              child: RefreshIndicator(
-                onRefresh: () => provider.loadPhotos(widget.group.id),
-                color: _primaryColor,
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
+        return ShimmerLoading(
+          child: Stack(
+            children: [
+              GestureDetector(
+                onScaleUpdate: _handleScaleUpdate,
+                child: RefreshIndicator(
+                  onRefresh: () => provider.loadPhotos(widget.group.id),
+                  color: _primaryColor,
+                  child: CustomScrollView(
+                    cacheExtent: 300,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
                     // 1. Sleek Compact Timer & Modern Max Storage Card
                     SliverToBoxAdapter(
                       child: Padding(
@@ -462,9 +463,34 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                                       Image.network(
                                         photo.photoUrl,
                                         fit: BoxFit.cover,
+                                        cacheWidth: _crossAxisCount == 7
+                                            ? 220
+                                            : (_crossAxisCount == 4 ? 380 : 560),
+                                        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                          if (wasSynchronouslyLoaded) return child;
+                                          final isLoaded = frame != null;
+                                          return Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              if (!isLoaded)
+                                                PhotoShimmerPlaceholder(
+                                                  borderRadius: radius,
+                                                  showIcon: _crossAxisCount != 7,
+                                                ),
+                                              AnimatedOpacity(
+                                                opacity: isLoaded ? 1.0 : 0.0,
+                                                duration: const Duration(milliseconds: 250),
+                                                curve: Curves.easeOut,
+                                                child: child,
+                                              ),
+                                            ],
+                                          );
+                                        },
                                         errorBuilder: (_, __, ___) => Container(
                                           color: const Color(0xFFE2E8F0),
-                                          child: const Icon(Icons.broken_image, color: Colors.black26, size: 16),
+                                          child: const Center(
+                                            child: Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8), size: 16),
+                                          ),
                                         ),
                                       ),
 
@@ -522,7 +548,8 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
               ),
             ),
           ],
-        );
+        ),
+      );
       },
     );
   }

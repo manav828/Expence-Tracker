@@ -622,11 +622,23 @@ class SplitProvider with ChangeNotifier {
     await setSimplifyDebts(groupId, !current);
   }
 
+  Future<void> deleteSettlement(String settlementId, String groupId) async {
+    await SplitService.instance.deleteSettlement(settlementId);
+    await loadGroupDetail(groupId);
+    _checkPendingSync();
+  }
+
   List<Debt> getDebtsForGroup(String groupId, {bool? forceSimplify}) {
     final simplify = forceSimplify ?? isSimplifyDebtsEnabled(groupId);
     final settlementGroups = _settlementGroups[groupId] ?? [];
+    final bals = _balances[groupId];
+
+    // If all members are settled up (all net balances 0.00), no payments needed!
+    if (bals != null && bals.isNotEmpty && bals.values.every((b) => b.abs() < 0.01)) {
+      return [];
+    }
+
     if (simplify) {
-      final bals = _balances[groupId];
       if (bals == null || bals.isEmpty) return [];
       return simplifyDebtsWithGroups(
         individualBalances: bals,
@@ -636,12 +648,13 @@ class SplitProvider with ChangeNotifier {
       final exps = _expenses[groupId] ?? [];
       final shares = _shares[groupId] ?? [];
       final setts = _settlements[groupId] ?? [];
-      return calculateDirectDebtsWithGroups(
+      final raw = calculateDirectDebtsWithGroups(
         expenses: exps,
         shares: shares,
         settlements: setts,
         settlementGroups: settlementGroups,
       );
+      return eliminateDebtCycles(raw);
     }
   }
 

@@ -540,26 +540,15 @@ class _SplitScreenState extends State<SplitScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          group.name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF131B2E),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _getGroupEmoji(group.name),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ],
+                  Text(
+                    group.name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF131B2E),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -909,23 +898,6 @@ class _SplitScreenState extends State<SplitScreen> {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
-  String _getGroupEmoji(String name) {
-    final l = name.toLowerCase();
-    if (l.contains('trip') || l.contains('tour') || l.contains('travel') || l.contains('bali') || l.contains('goa') || l.contains('flight')) {
-      return '✈️';
-    }
-    if (l.contains('flat') || l.contains('room') || l.contains('house') || l.contains('rent') || l.contains('home')) {
-      return '🏠';
-    }
-    if (l.contains('office') || l.contains('work') || l.contains('commute') || l.contains('cab')) {
-      return '🚗';
-    }
-    if (l.contains('food') || l.contains('dinner') || l.contains('lunch') || l.contains('cafe') || l.contains('party')) {
-      return '🍴';
-    }
-    return '👥';
-  }
-
   String _formatTimeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 60) {
