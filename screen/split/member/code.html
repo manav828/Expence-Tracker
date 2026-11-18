@@ -1,0 +1,179 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Trip Members - CheQ Style</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary-fixed-variant": "#00522a",
+            "tertiary": "#775a00",
+            "on-primary-fixed": "#00210d",
+            "on-secondary": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "on-tertiary-container": "#473400",
+            "on-secondary-container": "#00723d",
+            "on-primary-container": "#004020",
+            "tertiary-container": "#c89900",
+            "error": "#ba1a1a",
+            "surface-container-highest": "#e1e2e5",
+            "primary-fixed": "#6cfda2",
+            "surface-container-low": "#f2f4f6",
+            "on-surface": "#191c1e",
+            "surface-dim": "#d8dadd",
+            "surface-container-lowest": "#ffffff",
+            "tertiary-fixed": "#ffdf99",
+            "secondary-fixed": "#8af9ae",
+            "inverse-surface": "#2e3133",
+            "on-tertiary-fixed-variant": "#5a4300",
+            "on-secondary-fixed": "#00210e",
+            "on-surface-variant": "#3d4a3f",
+            "outline-variant": "#bbcabc",
+            "tertiary-fixed-dim": "#f6bf22",
+            "surface-variant": "#e1e2e5",
+            "primary-fixed-dim": "#4ce088",
+            "inverse-on-surface": "#eff1f3",
+            "secondary-fixed-dim": "#6edc94",
+            "surface-container": "#eceef0",
+            "on-secondary-fixed-variant": "#00522a",
+            "outline": "#6c7b6e",
+            "on-error-container": "#93000a",
+            "background": "#f8f9fc",
+            "secondary": "#006d3a",
+            "surface-tint": "#006d39",
+            "surface": "#f8f9fc",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "primary-container": "#00b865",
+            "on-tertiary-fixed": "#251a00",
+            "surface-container-high": "#e7e8eb",
+            "error-container": "#ffdad6",
+            "inverse-primary": "#4ce088",
+            "surface-bright": "#f8f9fc",
+            "on-background": "#191c1e",
+            "secondary-container": "#88f6ab",
+            "primary": "#006d39"
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px"
+          },
+          spacing: {
+            "space-xl": "2rem",
+            "margin-desktop": "2.5rem",
+            "space-lg": "1.5rem",
+            "gutter-desktop": "1.5rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "margin-tablet": "1.5rem",
+            "space-xs": "0.25rem",
+            "margin": "1rem"
+          },
+          fontFamily: {
+            "headline-lg": ["Plus Jakarta Sans"],
+            "label-md": ["Plus Jakarta Sans"],
+            "label-lg": ["Plus Jakarta Sans"],
+            "numeric-card": ["Plus Jakarta Sans"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "numeric-hero": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "display-lg": ["Plus Jakarta Sans"],
+            "headline-sm": ["Plus Jakarta Sans"],
+            "display-lg-mobile": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased font-['Plus_Jakarta_Sans',sans-serif] min-h-screen flex justify-center">
+<!-- Mobile/App Frame Container -->
+<div class="relative w-full max-w-md min-h-screen flex flex-col bg-background pb-32">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-20 bg-background/90 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-surface-container-high/40">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[22px]">arrow_back</span>
+</button>
+<div class="flex flex-col items-center">
+<h1 class="text-base font-bold text-on-surface tracking-tight">Members</h1>
+<span class="text-[11px] font-medium text-on-surface-variant/80">Ujjain Trip</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 px-4 pt-3 flex flex-col gap-4">
+<!-- CheQ Style Compact Trip Overview Card -->
+<section class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant/30 flex flex-col gap-3 shadow-sm"><div class="flex items-start justify-between gap-3"><div class="flex items-start gap-3 min-w-0 flex-1"><div class="w-11 h-11 rounded-xl bg-secondary-container/30 text-secondary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[24px] text-primary">temple_hindu</span></div><div class="flex flex-col min-w-0 flex-1"><div class="flex items-center gap-1.5 flex-wrap"><h2 class="text-base font-bold text-on-surface truncate">Ujjain Yatra 2024</h2><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-container/15 text-primary whitespace-nowrap">Active Group</span></div><p class="text-xs text-on-surface-variant/80 truncate mt-0.5">Good friends, shared moments</p><div class="flex items-center gap-1 text-[11px] font-medium text-on-surface-variant mt-1"><span class="material-symbols-outlined text-[13px] text-primary">calendar_today</span><span>24 – 28 Oct 2024</span></div></div></div><div class="flex items-center gap-1 shrink-0"><button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="Edit Group"><span class="material-symbols-outlined text-[18px]">edit</span></button><button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="More Options"><span class="material-symbols-outlined text-[18px]">more_vert</span></button></div></div><div class="flex items-center gap-2 pt-0.5"><button class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-container text-on-primary text-xs font-bold hover:bg-secondary transition-colors shadow-sm shadow-primary-container/20 active:scale-95"><span class="material-symbols-outlined text-[16px]">share</span><span>Share Link</span></button><button class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant text-xs font-semibold transition-colors"><span class="material-symbols-outlined text-[15px]">qr_code_2</span><span>Group QR</span></button></div><div class="h-px bg-surface-container-high/60 w-full"></div><div class="flex items-center justify-between text-xs"><div class="flex items-center -space-x-2 shrink-0"><div class="w-6 h-6 rounded-full bg-primary-fixed-dim text-on-primary-fixed flex items-center justify-center font-bold text-[10px] ring-2 ring-surface-container-lowest">MS</div><div class="w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-[10px] ring-2 ring-surface-container-lowest">DF</div><div class="w-6 h-6 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center font-bold text-[10px] ring-2 ring-surface-container-lowest">PK</div><div class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-bold text-[9px] ring-2 ring-surface-container-lowest">+2</div></div><p class="text-on-surface-variant font-medium truncate ml-2">7 members across 3 units</p></div></section>
+<!-- Minimal Filter Chips -->
+<section class="flex items-center justify-between gap-2 pt-1">
+<div class="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl">
+<button class="px-3.5 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface text-xs font-bold shadow-sm transition-all">
+            All Members (5)
+          </button>
+<button class="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface text-xs font-medium transition-all">
+            Combined (2)
+          </button>
+</div>
+<button class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-primary font-bold text-xs bg-secondary-container/20 hover:bg-secondary-container/30 transition-colors">
+<span class="material-symbols-outlined text-[16px]">person_add</span>
+<span>Invite</span>
+</button>
+</section><div class="relative overflow-hidden flex items-center justify-between gap-3 shadow-xs rounded-2xl p-4" style="background: linear-gradient(135deg, rgb(234, 247, 238) 0%, rgb(223, 242, 230) 100%); border: 1px solid rgb(200, 235, 210);"><div class="flex flex-col gap-1 z-10 flex-1 min-w-0"><div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-primary text-[10px] font-bold w-fit shadow-xs"><span class="material-symbols-outlined text-[13px]">hub</span><span>Smart Split</span></div><h3 class="text-sm font-bold text-on-surface tracking-tight mt-0.5">Travel Together, Settle Easy</h3><p class="text-[11px] leading-snug text-on-surface-variant font-medium">Combine family members into a single unit for simplified settlements.</p></div><img src="https://lh3.googleusercontent.com/aida/ALJJyrCab3w3SeVfGslIHt-oGfpKX-udHubXQE_YjdVogRr43sNGs9HjIn4UedDt774WUF8vGEf5Wi6sZr7WQvFf81N58usMrLsKP_doToEd5nHaTqMuJ_K6cfE6pffgiqkrk1sx-f5jonSAkjVPKEcAbNaUobmhUHWXMkNn1p3zMFjdN4ulrAoYOa3sA-JSpEk75-oi5A1L91XZQGXo8PENuwCbMxl4b5Nkw9WJYFwRz3W8" alt="Travel Community" class="w-20 h-20 object-contain rounded-xl shrink-0"></div>
+<!-- Section Title -->
+<div class="flex items-center justify-between pt-1"><span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">All Members &amp; Groups</span><span class="text-xs text-on-surface-variant font-medium whitespace-nowrap">Alphabetical</span></div>
+<!-- Members List -->
+<div class="flex flex-col gap-2.5"><article class="bg-surface-container-lowest rounded-2xl p-3.5 border border-outline-variant/30 flex items-center justify-between transition-all hover:border-outline-variant/60"><div class="flex items-center gap-3 min-w-0"><div class="relative w-11 h-11 rounded-full bg-primary-container/15 text-primary flex items-center justify-center font-bold text-sm shrink-0">MS<span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary-container text-surface-container-lowest flex items-center justify-center text-[10px]"><span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">star</span></span></div><div class="flex flex-col min-w-0"><div class="flex items-center gap-1.5"><h3 class="text-sm font-bold text-on-surface truncate">Manav Satasiya</h3><span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-surface-container text-on-surface-variant whitespace-nowrap shrink-0">Creator</span></div><p class="text-xs text-on-surface-variant/80 truncate">Group Admin • 3 expenses added</p></div></div><div class="flex items-center gap-1 shrink-0"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-secondary-container/30 text-secondary whitespace-nowrap">Active</span></div></article><article class="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden transition-all"><div class="p-3.5 flex items-center justify-between cursor-pointer hover:bg-surface-container-low/40 transition-colors"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-full bg-secondary-container/30 text-secondary flex items-center justify-center font-bold text-sm shrink-0"><span class="material-symbols-outlined text-[20px]">diversity_3</span></div><div class="flex flex-col min-w-0"><div class="flex items-center gap-1.5"><h3 class="text-sm font-bold text-on-surface truncate">Dinesh Sir Family</h3><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary-container/40 text-secondary whitespace-nowrap shrink-0">4 members</span></div><p class="text-xs text-on-surface-variant/80 truncate">Family settlement group</p></div></div><div class="flex items-center gap-2 shrink-0"><button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" title="More Options"><span class="material-symbols-outlined text-[18px]">more_vert</span></button><span class="material-symbols-outlined text-on-surface-variant text-[20px]">expand_less</span></div></div><div class="px-3.5 pb-3 pt-1 border-t border-surface-container-high/40 bg-surface-container-low/20"><div class="pl-4 border-l-2 border-primary-container/40 flex flex-col gap-2 my-1"><div class="flex items-center justify-between text-xs py-0.5"><span class="font-medium text-on-surface truncate">Dinesh Dave</span><span class="text-[11px] font-medium text-on-surface-variant whitespace-nowrap">Primary Member</span></div><div class="flex items-center justify-between text-xs py-0.5"><span class="font-medium text-on-surface-variant truncate">Neeta Dave</span><span class="text-[11px] font-medium text-on-surface-variant/80 whitespace-nowrap">Member</span></div><div class="flex items-center justify-between text-xs py-0.5"><span class="font-medium text-on-surface-variant truncate">Aarav Dave</span><span class="text-[11px] font-medium text-on-surface-variant/80 whitespace-nowrap">Member</span></div><div class="flex items-center justify-between text-xs py-0.5"><span class="font-medium text-on-surface-variant truncate">Riya Dave</span><span class="text-[11px] font-medium text-on-surface-variant/80 whitespace-nowrap">Member</span></div></div></div></article><article class="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden transition-all"><div class="p-3.5 flex items-center justify-between cursor-pointer hover:bg-surface-container-low/40 transition-colors"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-full bg-secondary-container/20 text-primary flex items-center justify-center font-bold text-sm shrink-0"><span class="material-symbols-outlined text-[20px]">group</span></div><div class="flex flex-col min-w-0"><div class="flex items-center gap-1.5"><h3 class="text-sm font-bold text-on-surface truncate">Pooja &amp; Krunal</h3><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-container text-on-surface-variant whitespace-nowrap shrink-0">2 members</span></div><p class="text-xs text-on-surface-variant/80 truncate">Couple unit</p></div></div><div class="flex items-center gap-2 shrink-0"><button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" title="More Options"><span class="material-symbols-outlined text-[18px]">more_vert</span></button><span class="material-symbols-outlined text-on-surface-variant text-[20px]">expand_less</span></div></div><div class="px-3.5 pb-3 pt-1 border-t border-surface-container-high/40 bg-surface-container-low/20"><div class="pl-4 border-l-2 border-primary-container/40 flex flex-col gap-2 my-1"><div class="flex items-center justify-between text-xs py-0.5"><span class="font-medium text-on-surface truncate">Pooja Shah</span><span class="text-[11px] font-medium text-on-surface-variant whitespace-nowrap">Primary Member</span></div><div class="flex items-center justify-between text-xs py-0.5"><span class="font-medium text-on-surface-variant truncate">Krunal Shah</span><span class="text-[11px] font-medium text-on-surface-variant/80 whitespace-nowrap">Member</span></div></div></div></article><article class="bg-surface-container-lowest rounded-2xl p-3.5 border border-outline-variant/30 flex items-center justify-between transition-all hover:border-outline-variant/60"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center font-bold text-sm shrink-0">RD</div><div class="flex flex-col min-w-0"><h3 class="text-sm font-bold text-on-surface truncate">Rahul Dave</h3><p class="text-xs text-on-surface-variant/80 truncate">Individual Member</p></div></div><div class="flex items-center gap-1 shrink-0"></div></article></div>
+<!-- Quick Action: Direct Settlement Button -->
+</main>
+<!-- Floating Sticky Action Button (CheQ Style Signature Action) -->
+<div class="fixed bottom-20 left-0 right-0 max-w-md mx-auto px-4 z-20 pointer-events-none flex justify-end">
+<button class="pointer-events-auto shadow-lg shadow-primary-container/25 bg-primary-container hover:bg-secondary text-on-primary font-bold px-5 py-3 rounded-full flex items-center gap-2 transition-all transform active:scale-95 text-xs">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+<span>Add Member</span>
+</button>
+</div>
+<!-- CheQ-Style Exact Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high z-30"><div class="flex items-center justify-around px-2 py-2"><a class="flex flex-1 flex-col items-center justify-center py-1 text-on-surface-variant hover:text-primary transition-colors" href="#"><div class="flex h-7 items-center justify-center"><span class="material-symbols-outlined text-[22px]">receipt_long</span></div><p class="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">Expenses</p></a><a class="flex flex-1 flex-col items-center justify-center py-1 text-on-surface-variant hover:text-primary transition-colors" href="#"><div class="flex h-7 items-center justify-center"><span class="material-symbols-outlined text-[22px]">handshake</span></div><p class="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">Settle</p></a><div class="flex flex-1 flex-col items-center justify-center -mt-5"><button class="w-12 h-12 rounded-full bg-primary-container hover:bg-secondary text-on-primary flex items-center justify-center shadow-md shadow-primary-container/40 transition-transform active:scale-90"><span class="material-symbols-outlined text-[26px]">add</span></button><span class="text-[10px] font-semibold text-primary mt-1 whitespace-nowrap">Add</span></div><a class="flex flex-1 flex-col items-center justify-center py-1 text-primary" href="#"><div class="flex h-7 items-center justify-center relative"><span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">group</span><span class="absolute -top-0.5 right-1 w-1.5 h-1.5 rounded-full bg-primary-container"></span></div><p class="text-[11px] font-bold tracking-tight text-primary mt-0.5 whitespace-nowrap">Members</p></a><a class="flex flex-1 flex-col items-center justify-center py-1 text-on-surface-variant hover:text-primary transition-colors" href="#"><div class="flex h-7 items-center justify-center"><span class="material-symbols-outlined text-[22px]">photo_library</span></div><p class="text-[11px] font-medium tracking-tight mt-0.5 whitespace-nowrap">Photos</p></a></div></nav>
+</div>
+
+
+
+
+
+
+
+
+
+
+</body></html>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/cloudflare_r2_service.dart';
 import '../services/file_picker_service.dart';
+import '../services/app_permission_service.dart';
 
 class ReceiptAttachmentSheet extends StatefulWidget {
   final String? initialUrl;
@@ -28,6 +29,21 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
   }
 
   Future<void> _pickAndUploadReceipt({bool useCamera = false}) async {
+    final bool hasPermission;
+    if (useCamera) {
+      hasPermission = await AppPermissionService.requestCameraPermission(
+        context,
+        reason: 'take a photo of your receipt',
+      );
+    } else {
+      hasPermission = await AppPermissionService.requestPhotosPermission(
+        context,
+        reason: 'select a receipt photo from your gallery',
+      );
+    }
+
+    if (!hasPermission || !mounted) return;
+
     setState(() => _isUploading = true);
     try {
       final picked = await pickImageFile(useCamera: useCamera);

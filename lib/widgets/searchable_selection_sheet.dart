@@ -8,7 +8,8 @@ class SearchableSelectionSheet extends StatefulWidget {
   final List<String> items;
   final String? selectedItem;
   final bool isCategory;
-  final VoidCallback? onAddNew;
+  final bool isIncomeCategory;
+  final Function? onAddNew;
 
   const SearchableSelectionSheet({
     super.key,
@@ -16,6 +17,7 @@ class SearchableSelectionSheet extends StatefulWidget {
     required this.items,
     this.selectedItem,
     required this.isCategory,
+    this.isIncomeCategory = false,
     this.onAddNew,
   });
 
@@ -25,7 +27,8 @@ class SearchableSelectionSheet extends StatefulWidget {
     required List<String> items,
     String? selectedItem,
     required bool isCategory,
-    VoidCallback? onAddNew,
+    bool isIncomeCategory = false,
+    Function? onAddNew,
   }) {
     return showModalBottomSheet<String>(
       context: context,
@@ -36,6 +39,7 @@ class SearchableSelectionSheet extends StatefulWidget {
         items: items,
         selectedItem: selectedItem,
         isCategory: isCategory,
+        isIncomeCategory: isIncomeCategory,
         onAddNew: onAddNew,
       ),
     );
@@ -48,6 +52,24 @@ class SearchableSelectionSheet extends StatefulWidget {
 class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+
+  void _triggerAddNew() {
+    Navigator.pop(context);
+    if (widget.onAddNew != null) {
+      final q = _query.trim().isNotEmpty ? _query.trim() : null;
+      if (widget.onAddNew is void Function(String?)) {
+        (widget.onAddNew as void Function(String?))(q);
+      } else if (widget.onAddNew is VoidCallback) {
+        (widget.onAddNew as VoidCallback)();
+      } else {
+        try {
+          (widget.onAddNew as dynamic)(q);
+        } catch (_) {
+          (widget.onAddNew as dynamic)();
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -101,10 +123,7 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                 ),
                 if (widget.onAddNew != null)
                   TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      widget.onAddNew!();
-                    },
+                    onPressed: _triggerAddNew,
                     icon: const Icon(Icons.add, size: 16, color: Color(0xFF006948)),
                     label: const Text(
                       'Add New',
@@ -186,9 +205,10 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
           Expanded(
             child: filteredItems.isEmpty
                 ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
@@ -205,10 +225,7 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                           if (widget.onAddNew != null) ...[
                             const SizedBox(height: 16),
                             ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                widget.onAddNew!();
-                              },
+                              onPressed: _triggerAddNew,
                               icon: const Icon(Icons.add, size: 16, color: Colors.white),
                               label: Text('Create "$_query"', style: const TextStyle(color: Colors.white)),
                               style: ElevatedButton.styleFrom(
@@ -229,7 +246,9 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                       final item = filteredItems[index];
                       final isSelected = widget.selectedItem?.toLowerCase().trim() == item.toLowerCase().trim();
                       final usageCount = widget.isCategory
-                          ? provider.getCategoryUsageCount(item)
+                          ? (widget.isIncomeCategory
+                              ? provider.getIncomeCategoryUsageCount(item)
+                              : provider.getCategoryUsageCount(item))
                           : provider.getPaymentMethodUsageCount(item);
                       final icon = widget.isCategory
                           ? CategoryIcons.get(item)

@@ -14,12 +14,13 @@ class CategoryPaymentManagerSheet extends StatefulWidget {
 class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerSheet> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _categorySortMode = 'custom'; // 'custom', 'most_used', 'az'
+  String _incomeCategorySortMode = 'custom'; // 'custom', 'most_used', 'az'
   String _paymentMethodSortMode = 'custom'; // 'custom', 'most_used', 'az'
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -28,9 +29,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     super.dispose();
   }
 
-  void _promptAdd(BuildContext context, bool isCategory) {
+  void _promptAdd(BuildContext context, bool isCategory, {bool isIncome = false}) {
     final controller = TextEditingController();
-    String selectedIconKey = isCategory ? 'category' : '';
+    String selectedIconKey = isCategory ? (isIncome ? 'payments' : 'category') : '';
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
@@ -38,7 +39,11 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
           final selectedIconData = isCategory
               ? (CategoryIcons.availableIcons.firstWhere(
                   (opt) => opt.key == selectedIconKey,
-                  orElse: () => const CategoryIconOption(key: 'category', label: 'General', icon: Icons.category),
+                  orElse: () => CategoryIconOption(
+                    key: isIncome ? 'payments' : 'category',
+                    label: isIncome ? 'Income' : 'General',
+                    icon: isIncome ? Icons.payments : Icons.category,
+                  ),
                 ).icon)
               : Icons.category;
 
@@ -46,7 +51,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: Text(
-              isCategory ? 'Add New Category' : 'Add Payment Method',
+              isCategory
+                  ? (isIncome ? 'Add New Income Category' : 'Add New Category')
+                  : 'Add Payment Method',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF131B2E)),
             ),
             content: Column(
@@ -58,8 +65,12 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                   autofocus: true,
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
-                    labelText: isCategory ? 'Category Name' : 'Payment Method Name',
-                    hintText: isCategory ? 'e.g. Subscriptions, Fuel' : 'e.g. NetBanking, Wallet',
+                    labelText: isCategory
+                        ? (isIncome ? 'Income Category Name' : 'Category Name')
+                        : 'Payment Method Name',
+                    hintText: isCategory
+                        ? (isIncome ? 'e.g. Bonus, Consulting, Dividend' : 'e.g. Subscriptions, Fuel')
+                        : 'e.g. NetBanking, Wallet',
                     filled: true,
                     fillColor: const Color(0xFFF2F3FF),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
@@ -135,7 +146,11 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                     final provider = Provider.of<ExpenseProvider>(context, listen: false);
                     if (isCategory) {
                       await CategoryIcons.setCustomIcon(text, selectedIconKey);
-                      await provider.addCategory(text);
+                      if (isIncome) {
+                        await provider.addIncomeCategory(text);
+                      } else {
+                        await provider.addCategory(text);
+                      }
                     } else {
                       await provider.addPaymentMethod(text);
                     }
@@ -158,7 +173,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     );
   }
 
-  void _promptEdit(BuildContext context, bool isCategory, String currentName) {
+  void _promptEdit(BuildContext context, bool isCategory, String currentName, {bool isIncome = false}) {
     final controller = TextEditingController(text: currentName);
     String selectedIconKey = isCategory ? CategoryIcons.getKeyForCategory(currentName) : '';
     showDialog(
@@ -168,7 +183,11 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
           final selectedIconData = isCategory
               ? (CategoryIcons.availableIcons.firstWhere(
                   (opt) => opt.key == selectedIconKey,
-                  orElse: () => const CategoryIconOption(key: 'category', label: 'General', icon: Icons.category),
+                  orElse: () => CategoryIconOption(
+                    key: isIncome ? 'payments' : 'category',
+                    label: isIncome ? 'Income' : 'General',
+                    icon: isIncome ? Icons.payments : Icons.category,
+                  ),
                 ).icon)
               : Icons.category;
 
@@ -176,7 +195,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: Text(
-              isCategory ? 'Edit Category' : 'Edit Payment Method',
+              isCategory
+                  ? (isIncome ? 'Edit Income Category' : 'Edit Category')
+                  : 'Edit Payment Method',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF131B2E)),
             ),
             content: Column(
@@ -188,7 +209,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                   autofocus: true,
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
-                    labelText: isCategory ? 'Category Name' : 'Payment Method Name',
+                    labelText: isCategory
+                        ? (isIncome ? 'Income Category Name' : 'Category Name')
+                        : 'Payment Method Name',
                     filled: true,
                     fillColor: const Color(0xFFF2F3FF),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
@@ -265,7 +288,11 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                     if (isCategory) {
                       if (newText != currentName) {
                         await CategoryIcons.renameCategory(currentName, newText);
-                        await provider.updateCategory(currentName, newText);
+                        if (isIncome) {
+                          await provider.updateIncomeCategory(currentName, newText);
+                        } else {
+                          await provider.updateCategory(currentName, newText);
+                        }
                       }
                       await CategoryIcons.setCustomIcon(newText, selectedIconKey);
                     } else {
@@ -292,14 +319,14 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     );
   }
 
-  void _confirmDelete(BuildContext context, bool isCategory, String name) {
+  void _confirmDelete(BuildContext context, bool isCategory, String name, {bool isIncome = false}) {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Delete $name?'),
-        content: Text('Are you sure you want to remove "$name" from ${isCategory ? "categories" : "payment methods"}?'),
+        content: Text('Are you sure you want to remove "$name" from ${isCategory ? (isIncome ? "income categories" : "categories") : "payment methods"}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
@@ -310,7 +337,11 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
               final provider = Provider.of<ExpenseProvider>(context, listen: false);
               if (isCategory) {
                 await CategoryIcons.deleteCategory(name);
-                await provider.deleteCategory(name);
+                if (isIncome) {
+                  await provider.deleteIncomeCategory(name);
+                } else {
+                  await provider.deleteCategory(name);
+                }
               } else {
                 await provider.deletePaymentMethod(name);
               }
@@ -386,6 +417,23 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
       }
     }
 
+    List<String> rawIncomeCategories;
+    if (_incomeCategorySortMode == 'most_used') {
+      rawIncomeCategories = provider.getSortedIncomeCategories(mostUsedFirst: true);
+    } else if (_incomeCategorySortMode == 'az') {
+      rawIncomeCategories = List<String>.from(provider.incomeCategories)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    } else {
+      rawIncomeCategories = List<String>.from(provider.incomeCategories);
+    }
+    final incomeCategories = <String>[];
+    final seenIncCats = <String>{};
+    for (final c in rawIncomeCategories) {
+      final trimmed = c.trim();
+      if (trimmed.isNotEmpty && seenIncCats.add(trimmed.toLowerCase())) {
+        incomeCategories.add(trimmed);
+      }
+    }
+
     List<String> rawPaymentMethods;
     if (_paymentMethodSortMode == 'most_used') {
       rawPaymentMethods = provider.getSortedPaymentMethods(mostUsedFirst: true);
@@ -454,6 +502,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
             indicatorColor: const Color(0xFF006948),
             tabs: const [
               Tab(text: 'Categories'),
+              Tab(text: 'Income'),
               Tab(text: 'Payment Methods'),
             ],
           ),
@@ -625,6 +674,186 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                     icon: const Icon(Icons.delete_outline, size: 19, color: Color(0xFFBA1A1A)),
                                     tooltip: 'Delete',
                                     onPressed: () => _confirmDelete(context, true, cat),
+                                  ),
+                                  ReorderableDragStartListener(
+                                    index: i,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                      child: const Icon(Icons.drag_indicator, size: 22, color: Color(0xFF6D7A72)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                // Income Categories tab
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildSortChip(
+                                    label: 'Drag & Drop',
+                                    icon: Icons.drag_indicator,
+                                    isSelected: _incomeCategorySortMode == 'custom',
+                                    onTap: () => setState(() => _incomeCategorySortMode = 'custom'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildSortChip(
+                                    label: 'Most Used',
+                                    icon: Icons.local_fire_department,
+                                    isSelected: _incomeCategorySortMode == 'most_used',
+                                    onTap: () async {
+                                      final sorted = provider.getSortedIncomeCategories(mostUsedFirst: true);
+                                      await provider.setCustomIncomeCategoryOrder(sorted);
+                                      setState(() => _incomeCategorySortMode = 'most_used');
+                                    },
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildSortChip(
+                                    label: 'A-Z',
+                                    icon: Icons.sort_by_alpha,
+                                    isSelected: _incomeCategorySortMode == 'az',
+                                    onTap: () async {
+                                      final sorted = List<String>.from(provider.incomeCategories)
+                                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                                      await provider.setCustomIncomeCategoryOrder(sorted);
+                                      setState(() => _incomeCategorySortMode = 'az');
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: () => _promptAdd(context, true, isIncome: true),
+                            icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                            label: const Text('Add Income Category', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF006948),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ReorderableListView.builder(
+                        buildDefaultDragHandles: false,
+                        itemCount: incomeCategories.length,
+                        onReorder: (oldIndex, newIndex) async {
+                          setState(() => _incomeCategorySortMode = 'custom');
+                          await provider.reorderIncomeCategories(oldIndex, newIndex);
+                        },
+                        itemBuilder: (ctx, i) {
+                          final cat = incomeCategories[i];
+                          final usageCount = provider.getIncomeCategoryUsageCount(cat);
+                          final catIcon = CategoryIcons.get(cat);
+
+                          return Container(
+                            key: ValueKey('inc_cat_$cat'),
+                            margin: const EdgeInsets.symmetric(vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0x0F000000)),
+                            ),
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                              onTap: () => _promptEdit(context, true, cat, isIncome: true),
+                              leading: Tooltip(
+                                message: 'Tap to change icon',
+                                child: InkWell(
+                                  onTap: () async {
+                                    final currentKey = CategoryIcons.getKeyForCategory(cat);
+                                    final picked = await CategoryIconPickerDialog.show(
+                                      context,
+                                      currentIconKey: currentKey,
+                                    );
+                                    if (picked != null && mounted) {
+                                      await CategoryIcons.setCustomIcon(cat, picked.key);
+                                      setState(() {});
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF006948).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Icon(catIcon, size: 20, color: const Color(0xFF006948)),
+                                        Positioned(
+                                          bottom: 1,
+                                          right: 1,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(1.5),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.white,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.edit, size: 8, color: Color(0xFF006948)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(cat, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                                  ),
+                                  if (usageCount > 0)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '$usageCount logged',
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                usageCount > 0 ? '$usageCount txns • Drag ⠿ to reorder' : 'Not used yet • Drag ⠿ to reorder',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 19, color: Color(0xFF006948)),
+                                    tooltip: 'Edit name & icon',
+                                    onPressed: () => _promptEdit(context, true, cat, isIncome: true),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 19, color: Color(0xFFBA1A1A)),
+                                    tooltip: 'Delete',
+                                    onPressed: () => _confirmDelete(context, true, cat, isIncome: true),
                                   ),
                                   ReorderableDragStartListener(
                                     index: i,

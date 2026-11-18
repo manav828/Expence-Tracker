@@ -23,6 +23,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COLUMN_TYPE = "type"
 
         private const val TABLE_CATEGORIES = "categories"
+        private const val TABLE_INCOME_CATEGORIES = "income_categories"
         private const val TABLE_PAYMENT_METHODS = "payment_methods"
         private const val COLUMN_NAME = "name"
 
@@ -34,8 +35,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             "Entertainment",
             "Health & Wellness",
             "Investment",
-            "Salary",
             "General"
+        )
+
+        val DEFAULT_INCOME_CATEGORIES = listOf(
+            "Salary",
+            "Freelance",
+            "Investments",
+            "Refund / Cashback",
+            "Rental Income",
+            "Gifts",
+            "Other Income"
         )
 
         val DEFAULT_PAYMENT_METHODS = listOf(
@@ -80,6 +90,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         } catch (_: Exception) {}
 
         db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_CATEGORIES ($COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, $COLUMN_NAME TEXT UNIQUE NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_INCOME_CATEGORIES ($COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, $COLUMN_NAME TEXT UNIQUE NOT NULL)")
         db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_PAYMENT_METHODS ($COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, $COLUMN_NAME TEXT UNIQUE NOT NULL)")
 
         // Seed default categories if empty
@@ -94,6 +105,21 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             for (cat in DEFAULT_CATEGORIES) {
                 val cv = ContentValues().apply { put(COLUMN_NAME, cat) }
                 db.insertWithOnConflict(TABLE_CATEGORIES, null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+            }
+        }
+
+        // Seed default income categories if empty
+        val incCursor = db.rawQuery("SELECT COUNT(*) FROM $TABLE_INCOME_CATEGORIES", null)
+        var incCount = 0
+        if (incCursor.moveToFirst()) {
+            incCount = incCursor.getInt(0)
+        }
+        incCursor.close()
+
+        if (incCount == 0) {
+            for (cat in DEFAULT_INCOME_CATEGORIES) {
+                val cv = ContentValues().apply { put(COLUMN_NAME, cat) }
+                db.insertWithOnConflict(TABLE_INCOME_CATEGORIES, null, cv, SQLiteDatabase.CONFLICT_IGNORE)
             }
         }
 
@@ -208,11 +234,48 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         cursor.close()
         db.close()
-        val result = if (list.isEmpty()) DEFAULT_CATEGORIES.toMutableList() else list
-        if (!result.contains("Salary")) {
-            result.add("Salary")
+        return if (list.isEmpty()) DEFAULT_CATEGORIES.toMutableList() else list
+    }
+
+    fun getIncomeCategories(): List<String> {
+        val list = mutableListOf<String>()
+        val db = this.readableDatabase
+        val cursor = db.query(TABLE_INCOME_CATEGORIES, arrayOf(COLUMN_NAME), null, null, null, null, "$COLUMN_ID ASC")
+        while (cursor.moveToNext()) {
+            list.add(cursor.getString(0))
         }
-        return result
+        cursor.close()
+        db.close()
+        return if (list.isEmpty()) DEFAULT_INCOME_CATEGORIES.toMutableList() else list
+    }
+
+    fun addIncomeCategory(name: String): Long {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return -1
+        val db = this.writableDatabase
+        val values = ContentValues().apply { put(COLUMN_NAME, trimmed) }
+        val id = db.insertWithOnConflict(TABLE_INCOME_CATEGORIES, null, values, SQLiteDatabase.CONFLICT_IGNORE)
+        db.close()
+        return id
+    }
+
+    fun updateIncomeCategory(oldName: String, newName: String): Int {
+        val trimmed = newName.trim()
+        if (trimmed.isEmpty() || trimmed == oldName) return 0
+        val db = this.writableDatabase
+        val values = ContentValues().apply { put(COLUMN_NAME, trimmed) }
+        val count = db.update(TABLE_INCOME_CATEGORIES, values, "$COLUMN_NAME = ?", arrayOf(oldName))
+        val expValues = ContentValues().apply { put(COLUMN_CATEGORY, trimmed) }
+        db.update(TABLE_EXPENSES, expValues, "$COLUMN_CATEGORY = ? AND $COLUMN_TYPE = 'income'", arrayOf(oldName))
+        db.close()
+        return count
+    }
+
+    fun deleteIncomeCategory(name: String): Int {
+        val db = this.writableDatabase
+        val count = db.delete(TABLE_INCOME_CATEGORIES, "$COLUMN_NAME = ?", arrayOf(name))
+        db.close()
+        return count
     }
 
     fun addCategory(name: String): Long {

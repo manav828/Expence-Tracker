@@ -33,8 +33,12 @@ class QuickAddActivity : Activity() {
     private lateinit var dbHelper: DatabaseHelper
     private val selectedCalendar = Calendar.getInstance()
 
-    private val categories = mutableListOf<String>()
+    private val expenseCategories = mutableListOf<String>()
+    private val incomeCategories = mutableListOf<String>()
     private val paymentMethods = mutableListOf<String>()
+
+    private val currentCategories: MutableList<String>
+        get() = if (selectedType == "income") incomeCategories else expenseCategories
 
     private var selectedCategory = "Food & Dining"
     private var selectedPaymentMethod = "UPI"
@@ -100,10 +104,15 @@ class QuickAddActivity : Activity() {
         dismissNotificationIfPresent()
 
         // Load categories and payment methods from DB
-        categories.clear()
-        categories.addAll(dbHelper.getCategories())
-        if (categories.isNotEmpty()) {
-            selectedCategory = incomingCategory?.takeIf { categories.contains(it) } ?: categories[0]
+        expenseCategories.clear()
+        expenseCategories.addAll(dbHelper.getCategories())
+
+        incomeCategories.clear()
+        incomeCategories.addAll(dbHelper.getIncomeCategories())
+
+        val activeCategories = currentCategories
+        if (activeCategories.isNotEmpty()) {
+            selectedCategory = incomingCategory?.takeIf { activeCategories.contains(it) } ?: activeCategories[0]
         }
 
         paymentMethods.clear()
@@ -130,6 +139,10 @@ class QuickAddActivity : Activity() {
         btnTypeExpense.setOnClickListener {
             if (selectedType != "expense") {
                 selectedType = "expense"
+                if (!expenseCategories.contains(selectedCategory)) {
+                    selectedCategory = expenseCategories.firstOrNull() ?: "Food & Dining"
+                }
+                setupCategoryChips(categoryContainer)
                 updateTypeUI()
             }
         }
@@ -137,12 +150,10 @@ class QuickAddActivity : Activity() {
         btnTypeIncome.setOnClickListener {
             if (selectedType != "income") {
                 selectedType = "income"
-                if (selectedCategory == "Food & Dining" || selectedCategory == "General") {
-                    if (categories.contains("Salary")) {
-                        selectedCategory = "Salary"
-                        setupCategoryChips(categoryContainer)
-                    }
+                if (!incomeCategories.contains(selectedCategory)) {
+                    selectedCategory = incomeCategories.firstOrNull() ?: "Salary"
                 }
+                setupCategoryChips(categoryContainer)
                 updateTypeUI()
             }
         }
@@ -406,7 +417,7 @@ class QuickAddActivity : Activity() {
 
         val density = resources.displayMetrics.density
 
-        for (cat in categories) {
+        for (cat in currentCategories) {
             val chip = TextView(this).apply {
                 text = cat
                 textSize = 12f
@@ -539,8 +550,17 @@ class QuickAddActivity : Activity() {
     }
 
     private fun showAddDialog(isCategory: Boolean, container: LinearLayout) {
-        val title = if (isCategory) "Add New Category" else "Add Payment Method"
-        val hint = if (isCategory) "e.g. Subscriptions, Fuel" else "e.g. NetBanking, Wallet"
+        val isIncome = selectedType == "income"
+        val title = if (isCategory) {
+            if (isIncome) "Add Income Category" else "Add Expense Category"
+        } else {
+            "Add Payment Method"
+        }
+        val hint = if (isCategory) {
+            if (isIncome) "e.g. Dividend, Bonus, Rental" else "e.g. Subscriptions, Fuel"
+        } else {
+            "e.g. NetBanking, Wallet"
+        }
 
         val input = EditText(this).apply {
             setHint(hint)
@@ -568,8 +588,13 @@ class QuickAddActivity : Activity() {
                 val name = input.text.toString().trim()
                 if (name.isNotEmpty()) {
                     if (isCategory) {
-                        dbHelper.addCategory(name)
-                        if (!categories.contains(name)) categories.add(name)
+                        if (isIncome) {
+                            dbHelper.addIncomeCategory(name)
+                            if (!incomeCategories.contains(name)) incomeCategories.add(name)
+                        } else {
+                            dbHelper.addCategory(name)
+                            if (!expenseCategories.contains(name)) expenseCategories.add(name)
+                        }
                         selectedCategory = name
                         setupCategoryChips(container)
                     } else {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/split_provider.dart';
+import '../../providers/expense_provider.dart';
 import '../../models/split_models.dart';
+import '../../models/expense.dart';
 import 'package:intl/intl.dart';
 
 class SettleUpScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
   late TextEditingController _amountCtrl;
   final _noteCtrl = TextEditingController();
   bool _isLoading = false;
+  bool _recordToPersonal = true;
   late String _selectedFromMemberId;
   late String _selectedToMemberId;
   static const _primaryColor = Color(0xFF006948);
@@ -234,7 +237,44 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
+
+              // Save to Personal Expenses Switch
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006948).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.2)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_outlined, color: _primaryColor, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Save to Personal Expenses',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF131B2E)),
+                          ),
+                          Text(
+                            'Auto-logs under category "Travel" with trip note',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _recordToPersonal,
+                      activeColor: _primaryColor,
+                      onChanged: (v) => setState(() => _recordToPersonal = v),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -253,7 +293,9 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                           final nav = Navigator.of(context);
                           setState(() => _isLoading = true);
                           try {
-                            await context.read<SplitProvider>().recordSettlement(
+                            final splitProv = context.read<SplitProvider>();
+                            final expenseProv = context.read<ExpenseProvider>();
+                            await splitProv.recordSettlement(
                               groupId: widget.groupId,
                               fromMemberId: _selectedFromMemberId,
                               toMemberId: _selectedToMemberId,
@@ -262,11 +304,48 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                               fromSettlementGroupId: widget.debt.fromSettlementGroupId,
                               toSettlementGroupId: widget.debt.toSettlementGroupId,
                             );
+
+                            if (_recordToPersonal && mounted) {
+                              final groupName = splitProv.groups
+                                  .firstWhere(
+                                    (g) => g.id == widget.groupId,
+                                    orElse: () => SplitGroup(
+                                      id: widget.groupId,
+                                      name: 'Trip',
+                                      createdBy: '',
+                                      inviteCode: '',
+                                      createdAt: DateTime.now(),
+                                    ),
+                                  )
+                                  .name;
+                              final fromName = widget.memberMap[_selectedFromMemberId] ?? 'Someone';
+                              final toName = widget.memberMap[_selectedToMemberId] ?? 'Someone';
+                              final myName = splitProv.currentMemberName?.trim().toLowerCase();
+                              final isMePayer = myName != null && fromName.trim().toLowerCase() == myName;
+
+                              await expenseProv.addExpense(
+                                Expense(
+                                  amount: amount,
+                                  category: 'Travel',
+                                  paymentMethod: 'UPI',
+                                  comment: isMePayer
+                                      ? 'Trip: $groupName - Settlement to $toName'
+                                      : 'Trip: $groupName - Settlement from $fromName',
+                                  expenseDate: DateTime.now().millisecondsSinceEpoch,
+                                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                                  type: isMePayer ? TransactionType.expense : TransactionType.income,
+                                ),
+                              );
+                            }
+
                             if (mounted) {
                               nav.pop(amount);
                               messenger.showSnackBar(
                                 SnackBar(
-                                  content: Text('Settlement of ₹${fmt.format(amount)} recorded!'),
+                                  content: Text(_recordToPersonal
+                                      ? 'Settlement of ₹${fmt.format(amount)} recorded & saved to Travel!'
+                                      : 'Settlement of ₹${fmt.format(amount)} recorded!'),
                                   backgroundColor: _primaryColor,
                                 ),
                               );

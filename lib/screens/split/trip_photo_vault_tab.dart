@@ -5,6 +5,7 @@ import '../../models/split_models.dart';
 import '../../providers/trip_photo_provider.dart';
 import '../../services/trip_photo_service.dart';
 import '../../services/file_picker_service.dart';
+import '../../services/app_permission_service.dart';
 import '../../widgets/shimmer_box.dart';
 import 'trip_photo_viewer_screen.dart';
 import 'upload_photos_sheet.dart';
@@ -79,6 +80,12 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
   }
 
   Future<void> _handlePickAndUpload() async {
+    final hasPermission = await AppPermissionService.requestPhotosPermission(
+      context,
+      reason: 'select photos to upload to the trip vault',
+    );
+    if (!hasPermission || !mounted) return;
+
     final pickedFiles = await pickMultipleImageFiles();
     if (!mounted || pickedFiles.isEmpty) return;
 

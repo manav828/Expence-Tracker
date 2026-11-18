@@ -1,0 +1,203 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ExpenCircle - Ujjain Trip</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans for exact CheQ aesthetic -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cheqGreen: '#00B865',
+            cheqGreenDark: '#008A4B',
+            cheqGreenLight: '#E8FBF3',
+            cheqCharcoal: '#1A1D1F',
+            cheqMuted: '#6F767E',
+            cheqGold: '#FFC72C',
+            cheqCanvas: '#F6F7F9',
+            cheqBorder: '#EFEFEF',
+            cheqDangerBg: '#FDF2F2',
+            cheqDangerText: '#DC2626'
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Layout & UI Styles -->
+<style data-purpose="custom-styling">
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background-color: #F6F7F9;
+    }
+    /* Dashed border replica of CheQ Master Card */
+    .cheq-stitched-border {
+      border: 1.5px dashed rgba(255, 255, 255, 0.4);
+    }
+    /* Subtle geometric dotted grid pattern for card background */
+    .cheq-pattern-bg {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    /* Hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<!-- END: Custom Layout & UI Styles -->
+</head>
+<body class="bg-cheqCanvas text-cheqCharcoal min-h-screen flex justify-center selection:bg-cheqGreen selection:text-white">
+<!-- Mobile Viewport Container -->
+<div class="w-full max-w-[420px] min-h-screen bg-white relative flex flex-col shadow-2xl overflow-x-hidden border-x border-slate-100 font-sans pb-24"><div class="bg-[#0B3B36] pt-3 pb-7 px-5 rounded-b-[36px] relative" style="background: linear-gradient(rgb(13, 56, 48) 0%, rgb(17, 75, 64) 100%);"><header class="w-full pb-2 flex justify-between items-center text-white text-xs font-semibold z-20" data-purpose="ios-status-bar"><span>9:41</span><div class="flex items-center space-x-1.5"><svg class="w-4 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 2c3.87 0 7 3.13 7 7 0 1.63-.56 3.13-1.5 4.34L12 19.74l-5.5-3.4A6.98 6.98 0 015 12c0-3.87 3.13-7 7-7z" opacity="0.3"></path><path d="M18.8 6.2C17.1 4.5 14.7 3.5 12 3.5s-5.1 1-6.8 2.7L12 13.9l6.8-7.7z"></path></svg><svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98A16.88 16.88 0 0012 4zm0 3.5c3.6 0 6.9 1.4 9.3 3.7L12 19.3 2.7 11.2C5.1 8.9 8.4 7.5 12 7.5z"></path></svg><div class="w-6 h-3 border border-white rounded-sm p-0.5 flex items-center"><div class="h-full w-full bg-white rounded-2xs"></div></div></div></header><nav class="py-2.5 flex items-center justify-between z-20 text-white" data-purpose="app-top-nav"><button aria-label="Go back" class="p-1 -ml-1 text-white hover:text-emerald-300 transition-colors focus:outline-none" type="button"><svg class="w-6 h-6 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" stroke-linecap="round" stroke-linejoin="round"></path></svg></button><div class="flex items-center space-x-2.5"><button aria-label="Settings" class="text-white/90 hover:text-white transition-colors p-1" type="button"><svg class="w-6 h-6 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.6 6.6 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg></button><button aria-label="Support &amp; FAQ" class="text-white/90 hover:text-white transition-colors p-1" type="button"><svg class="w-6 h-6 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M9.879 8.519c.8-1 2.2-1 3.2 0 .8.8.8 2 0 2.8-.5.5-1.08.9-1.08 1.68v.5M12 17h.01" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div></nav><div class="flex items-center gap-2.5 mt-2 mb-4"><h1 class="text-2xl font-extrabold tracking-tight text-white">ExpenCircle</h1><span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">TRIP GROUP</span></div><div class="relative pt-2.5 pb-1 select-none"><div class="absolute -top-1.5 left-4 right-4 h-6 rounded-t-2xl pointer-events-none" style="background: linear-gradient(180deg, #105951 0%, #166e63 100%); opacity: 0.85;"></div><div class="relative rounded-[22px] p-4 flex flex-col justify-between overflow-hidden shadow-[0_12px_28px_rgba(4,40,36,0.4)] border border-[#2fa899]/40" style="background: linear-gradient(145deg, #1d887a 0%, #177569 45%, #126359 100%);"><div class="absolute inset-[5px] rounded-[18px] pointer-events-none z-10" style="border: 1.5px dashed rgba(255, 255, 255, 0.45);"></div><div class="absolute inset-0 cheq-pattern-bg opacity-15 pointer-events-none"></div><div class="absolute right-0 top-[48%] -translate-y-1/2 w-8 h-[52px] rounded-l-2xl flex items-center justify-center z-20 pointer-events-none shadow-[-4px_0_12px_rgba(0,0,0,0.22)]" style="background: linear-gradient(135deg, #22998a 0%, #167a6d 100%); border-left: 1px solid rgba(255,255,255,0.3); border-top: 1px solid rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.2);"><div class="w-4 h-4 rounded-full bg-[#0c4c44] border border-[#52d2bf]/60 flex items-center justify-center shadow-inner"><div class="w-1.5 h-1.5 rounded-full bg-[#82ecd9]"></div></div></div><div class="relative z-10 pr-6"><div class="flex items-center justify-between"><p class="text-emerald-50/90 text-[11px] font-semibold tracking-wider">Available Balance</p><div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#09423b]/60 border border-emerald-300/30 text-[10px] text-emerald-100 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-[#00e07a] inline-block"></span><span>5 Members Split</span></div></div><div class="flex items-baseline space-x-1 mt-1"><span class="text-[34px] font-extrabold tracking-tight text-white leading-tight">₹24,336</span><span class="text-xl font-bold text-white/80">.00</span></div><div class="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0a3e37]/75 border border-emerald-300/25 text-[11px] text-emerald-50 shadow-sm"><span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ce088] opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-[#00e07a]"></span></span><span class="font-medium tracking-tight">Net status: <span class="text-white font-bold">You are owed ₹3,484.00</span></span></div></div><div class="relative z-10 grid grid-cols-2 gap-2.5 pt-3.5"><button class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-[#00c96c] hover:bg-[#00b461] active:scale-[0.98] text-white font-bold text-xs tracking-wide shadow-[0_4px_12px_rgba(0,180,97,0.35)] transition-all" type="button"><svg class="w-4 h-4 stroke-[2.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Add Expense</span></button><button class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-[#00c96c] hover:bg-[#00b461] active:scale-[0.98] text-white font-bold text-xs tracking-wide shadow-[0_4px_12px_rgba(0,180,97,0.35)] transition-all" type="button"><svg class="w-4 h-4 stroke-[2.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Settle Up</span></button></div></div></div></div><main class="flex-1 px-4 pt-4 pb-6 flex flex-col gap-3.5" data-purpose="content-sheet"><section class="relative rounded-2xl bg-gradient-to-r from-[#E8FBF3] to-[#E2F7ED] border border-emerald-200/70 p-3.5 flex items-center justify-between overflow-hidden shadow-xs" data-purpose="promo-banner"><div class="pr-2 max-w-[70%]"><p class="text-xs font-extrabold text-cheqCharcoal leading-snug">Group Trip Balances <span class="text-[#008A4B]">Auto-Synced</span></p><div class="flex items-center gap-1.5 mt-1 text-[11px] font-medium text-slate-600"><span>100% Free split calculator</span><span class="w-4 h-4 rounded-full bg-[#00B865] text-white flex items-center justify-center text-[10px] font-bold">✓</span></div></div><div class="w-18 h-12 relative shrink-0 flex items-center justify-center"><div class="bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white rounded-lg px-2.5 py-1 text-center shadow-md border border-white"><span class="text-[11px] font-black tracking-tight leading-none block">0%</span><span class="text-[8px] uppercase tracking-wide opacity-90 block leading-none mt-0.5">FEES</span></div></div></section><div class="w-full rounded-2xl bg-white border border-slate-100 p-3.5 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.03)] cursor-pointer active:bg-slate-50 transition-all" data-purpose="quick-settle-row"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-emerald-50 text-cheqGreenDark flex items-center justify-center shrink-0 border border-emerald-100"><svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z" stroke-linecap="round" stroke-linejoin="round"></path></svg></div><div><h2 class="text-sm font-bold text-cheqCharcoal leading-tight">Pay &amp; Settle Direct via UPI</h2><p class="text-[11px] text-slate-500 font-medium mt-0.5">Instant settlement between group friends</p></div></div><div class="text-slate-400 pr-1"><svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8.25 4.5l7.5 7.5-7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div><section class="mt-1" data-purpose="trip-expenses-feed"><div class="flex items-center justify-between mb-3 px-1">
+  <h2 class="text-base font-bold text-cheqCharcoal tracking-tight">Trip Expenses</h2>
+</div>
+<div class="space-y-4">
+  <!-- Date Group 1: 27 Oct -->
+  <div>
+    <div class="flex items-center gap-2 mb-2 px-1">
+      <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Today, 27 Oct</span>
+      <div class="flex-1 h-px bg-slate-100"></div>
+    </div>
+    <div class="space-y-2.5">
+      <article class="p-3.5 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100/80 flex items-center justify-center text-indigo-600 shrink-0">
+            <svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 21v-4m0 0V5a2 2 0 012-2h6a2 2 0 012 2v12m-10 0h10m0 0h6a2 2 0 002-2v-5a2 2 0 00-2-2h-6m0 9v-9m0 0h6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-[13px] font-bold text-cheqCharcoal leading-snug">Hotel Pushpak Heritage</h3>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Paid by <span class="font-semibold text-slate-800">Pooja</span></p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-[13px] font-extrabold text-cheqCharcoal">₹15,300</p>
+          <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">Your share: ₹3,060</span>
+        </div>
+      </article>
+      <article class="p-3.5 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200/70 flex items-center justify-center text-amber-600 shrink-0">
+            <svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2v3m0 0a6 6 0 016 6v3H6v-3a6 6 0 016-6zm-7 12h14v2a2 2 0 01-2 2H7a2 2 0 01-2-2v-2zm7 5v2m-3 0h6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-[13px] font-bold text-cheqCharcoal leading-snug">Mahakal Temple Prasad</h3>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Paid by <span class="font-semibold text-slate-800">Dinesh</span></p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-[13px] font-extrabold text-cheqCharcoal">₹710</p>
+          <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600">You owe: ₹142</span>
+        </div>
+      </article>
+    </div>
+  </div>
+  <!-- Date Group 2: 26 Oct -->
+  <div>
+    <div class="flex items-center gap-2 mb-2 px-1">
+      <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Yesterday, 26 Oct</span>
+      <div class="flex-1 h-px bg-slate-100"></div>
+    </div>
+    <div class="space-y-2.5">
+      <article class="p-3.5 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-emerald-700 shrink-0">
+            <svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 16l1.5-7h11L19 16m-14 0h14m-14 0v3a1 1 0 001 1h2a1 1 0 001-1v-3m10 0v3a1 1 0 001 1h2a1 1 0 001-1v-3M9 6h6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-[13px] font-bold text-cheqCharcoal leading-snug">Ujjain to Omkareshwar Cab</h3>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Paid by <span class="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">You</span></p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-[13px] font-extrabold text-cheqCharcoal">₹4,355</p>
+          <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">You are owed: ₹3,484</span>
+        </div>
+      </article>
+      <article class="p-3.5 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-orange-50 border border-orange-200/70 flex items-center justify-center text-orange-600 shrink-0">
+            <svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-[13px] font-bold text-cheqCharcoal leading-snug">Sarafa Food &amp; Sweets</h3>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Paid by <span class="font-semibold text-slate-800">Dinesh</span></p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-[13px] font-extrabold text-cheqCharcoal">₹911</p>
+          <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600">You owe: ₹182</span>
+        </div>
+      </article>
+    </div>
+  </div>
+</div></section></main><nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[420px] bg-white border-t border-slate-100 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] z-50 select-none px-2 pb-2 pt-1.5" data-purpose="bottom-navigation">
+<div class="grid grid-cols-5 items-end justify-items-center relative">
+<!-- 1. Expenses (Active) -->
+<a class="flex flex-col items-center justify-center py-1 group w-full" href="#expenses">
+<div class="w-6 h-6 flex items-center justify-center text-[#00A859]">
+<svg class="w-[22px] h-[22px] stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<rect height="16" rx="4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" width="18" x="3" y="4"></rect>
+<path d="M7 9h6m-6 3.5h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+</svg>
+</div>
+<span class="text-[11px] font-semibold text-[#00A859] mt-1 leading-none tracking-tight">Expenses</span>
+</a>
+<!-- 2. Settle -->
+<a class="flex flex-col items-center justify-center py-1 group w-full" href="#settle">
+<div class="w-6 h-6 flex items-center justify-center text-slate-500">
+<svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M8 7h11m0 0l-3.5-3.5M19 7l-3.5 3.5M16 17H5m0 0l3.5-3.5M5 17l3.5 3.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<span class="text-[11px] font-medium text-slate-600 mt-1 leading-none tracking-tight">Settle</span>
+</a>
+<!-- 3. Add Expense (Center elevated) -->
+<div class="flex flex-col items-center justify-center relative -top-3 w-full">
+<button aria-label="Add Expense" class="w-[46px] h-[46px] rounded-full bg-[#00A859] hover:bg-[#00924d] active:scale-95 text-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,168,89,0.35)] ring-4 ring-white transition-all" type="button">
+<svg class="w-6 h-6 stroke-[2.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 5v14m-7-7h14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<span class="text-[11px] font-bold text-slate-800 mt-1.5 leading-none tracking-tight">Add Expense</span>
+</div>
+<!-- 4. Members -->
+<a class="flex flex-col items-center justify-center py-1 group w-full" href="#members">
+<div class="w-6 h-6 flex items-center justify-center text-slate-500">
+<svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M16 14a4 4 0 10-8 0v1h8v-1zM12 10a3 3 0 100-6 3 3 0 000 6zm6 5a3.5 3.5 0 00-3.5-3.5m0-4.5A2.5 2.5 0 0117 9.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<span class="text-[11px] font-medium text-slate-600 mt-1 leading-none tracking-tight">Members</span>
+</a>
+<!-- 5. Photos -->
+<a class="flex flex-col items-center justify-center py-1 group w-full" href="#photos">
+<div class="w-6 h-6 flex items-center justify-center text-slate-500">
+<svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<rect height="18" rx="3.5" stroke-linecap="round" stroke-linejoin="round" width="18" x="3" y="3"></rect>
+<circle cx="8.5" cy="8.5" r="1.5"></circle>
+<path d="M21 16l-5-5-8 8m10-2l-3-3-3 3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<span class="text-[11px] font-medium text-slate-600 mt-1 leading-none tracking-tight">Photos</span>
+</a>
+</div>
+</nav></div>
+
+
+
+
+
+
+</body></html>

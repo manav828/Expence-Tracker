@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/split_provider.dart';
+import '../../providers/expense_provider.dart';
 import '../../models/split_models.dart';
+import '../../models/expense.dart';
 import '../../services/auth_service.dart';
 import '../../services/pixabay_service.dart';
 import 'add_split_expense_sheet.dart';
@@ -476,11 +478,17 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
 
             // Banner Content
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildTripModePill(context, group, sp),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
 
                   // Middle: Group Name & Tagline
                   Text(
@@ -612,6 +620,285 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTripModePill(BuildContext context, SplitGroup group, SplitProvider sp) {
+    final isThisTripActive = sp.isTripModeActive && sp.activeTripGroupId == group.id;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (isThisTripActive) {
+            _showEndTripModeDialog(context, group, sp);
+          } else {
+            sp.enableTripMode(group.id);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✈️ Trip Mode activated for "${group.name}"! All new expenses will default here.'),
+                backgroundColor: const Color(0xFF006948),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: isThisTripActive
+                ? const Color(0xFF006948)
+                : Colors.black.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isThisTripActive
+                  ? const Color(0xFF4ADE80)
+                  : Colors.white.withValues(alpha: 0.4),
+              width: 1.2,
+            ),
+            boxShadow: isThisTripActive
+                ? const [
+                    BoxShadow(
+                      color: Color(0x4D006948),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.flight_takeoff_rounded,
+                color: isThisTripActive ? const Color(0xFF4ADE80) : Colors.white,
+                size: 14,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                isThisTripActive ? 'Trip Mode Active' : 'Turn on Trip Mode',
+                style: TextStyle(
+                  color: isThisTripActive ? Colors.white : Colors.white.withValues(alpha: 0.95),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
+              if (isThisTripActive) ...[
+                const SizedBox(width: 5),
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF4ADE80),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEndTripModeDialog(BuildContext context, SplitGroup group, SplitProvider sp) {
+    final expenses = sp.getExpensesForGroup(group.id);
+    final totalSpend = expenses.fold(0.0, (sum, exp) => sum + exp.totalAmount);
+    final userNetShare = sp.calculateUserNetShare(group.id);
+    final fmt = NumberFormat('#,##0.00', 'en_IN');
+    bool saveToPersonal = true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 14,
+              bottom: MediaQuery.of(ctx).padding.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF006948).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.flight_land_rounded, color: Color(0xFF006948), size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'End Trip Mode: ${group.name}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
+                          ),
+                          const Text(
+                            'Review trip spend and sync to personal expenses',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Group Spend', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                          Text('₹${fmt.format(totalSpend)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1E293B))),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Your Total Net Share', style: TextStyle(color: Color(0xFF006948), fontWeight: FontWeight.w700, fontSize: 13.5)),
+                          Text('₹${fmt.format(userNetShare)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF006948))),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Based on ${expenses.length} group expenses',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF006948).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.2)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bookmark_added_rounded, color: Color(0xFF006948), size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Save Trip Share to Personal Expenses',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF131B2E)),
+                            ),
+                            Text(
+                              'Logs ₹${fmt.format(userNetShare)} under category "Travel"',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: saveToPersonal,
+                        activeColor: const Color(0xFF006948),
+                        onChanged: (v) => setSheetState(() => saveToPersonal = v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF006948),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await sp.disableTripMode();
+
+                      if (saveToPersonal && userNetShare > 0 && context.mounted) {
+                        await context.read<ExpenseProvider>().addExpense(
+                          Expense(
+                            amount: userNetShare,
+                            category: 'Travel',
+                            paymentMethod: 'UPI',
+                            comment: 'Trip: ${group.name} (Total Net Cost)',
+                            expenseDate: DateTime.now().millisecondsSinceEpoch,
+                            createdAt: DateTime.now().millisecondsSinceEpoch,
+                            updatedAt: DateTime.now().millisecondsSinceEpoch,
+                            type: TransactionType.expense,
+                          ),
+                        );
+                      }
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(saveToPersonal && userNetShare > 0
+                                ? 'Trip Mode ended & ₹${fmt.format(userNetShare)} saved to Travel expenses!'
+                                : 'Trip Mode ended for "${group.name}".'),
+                            backgroundColor: const Color(0xFF006948),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      }
+                    },
+                    child: Text(
+                      saveToPersonal ? 'End Trip & Save to Expenses' : 'Turn Off Trip Mode',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Keep Trip Mode Active', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

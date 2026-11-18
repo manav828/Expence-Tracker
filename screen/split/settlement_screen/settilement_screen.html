@@ -1,0 +1,504 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<title>CheQ Wallet &amp; Balances</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brandDark: '#13353b',
+            brandDarker: '#0e292e',
+            walletTeal: '#1c6961',
+            walletBack: '#165750',
+            primaryGreen: '#00b865',
+            primaryGreenHover: '#00a359',
+            mintBadge: '#4ade80',
+            mintBg: '#e6f8f0'
+          },
+          boxShadow: {
+            'wallet': '0 14px 30px -6px rgba(14, 41, 46, 0.45)',
+            'btn-glow': '0 4px 12px 0 rgba(0, 184, 101, 0.35)',
+            'nav-float': '0 -4px 20px rgba(0, 0, 0, 0.05)',
+            'card-subtle': '0 2px 10px rgba(19, 53, 59, 0.04)',
+            'slider-knob': '0 2px 8px rgba(0, 184, 101, 0.5)'
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Dashed stitch border */
+    .wallet-stitching {
+      border: 1.5px dashed rgba(255, 255, 255, 0.38);
+    }
+    
+    /* Subtle chevron pulses */
+    @keyframes chevronPulse {
+      0%, 100% { opacity: 0.3; transform: translateX(0); }
+      50% { opacity: 1; transform: translateX(3px); }
+    }
+    .chevron-pulse {
+      animation: chevronPulse 1.5s infinite ease-in-out;
+    }
+
+    /* iOS switch */
+    .toggle-checkbox:checked {
+      transform: translateX(18px);
+    }
+    .toggle-checkbox:checked + .toggle-track {
+      background-color: #00b865;
+    }
+</style>
+</head>
+<body class="bg-[#eef2f2] text-slate-900 font-sans antialiased min-h-screen pb-28 select-none flex justify-center">
+<!-- Mobile Screen Shell -->
+<div class="w-full max-w-[430px] min-h-screen bg-[#F5F8F7] flex flex-col relative shadow-2xl overflow-x-hidden">
+<!-- BEGIN: Top Dark Forest Teal Hero Section -->
+<section class="bg-brandDark text-white pt-2 pb-5 px-4 rounded-b-[28px] shadow-sm relative">
+<!-- iOS Status Bar -->
+<div class="flex justify-between items-center text-xs tracking-tight font-medium text-white/90 pt-1 pb-3 px-1">
+<span class="font-semibold text-sm">9:41</span>
+<div class="flex items-center space-x-2">
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 16 16"><path d="M1 11h2v3H1v-3zm4-3h2v6H5V8zm4-3h2v9H9V5zm4-3h2v12h-2V2z"></path></svg>
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 16 16"><path d="M8 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm-4.95-3.05a7 7 0 0 1 9.9 0l-1.06 1.06a5.5 5.5 0 0 0-7.78 0L3.05 9.45zm-2.12-2.12a10 10 0 0 1 14.14 0l-1.06 1.06a8.5 8.5 0 0 0-12.02 0L.93 7.33z"></path></svg>
+<div class="w-5 h-2.5 border border-white/80 rounded-sm p-0.5 flex items-center">
+<div class="bg-white h-full w-full rounded-2xs"></div>
+</div>
+</div>
+</div>
+<!-- Top Action Bar -->
+<div class="flex items-center justify-between mt-0.5 mb-3 px-0.5">
+<button aria-label="Go back" class="p-1 -ml-1 text-white hover:text-white/80 transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewBox="0 0 24 24">
+<path d="M19 12H5M12 19l-7-7 7-7"></path>
+</svg>
+</button>
+<div class="flex items-center space-x-2">
+<button aria-label="Settings" class="p-1 text-white/90 hover:text-white transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="3"></circle>
+<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+</svg>
+</button>
+<button aria-label="Help" class="p-1 text-white/90 hover:text-white transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="9"></circle>
+<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+<line x1="12" x2="12.01" y1="17" y2="17"></line>
+</svg>
+</button>
+</div>
+</div>
+<!-- Title & Pine Labs Issuer Pill -->
+<div class="flex items-center space-x-2 mb-4 px-0.5"><h1 class="text-2xl font-bold tracking-tight text-white leading-tight">ExpenCircle</h1>
+<div class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase bg-black/30 text-white/80 border border-white/10">
+<span class="text-white/60 mr-1">GROUP</span>
+<span class="text-mintBadge lowercase font-extrabold text-[10px]">ujjain trip</span>
+</div></div>
+<!-- WALLET HERO CARD (Pixel-accurate matching reference image) -->
+<div class="relative pt-2 pb-1">
+<!-- Peeking back wallet card layer -->
+<div class="absolute -top-1.5 left-4 right-4 h-14 rounded-[22px] bg-walletBack opacity-90 -rotate-1 pointer-events-none"></div>
+<!-- Main Wallet Card -->
+<div class="relative rounded-[22px] bg-walletTeal text-white shadow-wallet p-4 overflow-hidden border border-white/15">
+  <!-- Dashed Inner Perimeter Stitching -->
+  <div class="absolute inset-2 rounded-[16px] wallet-stitching pointer-events-none"></div>
+  <!-- Top-right translucent rounded notch containing glowing green status dot -->
+  <div class="absolute top-3 right-4 w-9 h-9 rounded-xl bg-black/25 border border-white/15 flex items-center justify-center pointer-events-none shadow-sm z-20">
+    <div class="w-3 h-3 rounded-full bg-[#4ce088] shadow-[0_0_8px_#4ce088] ring-2 ring-emerald-300/40"></div>
+  </div>
+  <!-- Content inside card matching IMAGE_4 -->
+  <div class="relative z-10 pr-10 pt-0.5">
+    <!-- Top row: Header title + Optimized badge -->
+    <div class="flex items-center space-x-2">
+      <span class="text-[11px] font-bold text-emerald-100/90 tracking-wider uppercase">YOUR NET BALANCE</span>
+      <span class="bg-white/20 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">Optimized</span>
+    </div>
+    <!-- Main Hero Balance Number -->
+    <div class="mt-1 flex items-baseline tracking-tight">
+      <span class="text-3xl font-extrabold text-white tracking-tight">+₹3,484.00</span>
+    </div>
+    <!-- Status Subtitle -->
+    <div class="mt-1 flex items-center space-x-1.5 text-emerald-200/95">
+      <span class="w-1.5 h-1.5 rounded-full bg-[#4ce088] shadow-[0_0_5px_#4ce088] shrink-0"></span>
+      <span class="text-[11px] font-medium text-emerald-100/90">You receive overall</span>
+    </div>
+    <!-- Split Sub-cards: You are owed vs You owe others -->
+    <div class="mt-4 grid grid-cols-2 gap-2.5">
+      <!-- Left Card: You are owed -->
+      <div class="bg-[#10433d]/75 backdrop-blur-xs rounded-xl p-2.5 px-3 border border-white/10 shadow-xs">
+        <span class="block text-[10px] font-semibold text-emerald-200/80 mb-0.5">You are owed</span>
+        <span class="text-sm font-extrabold text-white tracking-tight">₹4,200.00</span>
+      </div>
+      <!-- Right Card: You owe others -->
+      <div class="bg-[#10433d]/75 backdrop-blur-xs rounded-xl p-2.5 px-3 border border-white/10 shadow-xs">
+        <span class="block text-[10px] font-semibold text-emerald-200/80 mb-0.5">You owe others</span>
+        <span class="text-sm font-extrabold text-white tracking-tight">₹716.00</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+<!-- END: Top Dark Forest Teal Hero Section -->
+<!-- BEGIN: Main Scrollable Content -->
+<main class="flex-1 px-4 pt-3.5 pb-6 space-y-3.5">
+<!-- Promo Banner (mirrors reference image bottom card) -->
+
+<!-- Debt Simplification Toggle Section -->
+<section class="bg-white rounded-2xl p-3 px-4 shadow-card-subtle border border-slate-200/70 flex items-center justify-between" data-purpose="simplify-debts-toggle">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-xl bg-mintBg border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+<path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<span class="text-xs font-bold text-slate-800">Debt Simplification</span>
+<span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">On</span>
+</div>
+<p class="text-[11px] text-slate-500 font-medium">3 direct transfers instead of 8</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer select-none">
+<input checked="" class="sr-only toggle-checkbox" id="simplify-toggle" type="checkbox">
+<div class="toggle-track w-10 h-5.5 bg-slate-300 rounded-full transition-colors duration-200"></div>
+<div class="toggle-checkbox absolute left-0.5 top-0.5 bg-white w-4.5 h-4.5 rounded-full shadow-sm transition-transform duration-200"></div>
+</label>
+</section>
+<!-- Settlements Action Area -->
+<section class="space-y-3" data-purpose="pending-settlements">
+<!-- Your Action Required -->
+<div>
+<div class="flex items-center justify-between mb-1.5 px-0.5">
+<div class="flex items-center space-x-1.5">
+<h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-700">Your Action Required</h2>
+<span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.2 rounded-full">1 Pending</span>
+</div>
+</div>
+<article class="bg-white rounded-2xl p-3.5 border border-emerald-500/30 shadow-card-subtle relative overflow-hidden">
+<div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-full bg-brandDark text-white font-bold text-xs flex items-center justify-center shrink-0">D</div>
+<div class="flex items-center space-x-1.5 text-slate-400">
+<span class="text-xs font-bold text-slate-900">Dinesh sir</span>
+<svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-xs font-bold text-walletTeal">You (Manav)</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-sm font-extrabold text-emerald-700 tracking-tight">₹3,484.00</span>
+</div>
+</div>
+<div class="mt-2.5 flex items-center space-x-2">
+<button class="flex-1 bg-primaryGreen hover:bg-primaryGreenHover active:scale-[0.98] text-white py-2 px-3 rounded-xl text-xs font-bold transition shadow-btn-glow flex items-center justify-center space-x-1">
+<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Request via UPI</span>
+</button>
+<button class="bg-[#eef3f2] hover:bg-slate-200/80 active:scale-[0.98] text-slate-700 py-2 px-3 rounded-xl text-xs font-semibold transition border border-slate-200">Mark Received</button>
+</div>
+</article>
+</div>
+<!-- Pending Dues to Pay (Slide to Pay) -->
+<div>
+<div class="flex items-center justify-between mb-1.5 px-0.5">
+<div class="flex items-center space-x-1.5">
+<h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-700">Pending Dues to Pay</h2>
+<span class="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.2 rounded-full">1 Due</span>
+</div>
+</div>
+<article class="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-card-subtle space-y-3" id="slide-pay-card">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-full bg-walletTeal text-white font-bold text-xs flex items-center justify-center shrink-0">M</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<span class="text-xs font-bold text-slate-900">You (Manav)</span>
+<svg class="w-3.5 h-3.5 text-walletTeal shrink-0" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-xs font-bold text-slate-900">Pooja</span>
+</div>
+<p class="text-[10px] text-slate-400 font-medium mt-0.5">Dinner split &amp; cab balance</p>
+</div>
+</div>
+<div class="text-right">
+<span class="text-sm font-extrabold text-slate-900 tracking-tight">₹353.00</span>
+<span class="block text-[9px] font-semibold text-amber-600">Pending Pay</span>
+</div>
+</div>
+<!-- Slide to Pay Track -->
+<div class="space-y-2">
+<div class="relative w-full h-[52px] rounded-full bg-[#f0fbf6] border border-emerald-300/80 shadow-inner flex items-center select-none overflow-hidden touch-none p-1 cursor-pointer" id="slider-track" onclick="if(window.triggerPaidState) window.triggerPaidState();">
+  <!-- Sliding progress highlight -->
+  <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-emerald-300 to-primaryGreen rounded-full w-0 transition-all pointer-events-none" id="slider-progress"></div>
+  <!-- Shimmering swipe cue text -->
+  <div class="absolute inset-0 flex items-center justify-center pl-8 pr-4 pointer-events-none transition-opacity duration-200" id="slider-text"><span class="text-xs font-extrabold tracking-tight shimmer-text flex items-center space-x-1.5 text-emerald-800"><span>Slide to Mark as Paid • ₹353</span><span class="inline-flex items-center space-x-0.5 slide-arrow-hint text-emerald-600"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg><svg class="w-3.5 h-3.5 -ml-2 opacity-75" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></span></span></div>
+  <!-- Success overlay -->
+  <div class="absolute inset-0 flex items-center justify-center space-x-2 text-white font-bold text-xs bg-emerald-600 opacity-0 pointer-events-none transition-opacity duration-300" id="slider-success"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Payment Marked as Settled!</span></div>
+  <!-- Sleek Polished Slider Knob -->
+  <div class="relative z-10 w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 via-primaryGreen to-emerald-700 flex items-center justify-center text-white cursor-grab active:cursor-grabbing shadow-slider-knob slider-knob-glow border border-white/40 transition-transform duration-75" id="slider-knob">
+    <svg class="w-5 h-5 text-white filter drop-shadow" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" viewBox="0 0 24 24">
+      <path d="M13 5l7 7-7 7"></path>
+      <path d="M5 12h14"></path>
+    </svg>
+  </div>
+</div>
+<!-- Alternative Quick Actions -->
+
+</div>
+</article>
+</div>
+<!-- Group Settlements (Other Members) -->
+<div><div class="flex items-center justify-between mb-1.5 px-0.5"><div class="flex items-center space-x-1.5"><h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-700">Group Settlements</h2><span class="bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.2 rounded-full">2 Direct</span></div><span class="text-[10px] text-slate-400 font-medium">Other Members</span></div><div class="space-y-2.5"><article class="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-card-subtle"><div class="flex items-center justify-between"><div class="flex items-center space-x-2.5"><div class="flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-slate-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">P</div><span class="text-[10px] font-bold text-slate-900 mt-1">Pooja</span></div><div class="flex flex-col items-center relative px-2"><div class="absolute top-3 left-0 right-0 h-[1.5px] border-b border-dashed border-slate-300 pointer-events-none z-0"></div><div class="relative z-10 flex items-center space-x-1 px-2 py-0.5 rounded-full bg-white border border-slate-200/90 shadow-xs text-slate-600 text-[10px] font-semibold"><span class="text-[9px] text-slate-600 font-medium">owes</span><svg class="w-3 h-3 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></div><span class="text-[9px] text-slate-400 font-medium mt-1">Direct transfer</span></div><div class="flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-brandDark text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">D</div><span class="text-[10px] font-bold text-slate-900 mt-1">Dinesh</span></div></div><div class="text-right"><span class="text-sm font-extrabold text-slate-900 tracking-tight block">₹353.00</span><span class="text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.2 rounded-full inline-block mt-0.5">Pending</span></div></div><div class="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2"><button class="w-full bg-[#f0fbf6] hover:bg-emerald-50 active:scale-[0.98] text-emerald-700 py-1.5 px-3 rounded-xl text-xs font-bold transition border border-emerald-200/80 flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Remind</span></button><button class="w-full bg-primaryGreen hover:bg-primaryGreenHover active:scale-[0.98] text-white py-1.5 px-3 rounded-xl text-xs font-bold transition shadow-btn-glow flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Settle</span></button></div></article><article class="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-card-subtle"><div class="flex items-center justify-between"><div class="flex items-center space-x-2.5"><div class="flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-slate-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">K</div><span class="text-[10px] font-bold text-slate-900 mt-1">Krunal</span></div><div class="flex flex-col items-center relative px-2"><div class="absolute top-3 left-0 right-0 h-[1.5px] border-b border-dashed border-slate-300 pointer-events-none z-0"></div><div class="relative z-10 flex items-center space-x-1 px-2 py-0.5 rounded-full bg-white border border-slate-200/90 shadow-xs text-slate-600 text-[10px] font-semibold"><span class="text-[9px] text-slate-600 font-medium">owes</span><svg class="w-3 h-3 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></div><span class="text-[9px] text-slate-400 font-medium mt-1">Direct transfer</span></div><div class="flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-brandDark text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">D</div><span class="text-[10px] font-bold text-slate-900 mt-1">Dinesh</span></div></div><div class="text-right"><span class="text-sm font-extrabold text-slate-900 tracking-tight block">₹240.00</span><span class="text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.2 rounded-full inline-block mt-0.5">Pending</span></div></div><div class="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2"><button class="w-full bg-[#f0fbf6] hover:bg-emerald-50 active:scale-[0.98] text-emerald-700 py-1.5 px-3 rounded-xl text-xs font-bold transition border border-emerald-200/80 flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Remind</span></button><button class="w-full bg-primaryGreen hover:bg-primaryGreenHover active:scale-[0.98] text-white py-1.5 px-3 rounded-xl text-xs font-bold transition shadow-btn-glow flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Settle</span></button></div></article></div></div>
+</section>
+<!-- Individual Net Balances List -->
+<section class="space-y-1.5 pt-1" data-purpose="individual-balances-list">
+<div class="flex items-center justify-between px-0.5">
+<h2 class="text-[11px] font-bold uppercase tracking-wider text-slate-700">Individual Net Balances</h2>
+<span class="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer">View Ledger</span>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200/80 divide-y divide-slate-100 overflow-hidden shadow-xs">
+<div class="p-2.5 px-3 flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-7 h-7 rounded-full bg-walletTeal text-white font-bold text-xs flex items-center justify-center ring-2 ring-emerald-300">M</div>
+<div>
+<p class="text-xs font-bold text-slate-900">You (Manav Satasiya)</p>
+<p class="text-[9px] text-emerald-600 font-semibold">Gets back</p>
+</div>
+</div>
+<span class="text-xs font-bold text-emerald-600">+₹3,484.00</span>
+</div>
+<div class="bg-slate-50/50">
+  <!-- Parent Consolidated Row -->
+  <div class="p-2.5 px-3 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors" id="dinesh-family-toggle">
+    <div class="flex items-center space-x-2.5">
+      <div class="relative">
+        <div class="w-7 h-7 rounded-full bg-brandDark text-white font-bold text-xs flex items-center justify-center shadow-xs">D</div>
+        <span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-600 rounded-full text-white text-[8px] font-bold flex items-center justify-center ring-1 ring-white">4</span>
+      </div>
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <p class="text-xs font-bold text-slate-900">Dinesh sir</p>
+          <span class="text-[9px] font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200/80 px-1.5 py-0.2 rounded-full">Family • 4 members</span>
+        </div>
+        <p class="text-[9px] text-emerald-600 font-semibold">Family net gets back</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <span class="text-xs font-bold text-emerald-600">+₹353.00</span>
+      <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 rotate-180" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Expanded Family Member Breakdown Subsection -->
+  <div class="relative pl-7 pr-3 pb-2.5 pt-1 space-y-2 bg-[#f8faf9] border-t border-slate-100 border-dashed"><div class="absolute left-5 top-0 bottom-4 w-px bg-slate-300"></div><div class="relative flex items-center justify-between py-1 pl-4"><svg class="absolute -left-[9px] top-1.5 w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M0 0v8a4 4 0 004 4h12"></path></svg><div class="flex items-center space-x-2"><div class="w-5 h-5 rounded-full bg-brandDark text-white font-bold text-[9px] flex items-center justify-center shadow-xs">D</div><div><p class="text-[11px] font-semibold text-slate-800">Dinesh sir</p><p class="text-[9px] text-slate-400 font-medium">Head • Gets back</p></div></div><span class="text-[11px] font-bold text-emerald-600">+₹500.00</span></div><div class="relative flex items-center justify-between py-1 pl-4"><svg class="absolute -left-[9px] top-1.5 w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M0 0v8a4 4 0 004 4h12"></path></svg><div class="flex items-center space-x-2"><div class="w-5 h-5 rounded-full bg-slate-600 text-white font-bold text-[9px] flex items-center justify-center shadow-xs">N</div><div><p class="text-[11px] font-semibold text-slate-800">Neeta (Wife)</p><p class="text-[9px] text-slate-400 font-medium">Owes</p></div></div><span class="text-[11px] font-bold text-rose-600">-₹120.00</span></div><div class="relative flex items-center justify-between py-1 pl-4"><svg class="absolute -left-[9px] top-1.5 w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 16"><path d="M0 0v8a4 4 0 004 4h12"></path></svg><div class="flex items-center space-x-2"><div class="w-5 h-5 rounded-full bg-slate-700 text-white font-bold text-[9px] flex items-center justify-center shadow-xs">A</div><div><p class="text-[11px] font-semibold text-slate-800">Aarav (Son)</p><p class="text-[9px] text-slate-400 font-medium">Gets back</p></div></div><span class="text-[11px] font-bold text-emerald-600">+₹45.00</span></div><div class="relative flex items-center justify-between py-1 pl-4"><svg class="absolute -left-[9px] top-0 w-4 h-5 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 16 20"><path d="M0 0v8a4 4 0 004 4h12"></path></svg><div class="flex items-center space-x-2"><div class="w-5 h-5 rounded-full bg-slate-500 text-white font-bold text-[9px] flex items-center justify-center shadow-xs">R</div><div><p class="text-[11px] font-semibold text-slate-800">Riya (Daughter)</p><p class="text-[9px] text-slate-400 font-medium">Owes</p></div></div><span class="text-[11px] font-bold text-rose-600">-₹72.00</span></div></div>
+</div>
+<div class="p-2.5 px-3 flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-7 h-7 rounded-full bg-slate-700 text-white font-bold text-xs flex items-center justify-center">P</div>
+<div>
+<p class="text-xs font-bold text-slate-900">Pooja</p>
+<p class="text-[9px] text-rose-500 font-semibold">Owes in total</p>
+</div>
+</div>
+<span class="text-xs font-bold text-rose-600">-₹3,484.00</span>
+</div>
+<div class="p-2.5 px-3 flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-7 h-7 rounded-full bg-slate-600 text-white font-bold text-xs flex items-center justify-center">K</div>
+<div>
+<p class="text-xs font-bold text-slate-900">Krunal</p>
+<p class="text-[9px] text-rose-500 font-semibold">Owes in total</p>
+</div>
+</div>
+<span class="text-xs font-bold text-rose-600">-₹240.00</span>
+</div>
+</div>
+</section>
+</main>
+<!-- END: Main Scrollable Content -->
+<!-- BEGIN: BottomNavigationDock -->
+<nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-slate-200/90 px-3 py-2 flex items-center justify-between shadow-nav-float z-50" data-purpose="main-bottom-navigation">
+<!-- Tab 1: Expenses -->
+<a class="flex flex-col items-center justify-center w-14 text-slate-400 hover:text-slate-600 transition-colors" href="#expenses">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewBox="0 0 24 24">
+<rect height="16" rx="3" stroke-linecap="round" stroke-linejoin="round" width="16" x="4" y="4"></rect>
+<line stroke-linecap="round" x1="8" x2="16" y1="9" y2="9"></line>
+<line stroke-linecap="round" x1="8" x2="13" y1="13" y2="13"></line>
+</svg>
+<span class="text-[10px] font-medium mt-1">Expenses</span>
+</a>
+<!-- Tab 2: Settle (ACTIVE) -->
+<a class="flex flex-col items-center justify-center w-14 text-primaryGreen font-bold relative" href="#settle">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="2.3" viewBox="0 0 24 24">
+<path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-bold mt-1 text-primaryGreen">Settle</span>
+<span class="w-1 h-1 rounded-full bg-primaryGreen mt-0.5"></span>
+</a>
+<!-- Center Elevated Add Expense Button (+) -->
+<div class="flex flex-col items-center -mt-5">
+<button aria-label="Add Expense" class="w-12 h-12 bg-primaryGreen hover:bg-primaryGreenHover active:scale-95 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 ring-4 ring-white transition-transform">
+<svg class="w-6 h-6 stroke-current" fill="none" stroke-linecap="round" stroke-width="2.6" viewBox="0 0 24 24">
+<line x1="12" x2="12" y1="5" y2="19"></line>
+<line x1="5" x2="19" y1="12" y2="12"></line>
+</svg>
+</button>
+<span class="text-[9px] font-bold text-slate-800 mt-1">Add Expense</span>
+</div>
+<!-- Tab 4: Members -->
+<a class="flex flex-col items-center justify-center w-14 text-slate-400 hover:text-slate-600 transition-colors" href="#members">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewBox="0 0 24 24">
+<path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Members</span>
+</a>
+<!-- Tab 5: Photos -->
+<a class="flex flex-col items-center justify-center w-14 text-slate-400 hover:text-slate-600 transition-colors" href="#photos">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewBox="0 0 24 24">
+<rect height="18" rx="3" stroke-linecap="round" stroke-linejoin="round" width="18" x="3" y="3"></rect>
+<circle cx="8.5" cy="8.5" r="1.5"></circle>
+<path d="M21 15l-5-5L5 21" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Photos</span>
+</a>
+</nav>
+<!-- END: BottomNavigationDock -->
+</div>
+<!-- Interactive Slide to Pay and Settle Script -->
+<script>
+  (function initSlideToPay() {
+    const track = document.getElementById('slider-track');
+    const knob = document.getElementById('slider-knob');
+    const progress = document.getElementById('slider-progress');
+    const text = document.getElementById('slider-text');
+    const success = document.getElementById('slider-success');
+    
+    if (!track || !knob) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let currentX = 0;
+    let maxDistance = 0;
+    let isCompleted = false;
+
+    function getPosition(e) {
+      return e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+    }
+
+    function calculateMax() {
+      maxDistance = track.clientWidth - knob.offsetWidth - 8;
+    }
+
+    window.addEventListener('resize', calculateMax);
+    calculateMax();
+
+    function onStart(e) {
+      if (isCompleted) return;
+      isDragging = true;
+      startX = getPosition(e) - currentX;
+      knob.style.transition = 'none';
+      if (progress) progress.style.transition = 'none';
+      calculateMax();
+    }
+
+    function onMove(e) {
+      if (!isDragging || isCompleted) return;
+      const x = getPosition(e) - startX;
+      currentX = Math.max(0, Math.min(x, maxDistance));
+      
+      knob.style.transform = `translateX(${currentX}px)`;
+      if (progress) {
+        progress.style.width = `${currentX + knob.offsetWidth}px`;
+      }
+      
+      if (text) {
+        const opacity = 1 - (currentX / (maxDistance * 0.75));
+        text.style.opacity = Math.max(0, opacity);
+      }
+    }
+
+    function onEnd() {
+      if (!isDragging || isCompleted) return;
+      isDragging = false;
+
+      if (currentX >= maxDistance * 0.8) {
+        triggerPaidState();
+      } else {
+        knob.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+        knob.style.transform = 'translateX(0px)';
+        if (progress) {
+          progress.style.transition = 'width 0.25s ease';
+          progress.style.width = '0px';
+        }
+        if (text) {
+          text.style.transition = 'opacity 0.2s ease';
+          text.style.opacity = '1';
+        }
+        currentX = 0;
+      }
+    }
+
+    knob.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onEnd);
+
+    knob.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+
+    window.triggerPaidState = function() {
+      if (isCompleted) return;
+      isCompleted = true;
+
+      calculateMax();
+      knob.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      knob.style.transform = `translateX(${maxDistance}px)`;
+      
+      if (progress) {
+        progress.style.transition = 'width 0.2s ease';
+        progress.style.width = '100%';
+      }
+
+      setTimeout(() => {
+        if (text) text.style.opacity = '0';
+        if (success) {
+          success.style.opacity = '1';
+          success.style.pointerEvents = 'auto';
+        }
+        knob.style.opacity = '0';
+        
+        const card = document.getElementById('slide-pay-card');
+        if (card) {
+          setTimeout(() => {
+            card.classList.add('bg-emerald-50/70', 'border-emerald-300');
+            const markPaidBtn = document.getElementById('mark-paid-btn');
+            if (markPaidBtn) {
+              markPaidBtn.innerHTML = '✓ Settled';
+              markPaidBtn.classList.remove('bg-mintBg', 'text-emerald-800');
+              markPaidBtn.classList.add('bg-emerald-600', 'text-white');
+            }
+          }, 300);
+        }
+      }, 150);
+    };
+  })();
+</script>
+
+
+
+
+</body></html>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/file_picker_service.dart';
+import '../../services/app_permission_service.dart';
 
 class UploadPhotosSheet extends StatefulWidget {
   final String groupId;
@@ -36,6 +37,12 @@ class _UploadPhotosSheetState extends State<UploadPhotosSheet> {
 
   Future<void> _pickMorePhotos() async {
     if (_isPickingMore) return;
+    final hasPermission = await AppPermissionService.requestPhotosPermission(
+      context,
+      reason: 'choose more photos to add',
+    );
+    if (!hasPermission || !mounted) return;
+
     setState(() => _isPickingMore = true);
     try {
       final more = await pickMultipleImageFiles();

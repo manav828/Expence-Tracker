@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/split_provider.dart';
 import '../utils/category_icons.dart';
 import '../services/cloudflare_r2_service.dart';
 import 'searchable_selection_sheet.dart';
@@ -46,6 +47,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String? _receiptUrl;
   String? _newlyUploadedReceiptUrl;
   bool _isSaved = false;
+  bool _routeToActiveTrip = true;
   late DateTime _selectedDate;
   late TransactionType _type;
 
@@ -142,19 +144,27 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     return DateFormat('EEE, d MMM yyyy').format(dt);
   }
 
-  void _promptAddCustom(BuildContext context, bool isCategory) {
-    final controller = TextEditingController();
-    String selectedIconKey = 'category';
-    IconData selectedIconData = Icons.category;
+  Future<String?> _promptAddCustom(
+    BuildContext context,
+    bool isCategory, {
+    bool isIncome = false,
+    String? initialText,
+  }) async {
+    final controller = TextEditingController(text: initialText ?? '');
+    final isInc = isIncome || _type == TransactionType.income;
+    String selectedIconKey = isCategory ? (isInc ? 'payments' : 'category') : '';
+    IconData selectedIconData = isCategory ? (isInc ? Icons.payments : Icons.category) : Icons.payment;
 
-    showDialog(
+    return await showDialog<String>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            isCategory ? 'Add New Category' : 'Add Payment Method',
+            isCategory
+                ? (isInc ? 'Add New Income Category' : 'Add New Category')
+                : 'Add Payment Method',
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF131B2E)),
           ),
           content: Column(
@@ -165,7 +175,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: isCategory ? 'e.g. Health, Coffee' : 'e.g. NetBanking, Forex',
+                  hintText: isCategory
+                      ? (isInc ? 'e.g. Bonus, Consulting, Dividend' : 'e.g. Health, Coffee, Fuel')
+                      : 'e.g. NetBanking, Forex',
                   filled: true,
                   fillColor: const Color(0xFFF2F3FF),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -239,14 +251,18 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   final provider = Provider.of<ExpenseProvider>(context, listen: false);
                   if (isCategory) {
                     await CategoryIcons.setCustomIcon(text, selectedIconKey);
-                    await provider.addCategory(text);
+                    if (isInc) {
+                      await provider.addIncomeCategory(text);
+                    } else {
+                      await provider.addCategory(text);
+                    }
                     if (mounted) setState(() => _category = text);
                   } else {
                     await provider.addPaymentMethod(text);
                     if (mounted) setState(() => _paymentMethod = text);
                   }
                   if (dialogCtx.mounted) {
-                    Navigator.pop(dialogCtx);
+                    Navigator.pop(dialogCtx, text);
                   }
                 }
               },
@@ -345,6 +361,36 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
             ),
           );
         } else {
+          SplitProvider? splitProv;
+          try {
+            splitProv = context.read<SplitProvider>();
+          } catch (_) {}
+
+          if (_routeToActiveTrip && splitProv != null && splitProv.isTripModeActive && splitProv.activeTripGroup != null) {
+            final groupName = splitProv.activeTripGroup!.name;
+            final success = await splitProv.addTripModeExpense(
+              amount: amount,
+              title: finalCategory,
+              category: finalCategory,
+              note: (comment != null && comment.isNotEmpty) ? comment : null,
+              receiptUrl: _receiptUrl,
+            );
+            _isSaved = true;
+            if (!mounted) return;
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(success
+                    ? '✈️ Added ₹${amount.toStringAsFixed(2)} to $groupName trip!'
+                    : 'Failed to add to trip group'),
+                backgroundColor: success ? const Color(0xFF006948) : const Color(0xFFBA1A1A),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+            return;
+          }
+
           final newExpense = Expense(
             amount: amount,
             category: finalCategory,
@@ -562,6 +608,110 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              // Trip Mode Auto-Route Card
+              Builder(
+                builder: (context) {
+                  SplitProvider? splitProv;
+                  try {
+                    splitProv = Provider.of<SplitProvider>(context);
+                  } catch (_) {}
+                  final activeGroup = splitProv?.activeTripGroup;
+                  if (isEditing || splitProv == null || !splitProv.isTripModeActive || activeGroup == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _routeToActiveTrip
+                          ? const Color(0xFF006948).withValues(alpha: 0.08)
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _routeToActiveTrip
+                            ? const Color(0xFF006948).withValues(alpha: 0.35)
+                            : const Color(0xFFE2E8F0),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _routeToActiveTrip
+                                ? const Color(0xFF006948)
+                                : const Color(0xFF64748B),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.flight_takeoff_rounded, color: Colors.white, size: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Trip Mode: ${activeGroup.name}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5,
+                                      color: _routeToActiveTrip
+                                          ? const Color(0xFF006948)
+                                          : const Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _routeToActiveTrip
+                                          ? const Color(0xFF006948).withValues(alpha: 0.15)
+                                          : const Color(0xFFE2E8F0),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      _routeToActiveTrip ? 'SPLIT' : 'SOLO',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: _routeToActiveTrip
+                                            ? const Color(0xFF006948)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _routeToActiveTrip
+                                    ? 'Splits equally in trip group (You paid)'
+                                    : 'Logs as private personal expense only',
+                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF6D7A72)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: _routeToActiveTrip,
+                          activeColor: const Color(0xFF006948),
+                          onChanged: (val) {
+                            setState(() => _routeToActiveTrip = val);
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
               // Transaction Type Pill Toggle (Expense vs Income)
               Container(
@@ -784,13 +934,25 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   Expanded(
                     child: InkWell(
                       onTap: () async {
+                        final isIncome = _type == TransactionType.income;
                         final selected = await SearchableSelectionSheet.show(
                           context,
-                          title: _type == TransactionType.income ? 'Select Income Category' : 'Select Category',
+                          title: isIncome ? 'Select Income Category' : 'Select Category',
                           items: categories,
                           selectedItem: effectiveCategory,
                           isCategory: true,
-                          onAddNew: () => _promptAddCustom(context, true),
+                          isIncomeCategory: isIncome,
+                          onAddNew: (query) async {
+                            final created = await _promptAddCustom(
+                              context,
+                              true,
+                              isIncome: isIncome,
+                              initialText: query,
+                            );
+                            if (created != null && mounted) {
+                              setState(() => _category = created);
+                            }
+                          },
                         );
                         if (selected != null && mounted) {
                           setState(() => _category = selected);

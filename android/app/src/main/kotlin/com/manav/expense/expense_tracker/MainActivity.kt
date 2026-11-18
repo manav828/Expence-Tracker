@@ -34,7 +34,9 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestRequiredPermissionsIfNeeded()
+        // Note: Do NOT request sensitive permissions (SMS/Notifications) on cold start.
+        // Google Play Store policy requires in-app prominent disclosure before requesting SMS.
+        // Permissions are requested on-demand through Flutter when the user enables SMS tracking.
     }
 
     private fun requestRequiredPermissionsIfNeeded() {

@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class PickedFileData {
   final Uint8List bytes;
@@ -15,6 +16,28 @@ class PickedFileData {
 
 Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
   try {
+    if (!kIsWeb) {
+      if (useCamera) {
+        final status = await Permission.camera.status;
+        if (!status.isGranted) {
+          final res = await Permission.camera.request();
+          if (!res.isGranted) return null;
+        }
+      } else {
+        final status = await Permission.photos.status;
+        if (!status.isGranted && !status.isLimited) {
+          final storageStatus = await Permission.storage.status;
+          if (!storageStatus.isGranted) {
+            final res = await Permission.photos.request();
+            if (!res.isGranted && !res.isLimited) {
+              final sRes = await Permission.storage.request();
+              if (!sRes.isGranted) return null;
+            }
+          }
+        }
+      }
+    }
+
     final picker = ImagePicker();
     final XFile? file = await picker.pickImage(
       source: useCamera ? ImageSource.camera : ImageSource.gallery,
@@ -31,6 +54,20 @@ Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
 
 Future<List<PickedFileData>> pickMultipleImageFiles() async {
   try {
+    if (!kIsWeb) {
+      final status = await Permission.photos.status;
+      if (!status.isGranted && !status.isLimited) {
+        final storageStatus = await Permission.storage.status;
+        if (!storageStatus.isGranted) {
+          final res = await Permission.photos.request();
+          if (!res.isGranted && !res.isLimited) {
+            final sRes = await Permission.storage.request();
+            if (!sRes.isGranted) return <PickedFileData>[];
+          }
+        }
+      }
+    }
+
     final picker = ImagePicker();
     final List<XFile> files = await picker.pickMultiImage();
     if (files.isEmpty) return <PickedFileData>[];

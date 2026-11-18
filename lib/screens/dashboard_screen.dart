@@ -13,6 +13,9 @@ import '../utils/category_icons.dart';
 import '../widgets/reminder_carousel_banner.dart';
 import '../widgets/dashboard_shimmer.dart';
 import '../services/auth_service.dart';
+import '../providers/split_provider.dart';
+import '../models/split_models.dart';
+import 'split/split_group_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -105,6 +108,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildGreetingRow(context),
               const SizedBox(height: 12),
 
+              // Active Trip Mode Banner
+              Builder(
+                builder: (context) {
+                  SplitProvider? sp;
+                  try {
+                    sp = Provider.of<SplitProvider>(context);
+                  } catch (_) {}
+                  final activeGroup = sp?.activeTripGroup;
+                  if (sp == null || !sp.isTripModeActive || activeGroup == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return _buildTripModeBanner(context, activeGroup, sp);
+                },
+              ),
+
               // Payment Reminders & Upcoming Bills Carousel Banner
               const ReminderCarouselBanner(),
               const SizedBox(height: 8),
@@ -126,6 +144,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTripModeBanner(BuildContext context, SplitGroup group, SplitProvider sp) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF004D34), Color(0xFF006948)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24006948),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SplitGroupDetailScreen(group: group),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.flight_takeoff_rounded, color: Colors.white, size: 22),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Trip Mode: ${group.name}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14.5,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF4ADE80),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'New expenses route to this split group • Tap to view',
+                        style: TextStyle(
+                          color: Color(0xFFD1FAE5),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Open',
+                    style: TextStyle(
+                      color: Color(0xFF006948),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

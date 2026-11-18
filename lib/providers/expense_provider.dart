@@ -11,12 +11,14 @@ class ExpenseProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   List<String> _categories = [];
+  List<String> _incomeCategories = [];
   List<String> _paymentMethods = [];
 
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<String> get categories => _categories;
+  List<String> get incomeCategories => _incomeCategories.isNotEmpty ? _incomeCategories : DatabaseService.defaultIncomeCategories;
   List<String> get paymentMethods => _paymentMethods;
 
   void clearError() {
@@ -31,13 +33,16 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   @visibleForTesting
-  void setExpensesForTesting(List<Expense> list, {List<String>? categories, List<String>? paymentMethods}) {
+  void setExpensesForTesting(List<Expense> list, {List<String>? categories, List<String>? paymentMethods, List<String>? incomeCategories}) {
     _expenses = List.from(list);
     if (categories != null) {
       _categories = List.from(categories);
     }
     if (paymentMethods != null) {
       _paymentMethods = List.from(paymentMethods);
+    }
+    if (incomeCategories != null) {
+      _incomeCategories = List.from(incomeCategories);
     }
     notifyListeners();
   }
@@ -53,11 +58,13 @@ class ExpenseProvider with ChangeNotifier {
     try {
       final local = await DatabaseService.instance.getLocalExpenses();
       final localCats = await DatabaseService.instance.getCategories();
+      final localIncCats = await DatabaseService.instance.getIncomeCategories();
       final localPms = await DatabaseService.instance.getPaymentMethods();
 
-      if (local.isNotEmpty || localCats.isNotEmpty) {
+      if (local.isNotEmpty || localCats.isNotEmpty || localIncCats.isNotEmpty) {
         _expenses = local;
         _categories = localCats;
+        _incomeCategories = localIncCats;
         _paymentMethods = localPms;
         _isLoading = false;
         notifyListeners(); // Immediate render! Real data displays instantly.
@@ -74,10 +81,12 @@ class ExpenseProvider with ChangeNotifier {
     try {
       final allExpenses = await DatabaseService.instance.getAllExpenses();
       final allCats = await DatabaseService.instance.getCategories();
+      final allIncCats = await DatabaseService.instance.getIncomeCategories();
       final allPms = await DatabaseService.instance.getPaymentMethods();
 
       _expenses = allExpenses;
       _categories = allCats;
+      _incomeCategories = allIncCats;
       _paymentMethods = allPms;
       _errorMessage = null;
     } catch (e, st) {
@@ -124,6 +133,42 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Income Category CRUD ---
+  Future<void> addIncomeCategory(String name) async {
+    await DatabaseService.instance.addIncomeCategory(name);
+    _incomeCategories = await DatabaseService.instance.getIncomeCategories();
+    notifyListeners();
+  }
+
+  Future<void> updateIncomeCategory(String oldName, String newName) async {
+    await DatabaseService.instance.updateIncomeCategory(oldName, newName);
+    _incomeCategories = await DatabaseService.instance.getIncomeCategories();
+    _expenses = await DatabaseService.instance.getAllExpenses();
+    notifyListeners();
+  }
+
+  Future<void> deleteIncomeCategory(String name) async {
+    await DatabaseService.instance.deleteIncomeCategory(name);
+    _incomeCategories = await DatabaseService.instance.getIncomeCategories();
+    notifyListeners();
+  }
+
+  Future<void> reorderIncomeCategories(int oldIndex, int newIndex) async {
+    if (_incomeCategories.isEmpty) {
+      _incomeCategories = List<String>.from(DatabaseService.defaultIncomeCategories);
+    }
+    if (oldIndex < 0 || oldIndex >= _incomeCategories.length) return;
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex > _incomeCategories.length) newIndex = _incomeCategories.length;
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final item = _incomeCategories.removeAt(oldIndex);
+    _incomeCategories.insert(newIndex, item);
+    notifyListeners();
+    await DatabaseService.instance.saveIncomeCategoryOrder(_incomeCategories);
+  }
+
   Future<void> addPaymentMethod(String name) async {
     await DatabaseService.instance.addPaymentMethod(name);
     _paymentMethods = await DatabaseService.instance.getPaymentMethods();
@@ -144,6 +189,9 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   Future<void> reorderCategories(int oldIndex, int newIndex) async {
+    if (_categories.isEmpty) {
+      _categories = List<String>.from(DatabaseService.defaultCategories);
+    }
     if (oldIndex < 0 || oldIndex >= _categories.length) return;
     if (newIndex < 0) newIndex = 0;
     if (newIndex > _categories.length) newIndex = _categories.length;
@@ -157,6 +205,9 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   Future<void> reorderPaymentMethods(int oldIndex, int newIndex) async {
+    if (_paymentMethods.isEmpty) {
+      _paymentMethods = List<String>.from(DatabaseService.defaultPaymentMethods);
+    }
     if (oldIndex < 0 || oldIndex >= _paymentMethods.length) return;
     if (newIndex < 0) newIndex = 0;
     if (newIndex > _paymentMethods.length) newIndex = _paymentMethods.length;
@@ -175,6 +226,12 @@ class ExpenseProvider with ChangeNotifier {
     await DatabaseService.instance.saveCategoryOrder(_categories);
   }
 
+  Future<void> setCustomIncomeCategoryOrder(List<String> newOrder) async {
+    _incomeCategories = List<String>.from(newOrder);
+    notifyListeners();
+    await DatabaseService.instance.saveIncomeCategoryOrder(_incomeCategories);
+  }
+
   Future<void> setCustomPaymentMethodOrder(List<String> newOrder) async {
     _paymentMethods = List<String>.from(newOrder);
     notifyListeners();
@@ -184,6 +241,11 @@ class ExpenseProvider with ChangeNotifier {
   int getCategoryUsageCount(String category) {
     final lower = category.toLowerCase().trim();
     return _expenses.where((e) => e.category.toLowerCase().trim() == lower).length;
+  }
+
+  int getIncomeCategoryUsageCount(String category) {
+    final lower = category.toLowerCase().trim();
+    return _expenses.where((e) => e.isIncome && e.category.toLowerCase().trim() == lower).length;
   }
 
   int getPaymentMethodUsageCount(String method) {
@@ -196,6 +258,26 @@ class ExpenseProvider with ChangeNotifier {
     final countMap = <String, int>{};
     for (var c in list) {
       countMap[c] = getCategoryUsageCount(c);
+    }
+    list.sort((a, b) {
+      final countA = countMap[a] ?? 0;
+      final countB = countMap[b] ?? 0;
+      if (mostUsedFirst) {
+        final diff = countB.compareTo(countA);
+        return diff != 0 ? diff : a.toLowerCase().compareTo(b.toLowerCase());
+      } else {
+        final diff = countA.compareTo(countB);
+        return diff != 0 ? diff : a.toLowerCase().compareTo(b.toLowerCase());
+      }
+    });
+    return list;
+  }
+
+  List<String> getSortedIncomeCategories({bool mostUsedFirst = true}) {
+    final list = List<String>.from(incomeCategories);
+    final countMap = <String, int>{};
+    for (var c in list) {
+      countMap[c] = getIncomeCategoryUsageCount(c);
     }
     list.sort((a, b) {
       final countA = countMap[a] ?? 0;
@@ -283,18 +365,8 @@ class ExpenseProvider with ChangeNotifier {
     _notifyWidgetUpdate();
   }
 
-  // --- Income Categories ---
-  static const List<String> defaultIncomeCategories = [
-    'Salary',
-    'Freelance',
-    'Investments',
-    'Refund / Cashback',
-    'Rental Income',
-    'Gifts',
-    'Other Income',
-  ];
-
-  List<String> get incomeCategories => defaultIncomeCategories;
+  // --- Default Income Categories Reference ---
+  static List<String> get defaultIncomeCategories => DatabaseService.defaultIncomeCategories;
 
   // --- Analytics & Financial Helpers ---
 

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>CheQ Wallet &amp; Balances</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brandDark: '#13353b',
+            brandDarker: '#0e292e',
+            walletTeal: '#1c6961',
+            walletBack: '#165750',
+            primaryGreen: '#00b865',
+            primaryGreenHover: '#00a359',
+            mintBadge: '#4ade80',
+            mintBg: '#e6f8f0'
+          },
+          boxShadow: {
+            'wallet': '0 14px 30px -6px rgba(14, 41, 46, 0.45)',
+            'btn-glow': '0 4px 12px 0 rgba(0, 184, 101, 0.35)',
+            'nav-float': '0 -4px 20px rgba(0, 0, 0, 0.05)',
+            'card-subtle': '0 2px 10px rgba(19, 53, 59, 0.04)',
+            'slider-knob': '0 2px 8px rgba(0, 184, 101, 0.5)'
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Dashed stitch border */
+    .wallet-stitching {
+      border: 1.5px dashed rgba(255, 255, 255, 0.38);
+    }
+    
+    /* Subtle chevron pulses */
+    @keyframes chevronPulse {
+      0%, 100% { opacity: 0.3; transform: translateX(0); }
+      50% { opacity: 1; transform: translateX(3px); }
+    }
+    .chevron-pulse {
+      animation: chevronPulse 1.5s infinite ease-in-out;
+    }
+
+    /* iOS switch */
+    .toggle-checkbox:checked {
+      transform: translateX(18px);
+    }
+    .toggle-checkbox:checked + .toggle-track {
+      background-color: #00b865;
+    }
+</style>
+<meta content="mobile_tab" name="shell-type"/><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#eef2f2] text-slate-900 font-sans antialiased min-h-screen pb-28 select-none flex justify-center">
+<!-- Mobile Screen Shell -->
+<div class="w-full max-w-[430px] min-h-screen bg-[#F5F8F7] flex flex-col relative shadow-2xl overflow-x-hidden">
+<!-- BEGIN: Top Dark Forest Teal Hero Section -->
+<section class="bg-brandDark text-white pt-2 pb-5 px-4 rounded-b-[28px] shadow-sm relative">
+<!-- iOS Status Bar -->
+<div class="flex justify-between items-center text-xs tracking-tight font-medium text-white/90 pt-1 pb-3 px-1">
+<span class="font-semibold text-sm">9:41</span>
+<div class="flex items-center space-x-2">
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 16 16"><path d="M1 11h2v3H1v-3zm4-3h2v6H5V8zm4-3h2v9H9V5zm4-3h2v12h-2V2z"></path></svg>
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 16 16"><path d="M8 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm-4.95-3.05a7 7 0 0 1 9.9 0l-1.06 1.06a5.5 5.5 0 0 0-7.78 0L3.05 9.45zm-2.12-2.12a10 10 0 0 1 14.14 0l-1.06 1.06a8.5 8.5 0 0 0-12.02 0L.93 7.33z"></path></svg>
+<div class="w-5 h-2.5 border border-white/80 rounded-sm p-0.5 flex items-center">
+<div class="bg-white h-full w-full rounded-2xs"></div>
+</div>
+</div>
+</div>
+<!-- Top Action Bar -->
+<div class="flex items-center justify-between mt-0.5 mb-3 px-0.5">
+<button aria-label="Go back" class="p-1 -ml-1 text-white hover:text-white/80 transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24">
+<path d="M19 12H5M12 19l-7-7 7-7"></path>
+</svg>
+</button>
+<div class="flex items-center space-x-2">
+<button aria-label="Settings" class="p-1 text-white/90 hover:text-white transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="3"></circle>
+<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+</svg>
+</button>
+<button aria-label="Help" class="p-1 text-white/90 hover:text-white transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="9"></circle>
+<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+<line x1="12" x2="12.01" y1="17" y2="17"></line>
+</svg>
+</button>
+</div>
+</div>
+<!-- Title & Pine Labs Issuer Pill -->
+<div class="flex items-center space-x-2 mb-4 px-0.5"><h1 class="text-2xl font-bold tracking-tight text-white leading-tight">ExpenCircle</h1>
+<div class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase bg-black/30 text-white/80 border border-white/10">
+<span class="text-white/60 mr-1">GROUP</span>
+<span class="text-mintBadge lowercase font-extrabold text-[10px]">ujjain trip</span>
+</div></div>
+<!-- WALLET HERO CARD (Pixel-accurate matching reference image) -->
+<div class="relative pt-2 pb-1">
+<!-- Peeking back wallet card layer -->
+<div class="absolute -top-1.5 left-4 right-4 h-14 rounded-[22px] bg-walletBack opacity-90 -rotate-1 pointer-events-none"></div>
+<!-- Main Wallet Card -->
+<div class="relative rounded-[22px] bg-walletTeal text-white shadow-wallet p-4 overflow-hidden border border-white/15">
+<!-- Dashed Inner Perimeter Stitching -->
+<div class="absolute inset-2 rounded-[16px] wallet-stitching pointer-events-none"></div>
+<!-- Top-right translucent rounded notch containing glowing green status dot -->
+<div class="absolute top-3 right-4 w-9 h-9 rounded-xl bg-black/25 border border-white/15 flex items-center justify-center pointer-events-none shadow-sm z-20">
+<div class="w-3 h-3 rounded-full bg-[#4ce088] shadow-[0_0_8px_#4ce088] ring-2 ring-emerald-300/40"></div>
+</div>
+<!-- Content inside card matching IMAGE_4 -->
+<div class="relative z-10 pr-10 pt-0.5">
+<!-- Top row: Header title + Optimized badge -->
+<div class="flex items-center space-x-2">
+<span class="text-[11px] font-bold text-emerald-100/90 tracking-wider uppercase">YOUR NET BALANCE</span>
+<span class="bg-white/20 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">Optimized</span>
+</div>
+<!-- Main Hero Balance Number -->
+<div class="mt-1 flex items-baseline tracking-tight">
+<span class="text-3xl font-extrabold text-white tracking-tight">+₹3,484.00</span>
+</div>
+<!-- Status Subtitle -->
+<div class="mt-1 flex items-center space-x-1.5 text-emerald-200/95">
+<span class="w-1.5 h-1.5 rounded-full bg-[#4ce088] shadow-[0_0_5px_#4ce088] shrink-0"></span>
+<span class="text-[11px] font-medium text-emerald-100/90">You receive overall</span>
+</div>
+<!-- Split Sub-cards: You are owed vs You owe others -->
+<div class="mt-4 grid grid-cols-2 gap-2.5">
+<!-- Left Card: You are owed -->
+<div class="bg-[#10433d]/75 backdrop-blur-xs rounded-xl p-2.5 px-3 border border-white/10 shadow-xs">
+<span class="block text-[10px] font-semibold text-emerald-200/80 mb-0.5">You are owed</span>
+<span class="text-sm font-extrabold text-white tracking-tight">₹4,200.00</span>
+</div>
+<!-- Right Card: You owe others -->
+<div class="bg-[#10433d]/75 backdrop-blur-xs rounded-xl p-2.5 px-3 border border-white/10 shadow-xs">
+<span class="block text-[10px] font-semibold text-emerald-200/80 mb-0.5">You owe others</span>
+<span class="text-sm font-extrabold text-white tracking-tight">₹716.00</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: Top Dark Forest Teal Hero Section -->
+<!-- BEGIN: Main Scrollable Content -->
+<main class="flex-1 px-4 pt-3.5 pb-6 space-y-3.5"><div class="flex flex-col w-full relative">
+<!-- Interactive Modal Wrapper (Floating above dimmed surface) -->
+<div class="relative w-full rounded-xl bg-surface-container-lowest shadow-xl p-space-md flex flex-col items-center text-center overflow-hidden">
+<!-- Ambient Festive Aura Gradients -->
+<div class="absolute -top-12 -left-12 w-36 h-36 rounded-full bg-secondary-container opacity-40 blur-2xl pointer-events-none"></div>
+<div class="absolute -bottom-10 -right-10 w-36 h-36 rounded-full bg-tertiary-fixed opacity-40 blur-2xl pointer-events-none"></div>
+<!-- Top Close Action Bar -->
+<div class="w-full flex justify-end items-center relative z-10 mb-space-xs">
+<button aria-label="Close settlement details" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high active:scale-90 transition-transform flex items-center justify-center text-on-surface-variant cursor-pointer" id="dismiss-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Celebration Hero Graphics with Burst Particles -->
+<div class="relative mt-space-xs mb-space-md flex items-center justify-center">
+<!-- Glow Halos -->
+<div class="absolute w-24 h-24 rounded-full bg-primary-fixed-dim/30 animate-pulse blur-lg"></div>
+<!-- Sparkle Decor Elements -->
+<div class="absolute -top-3 -right-4 flex items-center space-x-0.5 bg-tertiary-fixed text-on-tertiary-fixed px-1.5 py-0.5 rounded-full shadow-sm animate-bounce" style="animation-duration: 2.2s;">
+<span class="material-symbols-outlined text-[13px] text-tertiary" style="font-variation-settings: 'FILL' 1;">arrow_back_ios_new</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-tertiary">Magic</span>
+</div>
+<div class="absolute -bottom-1 -left-3 flex items-center justify-center w-7 h-7 rounded-full bg-surface-container-lowest text-tertiary shadow-sm rotate-12">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">hotel_class</span>
+</div>
+<div class="absolute top-1 -left-4 text-primary-container opacity-80 -rotate-12">
+<span class="material-symbols-outlined text-[18px]">celebration</span>
+</div>
+<div class="absolute bottom-2 -right-3 text-tertiary opacity-90 rotate-45">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<!-- Main Animated Green Checkmark Core -->
+<div class="relative w-20 h-20 rounded-full bg-primary-fixed flex items-center justify-center shadow-lg shadow-primary-container/20">
+<div class="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-md transition-transform hover:scale-105">
+<span class="material-symbols-outlined text-[34px] font-bold">check</span>
+</div>
+</div>
+</div>
+<!-- Status Badge Tag -->
+<div class="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container mb-space-sm shadow-sm">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">SETTLEMENT COMPLETE</span>
+</div>
+<!-- Heading -->
+<h2 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">
+      Payment Marked as Settled!
+    </h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 mb-space-md max-w-[280px]">
+      Group ledger rebalanced with zero remaining friction.
+    </p>
+<!-- Detailed Transaction Summary Card -->
+<div class="w-full rounded-xl bg-surface-container-low p-space-sm flex items-center justify-between text-left mb-space-md shadow-sm">
+<div class="flex items-center space-x-space-sm min-w-0 pr-2">
+<!-- Avatar Badge -->
+<div class="relative shrink-0">
+<div class="w-10 h-10 rounded-full bg-inverse-surface text-inverse-on-surface flex items-center justify-center font-headline-sm text-headline-sm shadow-sm">
+            P
+          </div>
+<div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]">check</span>
+</div>
+</div>
+<!-- Participant & Meta Information -->
+<div class="flex flex-col min-w-0">
+<div class="flex items-center space-x-1">
+<span class="font-label-lg text-label-lg text-on-surface truncate">Pooja</span>
+<span class="inline-flex items-center px-1.5 py-0.2 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Co-traveler</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">
+            Dinner split &amp; cab balance
+          </span>
+</div>
+</div>
+<!-- Amount Block -->
+<div class="text-right shrink-0 flex flex-col items-end pl-1">
+<span class="font-numeric-card text-numeric-card text-primary">₹353.00</span>
+<div class="inline-flex items-center space-x-0.5 text-primary mt-0.5">
+<span class="material-symbols-outlined text-[12px] font-bold">done_all</span>
+<span class="font-label-sm text-label-sm uppercase font-bold">Paid</span>
+</div>
+</div>
+</div>
+<!-- Trust & Audit Micro-Copy -->
+<div class="flex items-center justify-center space-x-1.5 text-on-surface-variant mb-space-lg px-2">
+<span class="material-symbols-outlined text-[15px] text-primary shrink-0">notifications_active</span>
+<p class="font-body-sm text-body-sm text-left leading-tight">
+        Pooja has been notified. Your net group balance is updated.
+      </p>
+</div>
+<!-- Action Triggers -->
+<div class="w-full flex flex-col space-y-space-xs">
+<!-- Primary Done Action -->
+<button class="w-full rounded-full bg-primary-container hover:bg-primary text-on-primary py-3 px-space-md font-label-lg text-label-lg flex items-center justify-center space-x-1.5 shadow-md shadow-primary-container/30 active:scale-[0.98] transition cursor-pointer" id="confirm-settlement-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+<span>Done / Great!</span>
+</button>
+<!-- Secondary Action -->
+<button class="w-full rounded-full bg-surface-container-high hover:bg-surface-dim text-on-surface-variant py-2.5 px-space-md font-label-md text-label-md flex items-center justify-center space-x-1 transition active:scale-[0.98] cursor-pointer" id="undo-settlement-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+<span>View Receipt / Undo</span>
+</button>
+</div>
+<!-- Visual Ledger Mini Footnote -->
+<div class="mt-space-md pt-space-xs flex items-center justify-center space-x-1 text-on-surface-variant opacity-75">
+<span class="material-symbols-outlined text-[12px]">lock</span>
+<span class="font-label-sm text-label-sm">Secured instant settlement sync</span>
+</div>
+</div>
+<!-- Decorative Milestone Mini Banner -->
+<div class="mt-space-sm w-full rounded-xl bg-surface-container p-space-sm flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-7 h-7 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+</div>
+<div class="flex flex-col text-left">
+<span class="font-label-sm text-label-sm text-on-surface">Ujjain Trip Ledger</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Only 2 settlements remaining</span>
+</div>
+</div>
+<div class="w-16 bg-surface-variant rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 82%;"></div>
+</div>
+</div>
+</div>
+<script>
+  (function setupCelebrationActions() {
+    const dismissBtn = document.getElementById('dismiss-btn');
+    const confirmBtn = document.getElementById('confirm-settlement-btn');
+    const undoBtn = document.getElementById('undo-settlement-btn');
+
+    function handleDismiss(e) {
+      e.preventDefault();
+      const parentModal = document.getElementById('celebration-modal');
+      if (parentModal) {
+        parentModal.style.opacity = '0';
+        setTimeout(() => {
+          parentModal.style.display = 'none';
+        }, 180);
+      }
+    }
+
+    if (dismissBtn) dismissBtn.addEventListener('click', handleDismiss);
+    if (confirmBtn) confirmBtn.addEventListener('click', handleDismiss);
+
+    if (undoBtn) {
+      undoBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const originalText = undoBtn.innerHTML;
+        undoBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Reverting...</span>';
+        setTimeout(() => {
+          undoBtn.innerHTML = originalText;
+          handleDismiss(e);
+        }, 650);
+      });
+    }
+  })();
+</script></main>
+<!-- END: Main Scrollable Content -->
+<!-- BEGIN: BottomNavigationDock -->
+<nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-slate-200/90 px-3 py-2 flex items-center justify-between shadow-nav-float z-50" data-purpose="main-bottom-navigation">
+<!-- Tab 1: Expenses -->
+<a class="flex flex-col items-center justify-center w-14 text-slate-400 hover:text-slate-600 transition-colors" href="#expenses">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24">
+<rect height="16" rx="3" stroke-linecap="round" stroke-linejoin="round" width="16" x="4" y="4"></rect>
+<line stroke-linecap="round" x1="8" x2="16" y1="9" y2="9"></line>
+<line stroke-linecap="round" x1="8" x2="13" y1="13" y2="13"></line>
+</svg>
+<span class="text-[10px] font-medium mt-1">Expenses</span>
+</a>
+<!-- Tab 2: Settle (ACTIVE) -->
+<a class="flex flex-col items-center justify-center w-14 text-primaryGreen font-bold relative" href="#settle">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="2.3" viewbox="0 0 24 24">
+<path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-bold mt-1 text-primaryGreen">Settle</span>
+<span class="w-1 h-1 rounded-full bg-primaryGreen mt-0.5"></span>
+</a>
+<!-- Center Elevated Add Expense Button (+) -->
+<div class="flex flex-col items-center -mt-5">
+<button aria-label="Add Expense" class="w-12 h-12 bg-primaryGreen hover:bg-primaryGreenHover active:scale-95 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 ring-4 ring-white transition-transform">
+<svg class="w-6 h-6 stroke-current" fill="none" stroke-linecap="round" stroke-width="2.6" viewbox="0 0 24 24">
+<line x1="12" x2="12" y1="5" y2="19"></line>
+<line x1="5" x2="19" y1="12" y2="12"></line>
+</svg>
+</button>
+<span class="text-[9px] font-bold text-slate-800 mt-1">Add Expense</span>
+</div>
+<!-- Tab 4: Members -->
+<a class="flex flex-col items-center justify-center w-14 text-slate-400 hover:text-slate-600 transition-colors" href="#members">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Members</span>
+</a>
+<!-- Tab 5: Photos -->
+<a class="flex flex-col items-center justify-center w-14 text-slate-400 hover:text-slate-600 transition-colors" href="#photos">
+<svg class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24">
+<rect height="18" rx="3" stroke-linecap="round" stroke-linejoin="round" width="18" x="3" y="3"></rect>
+<circle cx="8.5" cy="8.5" r="1.5"></circle>
+<path d="M21 15l-5-5L5 21" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-medium mt-1">Photos</span>
+</a>
+</nav>
+<!-- END: BottomNavigationDock -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brandDark/70 backdrop-blur-xs transition-opacity duration-300" id="celebration-modal"><div class="relative w-full max-w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 flex flex-col items-center text-center overflow-hidden animate-in fade-in zoom-in-95"><div class="absolute -top-10 -left-10 w-32 h-32 bg-mintBg rounded-full opacity-60 pointer-events-none"></div><div class="absolute -bottom-10 -right-10 w-32 h-32 bg-emerald-100 rounded-full opacity-40 pointer-events-none"></div><button aria-label="Close celebration popup" class="absolute top-3.5 right-3.5 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition" onclick="document.getElementById('celebration-modal').style.display='none'"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path></svg></button><div class="relative mt-2 mb-3"><div class="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200/80 flex items-center justify-center shadow-[0_0_15px_#4ce088] ring-4 ring-emerald-100/60"><div class="w-11 h-11 rounded-full bg-primaryGreen flex items-center justify-center text-white shadow-btn-glow"><svg class="w-6 h-6 stroke-current" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg></div></div><span class="absolute -top-1 -right-2 text-xl select-none">🎉</span><span class="absolute -bottom-1 -left-2 text-lg select-none">✨</span></div><div class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold uppercase tracking-wider mb-2"><span>Settlement Complete</span></div><h3 class="text-xl font-extrabold text-slate-900 tracking-tight">Payment Marked as Settled!</h3><div class="mt-3 mb-2 px-4 py-2.5 rounded-xl bg-[#f0fbf6] border border-emerald-200/80 w-full flex items-center justify-between"><div class="flex items-center space-x-2.5 text-left"><div class="w-8 h-8 rounded-full bg-slate-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">P</div><div><p class="text-xs font-bold text-slate-900">Pooja</p><p class="text-[10px] text-slate-500 font-medium">Dinner split &amp; cab balance</p></div></div><div class="text-right"><span class="text-sm font-extrabold text-emerald-700 tracking-tight">₹353.00</span><span class="block text-[9px] font-bold text-emerald-600">✓ Paid</span></div></div><p class="text-xs text-slate-500 font-medium px-2 leading-relaxed">Pooja has been notified. Your net group balance is updated.</p><div class="mt-5 w-full space-y-2"><button class="w-full bg-primaryGreen hover:bg-primaryGreenHover active:scale-[0.98] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-btn-glow flex items-center justify-center space-x-1.5" onclick="document.getElementById('celebration-modal').style.display='none'"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Done / Great!</span></button><button class="w-full bg-slate-100 hover:bg-slate-200/80 active:scale-[0.98] text-slate-600 py-2 px-3 rounded-xl text-xs font-semibold transition" onclick="document.getElementById('celebration-modal').style.display='none'">View Receipt / Undo</button></div></div></div></div>
+<!-- Interactive Slide to Pay and Settle Script -->
+<script>
+  (function initSlideToPay() {
+    const track = document.getElementById('slider-track');
+    const knob = document.getElementById('slider-knob');
+    const progress = document.getElementById('slider-progress');
+    const text = document.getElementById('slider-text');
+    const success = document.getElementById('slider-success');
+    
+    if (!track || !knob) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let currentX = 0;
+    let maxDistance = 0;
+    let isCompleted = false;
+
+    function getPosition(e) {
+      return e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+    }
+
+    function calculateMax() {
+      maxDistance = track.clientWidth - knob.offsetWidth - 8;
+    }
+
+    window.addEventListener('resize', calculateMax);
+    calculateMax();
+
+    function onStart(e) {
+      if (isCompleted) return;
+      isDragging = true;
+      startX = getPosition(e) - currentX;
+      knob.style.transition = 'none';
+      if (progress) progress.style.transition = 'none';
+      calculateMax();
+    }
+
+    function onMove(e) {
+      if (!isDragging || isCompleted) return;
+      const x = getPosition(e) - startX;
+      currentX = Math.max(0, Math.min(x, maxDistance));
+      
+      knob.style.transform = `translateX(${currentX}px)`;
+      if (progress) {
+        progress.style.width = `${currentX + knob.offsetWidth}px`;
+      }
+      
+      if (text) {
+        const opacity = 1 - (currentX / (maxDistance * 0.75));
+        text.style.opacity = Math.max(0, opacity);
+      }
+    }
+
+    function onEnd() {
+      if (!isDragging || isCompleted) return;
+      isDragging = false;
+
+      if (currentX >= maxDistance * 0.8) {
+        triggerPaidState();
+      } else {
+        knob.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+        knob.style.transform = 'translateX(0px)';
+        if (progress) {
+          progress.style.transition = 'width 0.25s ease';
+          progress.style.width = '0px';
+        }
+        if (text) {
+          text.style.transition = 'opacity 0.2s ease';
+          text.style.opacity = '1';
+        }
+        currentX = 0;
+      }
+    }
+
+    knob.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onEnd);
+
+    knob.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+
+    window.triggerPaidState = function() {
+      if (isCompleted) return;
+      isCompleted = true;
+
+      calculateMax();
+      knob.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      knob.style.transform = `translateX(${maxDistance}px)`;
+      
+      if (progress) {
+        progress.style.transition = 'width 0.2s ease';
+        progress.style.width = '100%';
+      }
+
+      setTimeout(() => {
+        if (text) text.style.opacity = '0';
+        if (success) {
+          success.style.opacity = '1';
+          success.style.pointerEvents = 'auto';
+        }
+        knob.style.opacity = '0';
+        
+        const card = document.getElementById('slide-pay-card');
+        if (card) {
+          setTimeout(() => {
+            card.classList.add('bg-emerald-50/70', 'border-emerald-300');
+            const markPaidBtn = document.getElementById('mark-paid-btn');
+            if (markPaidBtn) {
+              markPaidBtn.innerHTML = '✓ Settled';
+              markPaidBtn.classList.remove('bg-mintBg', 'text-emerald-800');
+              markPaidBtn.classList.add('bg-emerald-600', 'text-white');
+            }
+          }, 300);
+        }
+      }, 150);
+    };
+  })();
+</script>
+</body></html>

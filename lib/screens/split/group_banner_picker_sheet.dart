@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/pixabay_service.dart';
 import '../../services/cloudflare_r2_service.dart';
 import '../../services/file_picker_service.dart';
+import '../../services/app_permission_service.dart';
 
 class GroupBannerPickerSheet extends StatefulWidget {
   final String? initialUrl;
@@ -74,6 +75,21 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
   }
 
   Future<void> _pickAndUpload({bool useCamera = false}) async {
+    final bool hasPermission;
+    if (useCamera) {
+      hasPermission = await AppPermissionService.requestCameraPermission(
+        context,
+        reason: 'take a photo for your group cover',
+      );
+    } else {
+      hasPermission = await AppPermissionService.requestPhotosPermission(
+        context,
+        reason: 'select a cover photo from your gallery',
+      );
+    }
+
+    if (!hasPermission || !mounted) return;
+
     setState(() => _isUploading = true);
     try {
       final picked = await pickImageFile(useCamera: useCamera);

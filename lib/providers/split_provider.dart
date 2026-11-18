@@ -54,6 +54,36 @@ class SplitProvider with ChangeNotifier {
   String? get error => _error;
   String? get currentMemberName => _currentMemberName;
 
+  static const _activeTripGroupIdKey = 'active_trip_mode_group_id';
+  String? _activeTripGroupId;
+
+  String? get activeTripGroupId => _activeTripGroupId;
+  bool get isTripModeActive =>
+      _activeTripGroupId != null && _groups.any((g) => g.id == _activeTripGroupId);
+
+  SplitGroup? get activeTripGroup {
+    if (_activeTripGroupId == null) return null;
+    try {
+      return _groups.firstWhere((g) => g.id == _activeTripGroupId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> enableTripMode(String groupId) async {
+    _activeTripGroupId = groupId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_activeTripGroupIdKey, groupId);
+    notifyListeners();
+  }
+
+  Future<void> disableTripMode() async {
+    _activeTripGroupId = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_activeTripGroupIdKey);
+    notifyListeners();
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
@@ -73,7 +103,12 @@ class SplitProvider with ChangeNotifier {
     List<SplitExpense> expenses = const [],
     List<Settlement> settlements = const [],
     Map<String, double> balances = const {},
+    List<SplitGroup>? groups,
   }) {
+    if (groups != null) {
+      _groups.clear();
+      _groups.addAll(groups);
+    }
     _members[groupId] = members;
     _settlementGroups[groupId] = settlementGroups;
     _expenseGroups[groupId] = expenseGroups;
@@ -97,7 +132,8 @@ class SplitProvider with ChangeNotifier {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentMemberName = prefs.getString(_memberNameKey);
+    _currentMemberName ??= prefs.getString(_memberNameKey);
+    _activeTripGroupId ??= prefs.getString(_activeTripGroupIdKey);
     await loadGroups();
 
     try {
@@ -119,6 +155,7 @@ class SplitProvider with ChangeNotifier {
   }
 
   void clearStateOnLogout() {
+    _activeTripGroupId = null;
     _groups.clear();
     _members.clear();
     _expenses.clear();
@@ -416,6 +453,112 @@ class SplitProvider with ChangeNotifier {
     );
     await loadGroupDetail(groupId);
     _checkPendingSync();
+  }
+
+  /// Adds an expense into the currently active trip group with equal split among members.
+  Future<bool> addTripModeExpense({
+    required double amount,
+    required String title,
+    String? category,
+    String? note,
+    String? receiptUrl,
+  }) async {
+    final tripGroup = activeTripGroup;
+    if (tripGroup == null || amount <= 0) return false;
+
+    List<SplitMember> groupMembers = getMembersForGroup(tripGroup.id);
+    if (groupMembers.isEmpty) {
+      await loadGroupDetail(tripGroup.id);
+      groupMembers = getMembersForGroup(tripGroup.id);
+    }
+    if (groupMembers.isEmpty) return false;
+
+    // Resolve current member
+    final myUid = _currentAuthUser?.id;
+    final myName = _currentMemberName?.trim().toLowerCase();
+    SplitMember? currentMem;
+
+    if (myUid != null) {
+      for (final m in groupMembers) {
+        if (m.userId == myUid) {
+          currentMem = m;
+          break;
+        }
+      }
+    }
+    if (currentMem == null && myName != null && myName.isNotEmpty) {
+      for (final m in groupMembers) {
+        if (m.name.trim().toLowerCase() == myName) {
+          currentMem = m;
+          break;
+        }
+      }
+    }
+    currentMem ??= groupMembers.first;
+
+    // Distribute equal cents
+    final totalCents = (amount * 100).round();
+    final count = groupMembers.length;
+    final baseCents = totalCents ~/ count;
+    final remainderCents = totalCents % count;
+    final shares = <String, double>{};
+    for (var i = 0; i < count; i++) {
+      final cents = baseCents + (i < remainderCents ? 1 : 0);
+      shares[groupMembers[i].id] = cents / 100.0;
+    }
+
+    await addExpense(
+      groupId: tripGroup.id,
+      title: title,
+      totalAmount: amount,
+      paidByMemberId: currentMem.id,
+      splitType: SplitType.equal,
+      shares: shares,
+      category: category,
+      note: note,
+      receiptUrl: receiptUrl,
+      addedByMemberId: currentMem.id,
+    );
+    return true;
+  }
+
+  /// Calculates the current user's net expense share for a given split group.
+  double calculateUserNetShare(String groupId) {
+    final groupMembers = getMembersForGroup(groupId);
+    if (groupMembers.isEmpty) return 0.0;
+    final myUid = _currentAuthUser?.id;
+    final myName = _currentMemberName?.trim().toLowerCase();
+
+    SplitMember? currentMem;
+    if (myUid != null) {
+      for (final m in groupMembers) {
+        if (m.userId == myUid) {
+          currentMem = m;
+          break;
+        }
+      }
+    }
+    if (currentMem == null && myName != null && myName.isNotEmpty) {
+      for (final m in groupMembers) {
+        if (m.name.trim().toLowerCase() == myName) {
+          currentMem = m;
+          break;
+        }
+      }
+    }
+    currentMem ??= groupMembers.first;
+
+    final allShares = _shares[groupId];
+    if (allShares != null && allShares.isNotEmpty) {
+      return allShares
+          .where((s) => s.memberId == currentMem!.id)
+          .fold(0.0, (sum, s) => sum + s.shareAmount);
+    }
+
+    // Fallback: estimate from expenses with equal split
+    final groupExpenses = getExpensesForGroup(groupId);
+    if (groupExpenses.isEmpty) return 0.0;
+    return groupExpenses.fold(0.0, (sum, e) => sum + (e.totalAmount / groupMembers.length));
   }
 
   Future<void> updateExpense({

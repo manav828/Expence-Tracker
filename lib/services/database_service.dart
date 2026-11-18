@@ -20,8 +20,17 @@ class DatabaseService {
     'Entertainment',
     'Health & Wellness',
     'Investment',
-    'Salary',
     'General',
+  ];
+
+  static const List<String> defaultIncomeCategories = [
+    'Salary',
+    'Freelance',
+    'Investments',
+    'Refund / Cashback',
+    'Rental Income',
+    'Gifts',
+    'Other Income',
   ];
 
   static const List<String> defaultPaymentMethods = [
@@ -35,6 +44,7 @@ class DatabaseService {
   final List<Expense> _webExpenses = [];
   int _nextWebId = 1;
   final List<String> _webCategories = List<String>.from(defaultCategories);
+  final List<String> _webIncomeCategories = List<String>.from(defaultIncomeCategories);
   final List<String> _webPaymentMethods = List<String>.from(defaultPaymentMethods);
   final List<Budget> _webBudgets = [];
   int _nextWebBudgetId = 1;
@@ -183,6 +193,12 @@ class DatabaseService {
     }
     await db.execute('''
       CREATE TABLE IF NOT EXISTS categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS income_categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE NOT NULL
       )
@@ -351,6 +367,17 @@ class DatabaseService {
       for (var cat in defaultCategories) {
         await db.insert(
           'categories',
+          {'name': cat},
+          conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
+        );
+      }
+    }
+
+    final incCount = sqflite.Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM income_categories')) ?? 0;
+    if (incCount == 0) {
+      for (var cat in defaultIncomeCategories) {
+        await db.insert(
+          'income_categories',
           {'name': cat},
           conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
         );
@@ -872,11 +899,16 @@ class DatabaseService {
       final db = await instance.database;
       await db.update('categories', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
       await db.update('expenses', {'category': trimmed}, where: 'category = ?', whereArgs: [oldName]);
-    } catch (_) {}
+    } catch (_) {
+      final idx = _webCategories.indexWhere((c) => c.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) {
+        _webCategories[idx] = trimmed;
+      }
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_categoryOrderPrefKey) ?? [];
-      final idx = savedOrder.indexOf(oldName);
+      final idx = savedOrder.indexWhere((c) => c.toLowerCase() == oldName.toLowerCase());
       if (idx != -1) {
         savedOrder[idx] = trimmed;
         await prefs.setStringList(_categoryOrderPrefKey, savedOrder);
@@ -894,13 +926,180 @@ class DatabaseService {
     try {
       final db = await instance.database;
       await db.delete('categories', where: 'name = ?', whereArgs: [name]);
-    } catch (_) {}
+    } catch (_) {
+      _webCategories.removeWhere((c) => c.toLowerCase() == name.toLowerCase());
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_categoryOrderPrefKey) ?? [];
-      if (savedOrder.remove(name)) {
-        await prefs.setStringList(_categoryOrderPrefKey, savedOrder);
+      savedOrder.removeWhere((c) => c.toLowerCase() == name.toLowerCase());
+      await prefs.setStringList(_categoryOrderPrefKey, savedOrder);
+    } catch (_) {}
+  }
+
+  // --- Income Category Management ---
+  static const String _incomeCategoryOrderPrefKey = 'custom_income_category_order_v1';
+
+  Future<List<String>> getIncomeCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedOrder = prefs.getStringList(_incomeCategoryOrderPrefKey);
+
+    if (kIsWeb) {
+      if (savedOrder != null && savedOrder.isNotEmpty) {
+        _webIncomeCategories
+          ..clear()
+          ..addAll(savedOrder);
+        return List<String>.from(_webIncomeCategories);
       }
+      _webIncomeCategories
+        ..clear()
+        ..addAll(defaultIncomeCategories);
+      await prefs.setStringList(_incomeCategoryOrderPrefKey, _webIncomeCategories);
+      return List<String>.from(_webIncomeCategories);
+    }
+
+    List<String> rawList = [];
+    try {
+      final db = await instance.database;
+      final res = await db.query('income_categories', orderBy: 'id ASC');
+      rawList = res.map((e) => e['name'] as String).toList();
+    } catch (_) {
+      rawList = List<String>.from(_webIncomeCategories);
+    }
+
+    if (rawList.isEmpty) {
+      rawList = List<String>.from(defaultIncomeCategories);
+    }
+
+    if (savedOrder != null && savedOrder.isNotEmpty) {
+      final ordered = <String>[];
+      for (final item in savedOrder) {
+        if (rawList.contains(item)) {
+          ordered.add(item);
+        }
+      }
+      for (final item in rawList) {
+        if (!ordered.contains(item)) {
+          ordered.add(item);
+        }
+      }
+      return ordered;
+    }
+
+    return rawList;
+  }
+
+  Future<void> saveIncomeCategoryOrder(List<String> order) async {
+    final cleanOrder = List<String>.from(order);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_incomeCategoryOrderPrefKey, cleanOrder);
+    } catch (_) {}
+    _webIncomeCategories
+      ..clear()
+      ..addAll(cleanOrder);
+  }
+
+  Future<void> addIncomeCategory(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    if (kIsWeb) {
+      final current = await getIncomeCategories();
+      if (!current.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+        current.add(trimmed);
+      }
+      await saveIncomeCategoryOrder(current);
+      return;
+    }
+    try {
+      final db = await instance.database;
+      await db.insert(
+        'income_categories',
+        {'name': trimmed},
+        conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
+      );
+    } catch (_) {
+      if (!_webIncomeCategories.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+        _webIncomeCategories.add(trimmed);
+      }
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedOrder = prefs.getStringList(_incomeCategoryOrderPrefKey) ?? [];
+      if (!savedOrder.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+        savedOrder.add(trimmed);
+        await prefs.setStringList(_incomeCategoryOrderPrefKey, savedOrder);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> updateIncomeCategory(String oldName, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == oldName) return;
+    if (kIsWeb) {
+      final current = await getIncomeCategories();
+      final idx = current.indexWhere((c) => c.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) {
+        current[idx] = trimmed;
+      }
+      await saveIncomeCategoryOrder(current);
+      for (int i = 0; i < _webExpenses.length; i++) {
+        if (_webExpenses[i].isIncome && _webExpenses[i].category.toLowerCase() == oldName.toLowerCase()) {
+          _webExpenses[i] = Expense(
+            id: _webExpenses[i].id,
+            amount: _webExpenses[i].amount,
+            category: trimmed,
+            paymentMethod: _webExpenses[i].paymentMethod,
+            comment: _webExpenses[i].comment,
+            expenseDate: _webExpenses[i].expenseDate,
+            createdAt: _webExpenses[i].createdAt,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+            type: _webExpenses[i].type,
+          );
+        }
+      }
+      return;
+    }
+
+    try {
+      final db = await instance.database;
+      await db.update('income_categories', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
+      await db.update('expenses', {'category': trimmed}, where: 'category = ? AND type = ?', whereArgs: [oldName, 'income']);
+    } catch (_) {
+      final idx = _webIncomeCategories.indexWhere((c) => c.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) {
+        _webIncomeCategories[idx] = trimmed;
+      }
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedOrder = prefs.getStringList(_incomeCategoryOrderPrefKey) ?? [];
+      final idx = savedOrder.indexWhere((c) => c.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) {
+        savedOrder[idx] = trimmed;
+        await prefs.setStringList(_incomeCategoryOrderPrefKey, savedOrder);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> deleteIncomeCategory(String name) async {
+    if (kIsWeb) {
+      final current = await getIncomeCategories();
+      current.removeWhere((c) => c.toLowerCase() == name.toLowerCase());
+      await saveIncomeCategoryOrder(current);
+      return;
+    }
+    try {
+      final db = await instance.database;
+      await db.delete('income_categories', where: 'name = ?', whereArgs: [name]);
+    } catch (_) {
+      _webIncomeCategories.removeWhere((c) => c.toLowerCase() == name.toLowerCase());
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedOrder = prefs.getStringList(_incomeCategoryOrderPrefKey) ?? [];
+      savedOrder.removeWhere((c) => c.toLowerCase() == name.toLowerCase());
+      await prefs.setStringList(_incomeCategoryOrderPrefKey, savedOrder);
     } catch (_) {}
   }
 
@@ -1023,11 +1222,16 @@ class DatabaseService {
       final db = await instance.database;
       await db.update('payment_methods', {'name': trimmed}, where: 'name = ?', whereArgs: [oldName]);
       await db.update('expenses', {'payment_method': trimmed}, where: 'payment_method = ?', whereArgs: [oldName]);
-    } catch (_) {}
+    } catch (_) {
+      final idx = _webPaymentMethods.indexWhere((p) => p.toLowerCase() == oldName.toLowerCase());
+      if (idx != -1) {
+        _webPaymentMethods[idx] = trimmed;
+      }
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey) ?? [];
-      final idx = savedOrder.indexOf(oldName);
+      final idx = savedOrder.indexWhere((p) => p.toLowerCase() == oldName.toLowerCase());
       if (idx != -1) {
         savedOrder[idx] = trimmed;
         await prefs.setStringList(_paymentMethodOrderPrefKey, savedOrder);
@@ -1045,13 +1249,14 @@ class DatabaseService {
     try {
       final db = await instance.database;
       await db.delete('payment_methods', where: 'name = ?', whereArgs: [name]);
-    } catch (_) {}
+    } catch (_) {
+      _webPaymentMethods.removeWhere((p) => p.toLowerCase() == name.toLowerCase());
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedOrder = prefs.getStringList(_paymentMethodOrderPrefKey) ?? [];
-      if (savedOrder.remove(name)) {
-        await prefs.setStringList(_paymentMethodOrderPrefKey, savedOrder);
-      }
+      savedOrder.removeWhere((p) => p.toLowerCase() == name.toLowerCase());
+      await prefs.setStringList(_paymentMethodOrderPrefKey, savedOrder);
     } catch (_) {}
   }
 

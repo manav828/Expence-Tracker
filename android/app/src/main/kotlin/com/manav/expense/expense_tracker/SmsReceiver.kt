@@ -174,23 +174,39 @@ class SmsReceiver : BroadcastReceiver() {
         }
 
         // 5. Smart initial category guess
-        var suggestedCategory = if (isCredit) "Salary" else "General"
-        if (lowerMsg.contains("salary") || lowerMsg.contains("payroll") || lowerMsg.contains("stipend")) {
-            suggestedCategory = "Salary"
-        } else if (isCredit && (lowerMsg.contains("refund") || lowerMsg.contains("cashback") || lowerMsg.contains("reversal"))) {
-            suggestedCategory = "General"
-        } else if (lowerMsg.contains("swiggy") || lowerMsg.contains("zomato") || lowerMsg.contains("restaurant") || lowerMsg.contains("food") || lowerMsg.contains("cafe")) {
-            suggestedCategory = "Food & Dining"
-        } else if (lowerMsg.contains("amazon") || lowerMsg.contains("flipkart") || lowerMsg.contains("myntra") || lowerMsg.contains("shopping") || lowerMsg.contains("mart")) {
-            suggestedCategory = "Shopping"
-        } else if (lowerMsg.contains("uber") || lowerMsg.contains("ola") || lowerMsg.contains("fuel") || lowerMsg.contains("petrol")) {
-            suggestedCategory = "Transport"
-        } else if (lowerMsg.contains("hospital") || lowerMsg.contains("pharmacy") || lowerMsg.contains("med")) {
-            suggestedCategory = "Health & Wellness"
-        } else if (lowerMsg.contains("mutual fund") || lowerMsg.contains("zerodha") || lowerMsg.contains("groww") || lowerMsg.contains("invest") || lowerMsg.contains("dividend")) {
-            suggestedCategory = "Investment"
-        } else if (lowerMsg.contains("bill") || lowerMsg.contains("recharge") || lowerMsg.contains("electricity")) {
-            suggestedCategory = "Bills & Utilities"
+        var suggestedCategory: String
+        if (isCredit) {
+            if (lowerMsg.contains("salary") || lowerMsg.contains("payroll") || lowerMsg.contains("stipend")) {
+                suggestedCategory = "Salary"
+            } else if (lowerMsg.contains("refund") || lowerMsg.contains("cashback") || lowerMsg.contains("reversal")) {
+                suggestedCategory = "Refund / Cashback"
+            } else if (lowerMsg.contains("dividend") || lowerMsg.contains("interest") || lowerMsg.contains("mutual fund") || lowerMsg.contains("zerodha") || lowerMsg.contains("groww") || lowerMsg.contains("invest") || lowerMsg.contains("stock") || lowerMsg.contains("profit")) {
+                suggestedCategory = "Investments"
+            } else if (lowerMsg.contains("rent") || lowerMsg.contains("tenant")) {
+                suggestedCategory = "Rental Income"
+            } else if (lowerMsg.contains("freelance") || lowerMsg.contains("consulting") || lowerMsg.contains("client") || lowerMsg.contains("upwork") || lowerMsg.contains("fiverr")) {
+                suggestedCategory = "Freelance"
+            } else if (lowerMsg.contains("gift") || lowerMsg.contains("reward") || lowerMsg.contains("prize")) {
+                suggestedCategory = "Gifts"
+            } else {
+                suggestedCategory = "Other Income"
+            }
+        } else {
+            if (lowerMsg.contains("swiggy") || lowerMsg.contains("zomato") || lowerMsg.contains("restaurant") || lowerMsg.contains("food") || lowerMsg.contains("cafe") || lowerMsg.contains("dining")) {
+                suggestedCategory = "Food & Dining"
+            } else if (lowerMsg.contains("amazon") || lowerMsg.contains("flipkart") || lowerMsg.contains("myntra") || lowerMsg.contains("shopping") || lowerMsg.contains("mart")) {
+                suggestedCategory = "Shopping"
+            } else if (lowerMsg.contains("uber") || lowerMsg.contains("ola") || lowerMsg.contains("fuel") || lowerMsg.contains("petrol")) {
+                suggestedCategory = "Transport"
+            } else if (lowerMsg.contains("hospital") || lowerMsg.contains("pharmacy") || lowerMsg.contains("med")) {
+                suggestedCategory = "Health & Wellness"
+            } else if (lowerMsg.contains("mutual fund") || lowerMsg.contains("zerodha") || lowerMsg.contains("groww") || lowerMsg.contains("invest")) {
+                suggestedCategory = "Investment"
+            } else if (lowerMsg.contains("bill") || lowerMsg.contains("recharge") || lowerMsg.contains("electricity")) {
+                suggestedCategory = "Bills & Utilities"
+            } else {
+                suggestedCategory = "General"
+            }
         }
 
         // 6. IMMEDIATELY auto-log into Database with proper transaction type

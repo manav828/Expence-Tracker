@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../services/sms_parser.dart';
 import '../services/transaction_detection_service.dart';
+import '../services/app_permission_service.dart';
 
 class SmsTesterSheet extends StatefulWidget {
   const SmsTesterSheet({super.key});
@@ -15,6 +18,20 @@ class SmsTesterSheet extends StatefulWidget {
 class _SmsTesterSheetState extends State<SmsTesterSheet> {
   final _smsController = TextEditingController();
   ParsedSmsResult? _parsedResult;
+  bool _hasSmsPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSmsPermission();
+  }
+
+  Future<void> _checkSmsPermission() async {
+    if (!kIsWeb) {
+      final granted = await Permission.sms.isGranted;
+      if (mounted) setState(() => _hasSmsPermission = granted);
+    }
+  }
 
   final Map<String, String> _sampleSms = {
     'HDFC Card ₹20': '''Txn Rs.20.00
@@ -161,6 +178,73 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
               ],
             ),
             const SizedBox(height: 16),
+            if (!kIsWeb)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _hasSmsPermission
+                      ? const Color(0xFF006948).withValues(alpha: 0.08)
+                      : const Color(0xFF4B41E1).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _hasSmsPermission
+                        ? const Color(0xFF006948).withValues(alpha: 0.2)
+                        : const Color(0xFF4B41E1).withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _hasSmsPermission ? Icons.verified_user_rounded : Icons.shield_outlined,
+                      color: _hasSmsPermission ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _hasSmsPermission
+                                ? 'Live SMS Detection Active'
+                                : 'Enable Live SMS Auto-Tracking',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: Color(0xFF131B2E),
+                            ),
+                          ),
+                          Text(
+                            _hasSmsPermission
+                                ? '100% On-Device: Bank debits & credits auto-logged'
+                                : 'Reads official bank texts with full privacy',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!_hasSmsPermission)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4B41E1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: Size.zero,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final granted = await AppPermissionService.requestSmsPermissionWithDisclosure(context);
+                          if (mounted) setState(() => _hasSmsPermission = granted);
+                        },
+                        child: const Text('Enable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                  ],
+                ),
+              ),
             const Text(
               'Select a sample transaction pattern or paste custom SMS:',
               style: TextStyle(color: Color(0xFF3D4A42), fontSize: 12, fontWeight: FontWeight.w600),
