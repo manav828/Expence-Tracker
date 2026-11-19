@@ -411,23 +411,13 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                           const SizedBox(height: 16),
                         ],
 
-                        // SECTION D: "Combined Settlement Balances" (Families / Couples)
-                        if (activeSettlementGroups.isNotEmpty) ...[
-                          _buildCombinedSettlementBalances(
-                            activeSettlementGroups: activeSettlementGroups,
-                            combinedResult: combinedResult,
-                            members: members,
-                            balances: balances,
-                            fmt: fmt,
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // SECTION E: "Individual Net Balances"
-                        _buildIndividualBalancesList(
+                        // SECTION D: "NET BALANCES" (Unified List: Family/Group Units & Individual Members)
+                        _buildNetBalancesSection(
+                          context,
                           members: members,
                           balances: balances,
                           currentMember: currentMember,
+                          activeSettlementGroups: activeSettlementGroups,
                           combinedResult: combinedResult,
                           fmt: fmt,
                         ),
@@ -440,6 +430,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                           context,
                           settlements: settlements,
                           memberMap: memberMap,
+                          currentMember: currentMember,
                           sp: sp,
                           fmt: fmt,
                         ),
@@ -1534,233 +1525,34 @@ class _SplitSettleViewState extends State<SplitSettleView> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // COMBINED SETTLEMENT BALANCES (Family / Couple units)
+  // NET BALANCES SECTION (Unified: Combined Settlement Groups & Members)
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildCombinedSettlementBalances({
-    required List<SplitSettlementGroup> activeSettlementGroups,
-    required CombinedBalancesResult combinedResult,
-    required List<SplitMember> members,
-    required Map<String, double> balances,
-    required NumberFormat fmt,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader(
-          title: 'Combined Settlement Balances',
-          badge: '${activeSettlementGroups.length} ${activeSettlementGroups.length == 1 ? "group" : "groups"}',
-          badgeColor: const Color(0xFFEDE9FE),
-          badgeTextColor: const Color(0xFF5B21B6),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Linked members settled as one unit. Tap to view member breakdown.',
-          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-        ),
-        const SizedBox(height: 8),
-        ...activeSettlementGroups.map((sg) {
-          final isExpanded = _expandedGroupIds.contains(sg.id);
-          final groupBal = combinedResult.getGroupBalance(sg.id);
-          final isPositive = groupBal >= 0.01;
-          final sign = isPositive ? '+' : (groupBal <= -0.01 ? '-' : '');
-          final groupMembers = members.where((m) => sg.memberIds.contains(m.id)).toList();
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: [
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedGroupIds.remove(sg.id);
-                      } else {
-                        _expandedGroupIds.add(sg.id);
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: _brandDark,
-                                  child: Text(
-                                    sg.name.isNotEmpty ? sg.name[0].toUpperCase() : 'F',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: -2,
-                                  right: -2,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: const BoxDecoration(
-                                      color: _primaryGreen,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      '${sg.memberIds.length}',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 8),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      sg.name,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF1E293B),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFECFDF5),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: const Color(0xFFA7F3D0)),
-                                      ),
-                                      child: Text(
-                                        'Family • ${sg.memberIds.length} members',
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF047857),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  isPositive ? 'Family net gets back' : 'Family net owes',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: isPositive ? const Color(0xFF059669) : const Color(0xFFE11D48),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              '$sign₹${fmt.format(groupBal.abs())}',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w900,
-                                color: isPositive ? const Color(0xFF059669) : const Color(0xFFE11D48),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: const Color(0xFF94A3B8),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Expanded Breakdown Accordion
-                if (isExpanded)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(28, 8, 16, 12),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                        const SizedBox(height: 8),
-                        ...groupMembers.map((m) {
-                          final mBal = balances[m.id] ?? 0.0;
-                          final mPositive = mBal >= 0.01;
-                          final mSign = mPositive ? '+' : (mBal <= -0.01 ? '-' : '');
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: Color(0xFF94A3B8)),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      m.name,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF334155),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  '$mSign₹${fmt.format(mBal.abs())}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: mPositive ? const Color(0xFF059669) : (mBal <= -0.01 ? const Color(0xFFE11D48) : const Color(0xFF64748B)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // INDIVIDUAL NET BALANCES LIST
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildIndividualBalancesList({
+  Widget _buildNetBalancesSection(
+    BuildContext context, {
     required List<SplitMember> members,
     required Map<String, double> balances,
     required SplitMember currentMember,
+    required List<SplitSettlementGroup> activeSettlementGroups,
     required CombinedBalancesResult combinedResult,
     required NumberFormat fmt,
   }) {
+    // Determine members claimed by any active combined settlement group
+    final claimedMemberIds = <String>{};
+    for (final sg in activeSettlementGroups) {
+      claimedMemberIds.addAll(sg.memberIds);
+    }
+
+    final isUserInGroup = claimedMemberIds.contains(currentMember.id);
+    final userBal = balances[currentMember.id] ?? 0.0;
+    final isUserPositive = userBal >= 0.01;
+    final isUserNegative = userBal <= -0.01;
+    final userSign = isUserPositive ? '+' : (isUserNegative ? '-' : '');
+
+    // Other ungrouped members
+    final ungroupedMembers = members
+        .where((m) => m.id != currentMember.id && !claimedMemberIds.contains(m.id))
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1768,7 +1560,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'INDIVIDUAL NET BALANCES',
+              'NET BALANCES',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -1795,81 +1587,426 @@ class _SplitSettleViewState extends State<SplitSettleView> {
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF13353B).withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: members.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-            itemBuilder: (ctx, index) {
-              final m = members[index];
-              final isCurrent = m.id == currentMember.id;
-              final bal = balances[m.id] ?? 0.0;
-              final isPositive = bal >= 0.01;
-              final isNegative = bal <= -0.01;
-              final sign = isPositive ? '+' : (isNegative ? '-' : '');
-              final initial = m.name.trim().isNotEmpty ? m.name.trim()[0].toUpperCase() : '?';
-
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 15,
-                          backgroundColor: _getAvatarColor(index),
-                          child: Text(
-                            initial,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11.5),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isCurrent ? 'You (${m.name})' : m.name,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // 1. You (Current Member) - pinned at top if not claimed by a group
+              if (!isUserInGroup) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: _walletTeal,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF6EE7B7), width: 1.5),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              currentMember.name.trim().isNotEmpty
+                                  ? currentMember.name.trim()[0].toUpperCase()
+                                  : 'Y',
                               style: const TextStyle(
-                                fontSize: 12.5,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF1E293B),
+                                fontSize: 12,
                               ),
                             ),
-                            const SizedBox(height: 1.5),
-                            Text(
-                              isPositive
-                                  ? 'Gets back'
-                                  : (isNegative ? 'Owes in total' : 'Settled even'),
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w600,
-                                color: isPositive
-                                    ? const Color(0xFF059669)
-                                    : (isNegative ? const Color(0xFFE11D48) : const Color(0xFF94A3B8)),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'You (${currentMember.name})',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1E293B),
+                                ),
                               ),
+                              const SizedBox(height: 1.5),
+                              Text(
+                                isUserPositive
+                                    ? 'Gets back'
+                                    : (isUserNegative ? 'Owes in total' : 'Settled even'),
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isUserPositive
+                                      ? const Color(0xFF059669)
+                                      : (isUserNegative ? const Color(0xFFE11D48) : const Color(0xFF94A3B8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '$userSign₹${fmt.format(userBal.abs())}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: isUserPositive
+                              ? const Color(0xFF059669)
+                              : (isUserNegative ? const Color(0xFFE11D48) : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (activeSettlementGroups.isNotEmpty || ungroupedMembers.isNotEmpty)
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+              ],
+
+              // 2. Combined Settlement Groups (e.g. Dinesh sir Family • 4 members)
+              for (int gi = 0; gi < activeSettlementGroups.length; gi++) ...[
+                Builder(builder: (ctx) {
+                  final sg = activeSettlementGroups[gi];
+                  final isExpanded = _expandedGroupIds.contains(sg.id);
+                  final groupBal = combinedResult.getGroupBalance(sg.id);
+                  final isPositive = groupBal >= 0.01;
+                  final isNegative = groupBal <= -0.01;
+                  final sign = isPositive ? '+' : (isNegative ? '-' : '');
+                  final groupMembers = members.where((m) => sg.memberIds.contains(m.id)).toList();
+                  final groupInitial = sg.name.trim().isNotEmpty ? sg.name.trim()[0].toUpperCase() : 'G';
+                  final isFamily = sg.name.toLowerCase().contains('family') ||
+                      sg.name.toLowerCase().contains('sir') ||
+                      sg.name.toLowerCase().contains('couple');
+                  final groupLabel = isFamily ? 'Family' : 'Group';
+
+                  return Column(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (isExpanded) {
+                              _expandedGroupIds.remove(sg.id);
+                            } else {
+                              _expandedGroupIds.add(sg.id);
+                            }
+                          });
+                        },
+                        child: Container(
+                          color: isExpanded ? const Color(0xFFF8FAFC) : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 15,
+                                        backgroundColor: _brandDark,
+                                        child: Text(
+                                          groupInitial,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: -2,
+                                        right: -2,
+                                        child: Container(
+                                          width: 14,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: _primaryGreen,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 1.5),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            '${sg.memberIds.length}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 8,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            sg.name,
+                                            style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFECFDF5),
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                                            ),
+                                            child: Text(
+                                              '$groupLabel • ${sg.memberIds.length} members',
+                                              style: const TextStyle(
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF047857),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 1.5),
+                                      Text(
+                                        isPositive
+                                            ? '$groupLabel net gets back'
+                                            : (isNegative ? '$groupLabel net owes' : '$groupLabel settled even'),
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: isPositive
+                                              ? const Color(0xFF059669)
+                                              : (isNegative ? const Color(0xFFE11D48) : const Color(0xFF94A3B8)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    '$sign₹${fmt.format(groupBal.abs())}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: isPositive
+                                          ? const Color(0xFF059669)
+                                          : (isNegative ? const Color(0xFFE11D48) : const Color(0xFF64748B)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  AnimatedRotation(
+                                    turns: isExpanded ? 0.5 : 0.0,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      size: 18,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Expanded Member Tree Breakdown
+                      if (isExpanded)
+                        Container(
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAF9),
+                            border: Border(
+                              top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                              bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                            ),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (int mi = 0; mi < groupMembers.length; mi++) ...[
+                                Builder(builder: (ctx) {
+                                  final m = groupMembers[mi];
+                                  final mBal = balances[m.id] ?? 0.0;
+                                  final mPositive = mBal >= 0.01;
+                                  final mNegative = mBal <= -0.01;
+                                  final mSign = mPositive ? '+' : (mNegative ? '-' : '');
+                                  final isLast = mi == groupMembers.length - 1;
+                                  final isHead = mi == 0;
+                                  final mInitial = m.name.trim().isNotEmpty ? m.name.trim()[0].toUpperCase() : '?';
+
+                                  return SizedBox(
+                                    height: 38,
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 22,
+                                          height: 38,
+                                          child: CustomPaint(
+                                            painter: TreeBranchPainter(isLast: isLast),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        CircleAvatar(
+                                          radius: 10,
+                                          backgroundColor: isHead ? _brandDark : const Color(0xFF475569),
+                                          child: Text(
+                                            mInitial,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                m.id == currentMember.id ? 'You (${m.name})' : m.name,
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF1E293B),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              Text(
+                                                '${isHead ? "Head • " : ""}${mPositive ? "Gets back" : (mNegative ? "Owes" : "Settled")}',
+                                                style: const TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Color(0xFF94A3B8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '$mSign₹${fmt.format(mBal.abs())}',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: mPositive
+                                                ? const Color(0xFF059669)
+                                                : (mNegative ? const Color(0xFFE11D48) : const Color(0xFF64748B)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                }),
+                if (gi < activeSettlementGroups.length - 1 || ungroupedMembers.isNotEmpty)
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+              ],
+
+              // 3. Ungrouped Individual Members
+              for (int ui = 0; ui < ungroupedMembers.length; ui++) ...[
+                Builder(builder: (ctx) {
+                  final m = ungroupedMembers[ui];
+                  final bal = balances[m.id] ?? 0.0;
+                  final isPositive = bal >= 0.01;
+                  final isNegative = bal <= -0.01;
+                  final sign = isPositive ? '+' : (isNegative ? '-' : '');
+                  final initial = m.name.trim().isNotEmpty ? m.name.trim()[0].toUpperCase() : '?';
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 15,
+                              backgroundColor: _getAvatarColor(ui),
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  m.name,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                                const SizedBox(height: 1.5),
+                                Text(
+                                  isPositive
+                                      ? 'Gets back'
+                                      : (isNegative ? 'Owes in total' : 'Settled even'),
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: isPositive
+                                        ? const Color(0xFF059669)
+                                        : (isNegative ? const Color(0xFFE11D48) : const Color(0xFF94A3B8)),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        Text(
+                          '$sign₹${fmt.format(bal.abs())}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: isPositive
+                                ? const Color(0xFF059669)
+                                : (isNegative ? const Color(0xFFE11D48) : const Color(0xFF64748B)),
+                          ),
+                        ),
                       ],
                     ),
-                    Text(
-                      '$sign₹${fmt.format(bal.abs())}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: isPositive
-                            ? const Color(0xFF059669)
-                            : (isNegative ? const Color(0xFFE11D48) : const Color(0xFF64748B)),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                  );
+                }),
+                if (ui < ungroupedMembers.length - 1)
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+              ],
+            ],
           ),
         ),
       ],
@@ -1958,12 +2095,13 @@ class _SplitSettleViewState extends State<SplitSettleView> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SETTLEMENT HISTORY SECTION
+  // SETTLEMENT HISTORY SECTION (Matches Reference Design)
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildSettlementHistorySection(
     BuildContext context, {
     required List<Settlement> settlements,
     required Map<String, String> memberMap,
+    required SplitMember currentMember,
     required SplitProvider sp,
     required NumberFormat fmt,
   }) {
@@ -1971,133 +2109,714 @@ class _SplitSettleViewState extends State<SplitSettleView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Icon(Icons.history_rounded, size: 16, color: _primaryGreen),
-            const SizedBox(width: 6),
-            const Text(
-              'SETTLEMENT HISTORY',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF334155),
-                letterSpacing: 0.8,
-              ),
+            Row(
+              children: [
+                const Text(
+                  'SETTLEMENT HISTORY',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF334155),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE6F4EA),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${settlements.length} Settled',
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF047857),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: _mintBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${settlements.length} settled',
-                style: const TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF047857),
+            InkWell(
+              onTap: () {
+                _showAllSettlementsModal(context, settlements, memberMap, currentMember, fmt, sp);
+              },
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _primaryGreen,
                 ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        ...settlements.map((s) {
-          final fromName = memberMap[s.fromMemberId] ?? 'Member';
-          final toName = memberMap[s.toMemberId] ?? 'Member';
-          final dateStr = DateFormat('d MMM yyyy, h:mm a').format(s.settledAt);
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF13353B).withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (int i = 0; i < settlements.length; i++) ...[
+                Builder(builder: (ctx) {
+                  final s = settlements[i];
+                  final fromName = memberMap[s.fromMemberId] ?? 'Member';
+                  final toName = memberMap[s.toMemberId] ?? 'Member';
+                  final isFromCurrent = s.fromMemberId == currentMember.id;
+                  final isToCurrent = s.toMemberId == currentMember.id;
+                  final displayFrom = isFromCurrent ? 'You ($fromName)' : fromName;
+                  final displayTo = isToCurrent ? 'You ($toName)' : toName;
+                  final fromInitial = fromName.trim().isNotEmpty ? fromName.trim()[0].toUpperCase() : '?';
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
+                  // Derive tag and subtitle
+                  String methodTag = 'Settled via UPI';
+                  String receiptSubtitle = 'Receipt #${(s.id.hashCode.abs() % 900) + 100}';
+
+                  if (s.note != null && s.note!.trim().isNotEmpty) {
+                    final noteLower = s.note!.toLowerCase();
+                    if (noteLower.contains('cash')) {
+                      methodTag = 'Settled • Cash';
+                      receiptSubtitle = (noteLower == 'cash' || noteLower.contains('cash payment') || noteLower.contains('settled'))
+                          ? 'Direct Cash'
+                          : s.note!;
+                    } else if (noteLower.contains('upi') || noteLower.contains('slide to pay')) {
+                      methodTag = 'Settled via UPI';
+                      receiptSubtitle = (noteLower == 'upi' || noteLower.contains('settled'))
+                          ? 'Receipt #${(s.id.hashCode.abs() % 900) + 100}'
+                          : s.note!;
+                    } else {
+                      methodTag = 'Settled';
+                      receiptSubtitle = s.note!;
+                    }
+                  }
+
+                  final dateStr = _formatRelativeSettlementTime(s.settledAt);
+
+                  return InkWell(
+                    onTap: () {
+                      _showSettlementReceiptDetails(context, s, displayFrom, displayTo, fmt, sp);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      child: Row(
+                        children: [
+                          // Dark slate avatar with green check badge overlay
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                radius: 17,
+                                backgroundColor: const Color(0xFF334155),
+                                child: Text(
+                                  fromInitial,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: -1,
+                                right: -1,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00B865),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.check_rounded,
+                                    size: 9,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 10),
+
+                          // From -> To and Pill + Date
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        displayFrom,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4),
+                                      child: Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 11,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        displayTo,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE6F4EA),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        methodTag,
+                                        style: const TextStyle(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF047857),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      dateStr,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Amount, Subtitle & Receipt Outline Icon
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '₹${fmt.format(s.amount)}',
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF0F172A),
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1.5),
+                                  Text(
+                                    receiptSubtitle,
+                                    style: const TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.receipt_long_outlined,
+                                size: 19,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                if (i < settlements.length - 1)
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RELATIVE SETTLEMENT DATE FORMATTER
+  // ─────────────────────────────────────────────────────────────────────────
+  String _formatRelativeSettlementTime(DateTime dt) {
+    final now = DateTime.now();
+    final timeStr = DateFormat('h:mm a').format(dt);
+    final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
+    final yesterday = now.subtract(const Duration(days: 1));
+    final isYesterday = dt.year == yesterday.year && dt.month == yesterday.month && dt.day == yesterday.day;
+
+    if (isToday) {
+      return 'Today, $timeStr';
+    } else if (isYesterday) {
+      return 'Yesterday, $timeStr';
+    } else {
+      return DateFormat('d MMM, h:mm a').format(dt);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SETTLEMENT RECEIPT DETAILS MODAL
+  // ─────────────────────────────────────────────────────────────────────────
+  void _showSettlementReceiptDetails(
+    BuildContext context,
+    Settlement s,
+    String fromName,
+    String toName,
+    NumberFormat fmt,
+    SplitProvider sp,
+  ) {
+    final receiptNum = 'Receipt #${(s.id.hashCode.abs() % 900) + 100}';
+    final dateStr = DateFormat('d MMMM yyyy, h:mm a').format(s.settledAt);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      padding: const EdgeInsets.all(8),
                       decoration: const BoxDecoration(
-                        color: _mintBg,
+                        color: Color(0xFFE6F4EA),
                         shape: BoxShape.circle,
                       ),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.check_rounded, color: _primaryGreen, size: 18),
+                      child: const Icon(Icons.receipt_long_outlined, size: 20, color: _primaryGreen),
                     ),
                     const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '$fromName paid $toName',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E293B),
-                          ),
+                        const Text(
+                          'Settlement Receipt',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          dateStr,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF94A3B8),
-                          ),
+                          receiptNum,
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Text(
-                      '₹${fmt.format(s.amount)}',
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF047857),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFF94A3B8)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete Settlement?'),
-                            content: Text('Remove recorded payment of ₹${s.amount.toStringAsFixed(2)} from $fromName to $toName?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Delete', style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await sp.deleteSettlement(s.id, widget.group.id);
-                        }
-                      },
-                    ),
-                  ],
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, size: 20),
                 ),
               ],
             ),
-          );
-        }),
-      ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Settled Amount', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      Text(
+                        '₹${fmt.format(s.amount)}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Paid By', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      Text(fromName, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Paid To', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      Text(toName, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Settled On', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      Text(dateStr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    ],
+                  ),
+                  if (s.note != null && s.note!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Note', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        Text(s.note!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(color: Color(0xFFFECACA)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Delete Settlement?'),
+                          content: Text('Remove recorded settlement of ₹${fmt.format(s.amount)} from $fromName to $toName?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () => Navigator.pop(dCtx, true),
+                              child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await sp.deleteSettlement(s.id, widget.group.id);
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                    label: const Text('Delete Settlement', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _brandDark,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // VIEW ALL SETTLEMENTS MODAL
+  // ─────────────────────────────────────────────────────────────────────────
+  void _showAllSettlementsModal(
+    BuildContext context,
+    List<Settlement> settlements,
+    Map<String, String> memberMap,
+    SplitMember currentMember,
+    NumberFormat fmt,
+    SplitProvider sp,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Settlement History',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE6F4EA),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${settlements.length} Settled',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  itemCount: settlements.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  itemBuilder: (_, i) {
+                    final s = settlements[i];
+                    final fromName = memberMap[s.fromMemberId] ?? 'Member';
+                    final toName = memberMap[s.toMemberId] ?? 'Member';
+                    final isFromCurrent = s.fromMemberId == currentMember.id;
+                    final isToCurrent = s.toMemberId == currentMember.id;
+                    final displayFrom = isFromCurrent ? 'You ($fromName)' : fromName;
+                    final displayTo = isToCurrent ? 'You ($toName)' : toName;
+                    final fromInitial = fromName.trim().isNotEmpty ? fromName.trim()[0].toUpperCase() : '?';
+
+                    String methodTag = 'Settled via UPI';
+                    String receiptSubtitle = 'Receipt #${(s.id.hashCode.abs() % 900) + 100}';
+                    if (s.note != null && s.note!.trim().isNotEmpty) {
+                      final nl = s.note!.toLowerCase();
+                      if (nl.contains('cash')) {
+                        methodTag = 'Settled • Cash';
+                        receiptSubtitle = (nl == 'cash' || nl.contains('cash payment') || nl.contains('settled'))
+                            ? 'Direct Cash'
+                            : s.note!;
+                      } else if (nl.contains('upi') || nl.contains('slide to pay')) {
+                        methodTag = 'Settled via UPI';
+                        receiptSubtitle = (nl == 'upi' || nl.contains('settled'))
+                            ? 'Receipt #${(s.id.hashCode.abs() % 900) + 100}'
+                            : s.note!;
+                      } else {
+                        methodTag = 'Settled';
+                        receiptSubtitle = s.note!;
+                      }
+                    }
+
+                    return InkWell(
+                      onTap: () => _showSettlementReceiptDetails(context, s, displayFrom, displayTo, fmt, sp),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  radius: 17,
+                                  backgroundColor: const Color(0xFF334155),
+                                  child: Text(
+                                    fromInitial,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: -1,
+                                  right: -1,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF00B865),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 1.5),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(Icons.check_rounded, size: 9, color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          displayFrom,
+                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 4),
+                                        child: Icon(Icons.arrow_forward_rounded, size: 11, color: Color(0xFF94A3B8)),
+                                      ),
+                                      Flexible(
+                                        child: Text(
+                                          displayTo,
+                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE6F4EA),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          methodTag,
+                                          style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: Color(0xFF047857)),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _formatRelativeSettlementTime(s.settledAt),
+                                        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '₹${fmt.format(s.amount)}',
+                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                                ),
+                                const SizedBox(height: 1.5),
+                                Text(
+                                  receiptSubtitle,
+                                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.receipt_long_outlined, size: 19, color: Color(0xFF94A3B8)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TREE BRANCH PAINTER (Connects parent group to sub-members with curved branch)
+// ─────────────────────────────────────────────────────────────────────────────
+class TreeBranchPainter extends CustomPainter {
+  final bool isLast;
+  TreeBranchPainter({required this.isLast});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..strokeWidth = 1.3
+      ..style = PaintingStyle.stroke;
+
+    final startX = size.width / 2;
+    final midY = size.height / 2;
+
+    final path = Path();
+    path.moveTo(startX, 0);
+    path.lineTo(startX, midY - 6);
+    path.quadraticBezierTo(startX, midY, startX + 6, midY);
+    path.lineTo(size.width, midY);
+    canvas.drawPath(path, paint);
+
+    if (!isLast) {
+      canvas.drawLine(
+        Offset(startX, midY),
+        Offset(startX, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant TreeBranchPainter oldDelegate) => oldDelegate.isLast != isLast;
 }

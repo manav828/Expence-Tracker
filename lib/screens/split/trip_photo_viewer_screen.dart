@@ -74,7 +74,7 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
           content: Text(
             success ? 'Photo saved to your phone!' : 'Failed to download photo.',
           ),
-          backgroundColor: success ? const Color(0xFF006948) : Colors.redAccent,
+          backgroundColor: success ? const Color(0xFF00B865) : Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -133,7 +133,7 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Photo deleted from vault.'),
-              backgroundColor: Color(0xFF006948),
+              backgroundColor: Color(0xFF00B865),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -280,7 +280,7 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
                       return Center(
                         child: CircularProgressIndicator(
                           value: total != null ? loaded / total : null,
-                          color: const Color(0xFF006948),
+                          color: const Color(0xFF00B865),
                         ),
                       );
                     },

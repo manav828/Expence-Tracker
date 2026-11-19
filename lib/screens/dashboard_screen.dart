@@ -596,8 +596,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // --- 4. Category Allocation Donut Card ---
   Widget _buildCategoryDonutCard(BuildContext context, ExpenseProvider provider) {
-    final double totalOutflow = provider.totalExpenses;
-    final categoryMap = provider.categoryTotals;
+    final double totalOutflow = provider.expensesThisMonth;
+    final categoryMap = provider.categoryTotalsThisMonth;
     final now = DateTime.now();
     final monthStr = DateFormat('MMM yyyy').format(now);
 

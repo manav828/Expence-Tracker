@@ -384,42 +384,15 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                         _buildSmartSplitPromoBanner(context),
                         const SizedBox(height: 14),
 
-                        // D. Regression Test Required Headers & Section Count
-                        // Displays exact strings expected by tests: "Trip Members (X)", "Individual Members (Y)", "Groups & Combinations (Z)"
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Trip Members (${members.length})',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF1E293B),
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  'Individual Members (${ungroupedMembers.length})',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Groups & Combinations (${displayGroups.length})',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                        // D. Section Title
+                        const Text(
+                          'ALL MEMBERS & GROUPS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF64748B),
+                            letterSpacing: 0.8,
+                          ),
                         ),
                         const SizedBox(height: 10),
 
@@ -798,91 +771,89 @@ class _SplitMembersViewState extends State<SplitMembersView> {
   // C. SMART SPLIT PROMO BANNER
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildSmartSplitPromoBanner(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEAF7EE), Color(0xFFDFF2E6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return InkWell(
+      onTap: () => widget.onCombineGroupTap(null),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEAF7EE), Color(0xFFDFF2E6)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFC8EBD2)),
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFC8EBD2)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.hub_rounded, size: 12, color: _primaryDark),
+                        SizedBox(width: 4),
+                        Text(
+                          'Smart Split',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _primaryDark),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Travel Together, Settle Easy',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF191C1E),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Combine family members into a single unit for simplified settlements.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'screen/split/member/illustration.png',
+                width: 76,
+                height: 76,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.hub_rounded, size: 12, color: _primaryDark),
-                      SizedBox(width: 4),
-                      Text(
-                        'Smart Split',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _primaryDark),
-                      ),
-                    ],
-                  ),
+                  child: const Icon(Icons.diversity_3_rounded, color: _primaryDark, size: 30),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Travel Together, Settle Easy',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF191C1E),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Combine family members into a single unit for simplified settlements.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    backgroundColor: _primaryDark,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  onPressed: () => widget.onCombineGroupTap(null),
-                  icon: const Icon(Icons.add_rounded, size: 14),
-                  label: const Text(
-                    'Combine Family / Couple',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.diversity_3_rounded, color: _primaryDark, size: 30),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

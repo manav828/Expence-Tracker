@@ -404,6 +404,30 @@ class ExpenseProvider with ChangeNotifier {
     return map;
   }
 
+  Map<String, double> get categoryTotalsThisMonth {
+    final now = DateTime.now();
+    final map = <String, double>{};
+    for (var e in _expenses.where((e) => e.isExpense)) {
+      final d = e.dateTime;
+      if (d.year == now.year && d.month == now.month) {
+        map[e.category] = (map[e.category] ?? 0.0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  Map<String, double> get incomeCategoryTotalsThisMonth {
+    final now = DateTime.now();
+    final map = <String, double>{};
+    for (var e in _expenses.where((e) => e.isIncome)) {
+      final d = e.dateTime;
+      if (d.year == now.year && d.month == now.month) {
+        map[e.category] = (map[e.category] ?? 0.0) + e.amount;
+      }
+    }
+    return map;
+  }
+
   double get expensesThisMonth {
     final now = DateTime.now();
     return _expenses.where((e) {

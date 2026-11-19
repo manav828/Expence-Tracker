@@ -629,6 +629,14 @@ class SplitService {
     String? phone,
     String? userId,
   }) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw ArgumentError('Member name cannot be empty');
+    final existing = await getMembers(groupId);
+    final match = existing.where((m) => m.name.toLowerCase().trim() == cleanName.toLowerCase()).firstOrNull;
+    if (match != null) {
+      return match;
+    }
+
     final member = SplitMember(
       id: _uuid.v4(),
       groupId: groupId,
@@ -1268,6 +1276,10 @@ class SplitService {
     String? fromSettlementGroupId,
     String? toSettlementGroupId,
   }) async {
+    if (fromMemberId == toMemberId) {
+      throw ArgumentError('Cannot record settlement between the same member.');
+    }
+
     final s = Settlement(
       id: _uuid.v4(),
       groupId: groupId,
@@ -1336,12 +1348,20 @@ class SplitService {
         }
       }
 
-      // MERGE: Combine local and cloud settlements
+      // MERGE: Combine local and cloud settlements (prune invalid self-settlements)
       final map = <String, Settlement>{};
       for (final sett in localSettlements) {
+        if (sett.fromMemberId == sett.toMemberId) {
+          deleteSettlement(sett.id);
+          continue;
+        }
         map[sett.id] = sett;
       }
       for (final sett in cloudSettlements) {
+        if (sett.fromMemberId == sett.toMemberId) {
+          deleteSettlement(sett.id);
+          continue;
+        }
         map[sett.id] = sett;
       }
       if (map.isNotEmpty) {
@@ -1353,6 +1373,13 @@ class SplitService {
       debugPrint('Cloud getSettlements error, returning local cached: $e');
     }
 
+    localSettlements.removeWhere((s) {
+      if (s.fromMemberId == s.toMemberId) {
+        deleteSettlement(s.id);
+        return true;
+      }
+      return false;
+    });
     return localSettlements;
   }
 

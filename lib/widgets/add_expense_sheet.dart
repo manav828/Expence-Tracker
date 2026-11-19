@@ -734,8 +734,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                             });
                           }
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
+                        child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
                             color: _type == TransactionType.expense ? Colors.white : Colors.transparent,
@@ -784,8 +783,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                             });
                           }
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
+                        child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
                             color: _type == TransactionType.income ? Colors.white : Colors.transparent,

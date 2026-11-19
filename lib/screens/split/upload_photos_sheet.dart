@@ -27,7 +27,7 @@ class _UploadPhotosSheetState extends State<UploadPhotosSheet> {
   bool _originalQuality = false;
   bool _isPickingMore = false;
 
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = Color(0xFF00B865);
 
   @override
   void initState() {

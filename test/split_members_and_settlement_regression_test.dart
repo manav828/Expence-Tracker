@@ -85,9 +85,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. Verify Header counts
-      expect(find.text('Trip Members (5)'), findsOneWidget);
-      expect(find.text('Individual Members (1)'), findsOneWidget);
-      expect(find.text('Groups & Combinations (2)'), findsOneWidget);
+      expect(find.text('ALL MEMBERS & GROUPS'), findsOneWidget);
+      expect(find.text('All Members (5)'), findsOneWidget);
+      expect(find.text('Combined (2)'), findsOneWidget);
 
       // 2. Verify Individual Member is visible
       expect(find.text('Alex'), findsOneWidget);
@@ -170,6 +170,69 @@ void main() {
       expect(find.text('All settled up! 🎉'), findsNothing);
       expect(find.text('No expenses yet'), findsNothing);
       expect(find.text('Who Owes Whom (Simplified)'), findsOneWidget);
+
+      // Verify NET BALANCES heading (without "Individual")
+      expect(find.text('NET BALANCES'), findsOneWidget);
+      expect(find.text('INDIVIDUAL NET BALANCES'), findsNothing);
+      expect(find.text('View Ledger'), findsOneWidget);
+
+      // Verify groups are embedded in NET BALANCES
+      expect(find.text('Couple A'), findsOneWidget);
+      expect(find.text('Couple B'), findsOneWidget);
+      expect(find.text('Family • 2 members'), findsNWidgets(2));
+    });
+
+    testWidgets('Settlement History displays with redesigned card matching reference image', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final s1 = Settlement(
+        id: 's_1',
+        groupId: 'grp_goa_123',
+        fromMemberId: 'm_bob',
+        toMemberId: 'm_alex',
+        amount: 500.0,
+        settledAt: DateTime.now().subtract(const Duration(days: 1)),
+        note: 'Settled via UPI',
+      );
+
+      final s2 = Settlement(
+        id: 's_2',
+        groupId: 'grp_goa_123',
+        fromMemberId: 'm_charlie',
+        toMemberId: 'm_david',
+        amount: 120.0,
+        settledAt: DateTime.now().subtract(const Duration(days: 2)),
+        note: 'Cash payment',
+      );
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      splitProvider.setGroupDetailForTesting(
+        groupId: 'grp_goa_123',
+        members: [me, bob, charlie, david, eve],
+        settlementGroups: [],
+        settlements: [s1, s2],
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on Settle Tab
+      await tester.tap(find.text('Settle'));
+      await tester.pumpAndSettle();
+
+      // Verify Settlement History header
+      expect(find.text('SETTLEMENT HISTORY'), findsOneWidget);
+      expect(find.text('2 Settled'), findsOneWidget);
+      expect(find.text('View All'), findsOneWidget);
+
+      // Verify rows
+      expect(find.text('Settled via UPI'), findsOneWidget);
+      expect(find.text('Settled • Cash'), findsOneWidget);
+      expect(find.text('₹500.00'), findsOneWidget);
+      expect(find.text('₹120.00'), findsOneWidget);
+      expect(find.byIcon(Icons.receipt_long_outlined), findsAtLeastNWidgets(2));
     });
   });
 }

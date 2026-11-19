@@ -289,6 +289,12 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                             );
                             return;
                           }
+                          if (_selectedFromMemberId == _selectedToMemberId) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Payer and receiver cannot be the same member')),
+                            );
+                            return;
+                          }
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
                           setState(() => _isLoading = true);

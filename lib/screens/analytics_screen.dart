@@ -33,6 +33,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String? _selectedCategoryFilter;
   String? _selectedPaymentFilter;
   String _sortBy = 'date_desc';
+  bool _isExpenseBreakdownExpanded = true;
+  bool _isIncomeBreakdownExpanded = true;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -465,15 +467,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     return Consumer<ExpenseProvider>(
       builder: (context, provider, child) {
-        // 1. Filter expenses by date range
-        final rangeExpenses = provider.expenses.where((e) {
+        // 1. Transactions strictly within selected date range
+        final rangeAllTransactions = provider.expenses.where((e) {
           final d = e.dateTime;
           return d.isAfter(_dateRange.start.subtract(const Duration(milliseconds: 1))) &&
               d.isBefore(_dateRange.end.add(const Duration(milliseconds: 1)));
         }).toList();
 
-        // 2. Further filtered transactions for ledger
-        final ledgerExpenses = rangeExpenses.where((e) {
+        // Separate expenses and incomes strictly
+        final rangeExpenses = rangeAllTransactions.where((e) => e.isExpense).toList();
+        final rangeIncomes = rangeAllTransactions.where((e) => e.isIncome).toList();
+
+        // 2. Further filtered transactions for ledger (supports both income and expense in ledger timeline)
+        final ledgerAll = rangeAllTransactions.where((e) {
           if (_selectedSpecificDate != null) {
             final sd = _selectedSpecificDate!;
             if (e.dateTime.year != sd.year || e.dateTime.month != sd.month || e.dateTime.day != sd.day) {
@@ -498,16 +504,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           return true;
         }).toList();
 
+        final ledgerExpenses = ledgerAll.where((e) => e.isExpense).toList();
+
+        // Total Expenses: Strictly expenses (NEVER includes salary / income!)
         final totalSpent = rangeExpenses.fold(0.0, (sum, e) => sum + e.amount);
+        final totalIncome = rangeIncomes.fold(0.0, (sum, e) => sum + e.amount);
         final filteredSpent = ledgerExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
-        // Daily average formula: amount / total days passed so far (not full month)
+        // Daily average formula: expense total / total days passed so far (not full month)
         final daysPassed = _selectedSpecificDate != null ? 1 : _calculateDaysPassed(_dateRange);
         final dailyAvg = daysPassed > 0 ? (totalSpent / daysPassed) : 0.0;
 
-        // Group spend by day for stats and sparkline
+
+        final hasActiveFilters = _selectedCategoryFilter != null ||
+            _selectedPaymentFilter != null ||
+            _selectedSpecificDate != null ||
+            _searchQuery.isNotEmpty ||
+            _sortBy != 'date_desc';
+
+        // Group EXPENSE spend by day for stats and sparkline (Strictly expenses only!)
         final Map<DateTime, double> dayTotals = {};
-        for (var e in ledgerExpenses) {
+        for (var e in (hasActiveFilters ? ledgerExpenses : rangeExpenses)) {
           final dayKey = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
           dayTotals[dayKey] = (dayTotals[dayKey] ?? 0.0) + e.amount;
         }
@@ -530,7 +547,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           }
         }
 
-        // Compare with previous month or equivalent duration
+        // Compare with previous month EXPENSES (strictly e.isExpense)
         double vsLastMonthPercent = 0.0;
         bool hasPrevComparison = false;
         final rangeDuration = _dateRange.end.difference(_dateRange.start);
@@ -539,7 +556,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
         final prevExpenses = provider.expenses.where((e) {
           final d = e.dateTime;
-          return d.isAfter(prevRangeStart.subtract(const Duration(milliseconds: 1))) &&
+          return e.isExpense &&
+              d.isAfter(prevRangeStart.subtract(const Duration(milliseconds: 1))) &&
               d.isBefore(prevRangeEnd.add(const Duration(milliseconds: 1)));
         });
         final prevTotal = prevExpenses.fold(0.0, (s, e) => s + e.amount);
@@ -548,17 +566,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           hasPrevComparison = true;
         }
 
-        // Group spend by category
+        // Group spend by expense category
         final Map<String, double> categorySpendMap = {};
         for (var e in rangeExpenses) {
           categorySpendMap[e.category] = (categorySpendMap[e.category] ?? 0.0) + e.amount;
         }
 
-        final hasActiveFilters = _selectedCategoryFilter != null ||
-            _selectedPaymentFilter != null ||
-            _selectedSpecificDate != null ||
-            _searchQuery.isNotEmpty ||
-            _sortBy != 'date_desc';
+        // Group income by income category
+        final Map<String, double> categoryIncomeMap = {};
+        for (var e in rangeIncomes) {
+          categoryIncomeMap[e.category] = (categoryIncomeMap[e.category] ?? 0.0) + e.amount;
+        }
+
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FD),
@@ -608,13 +627,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       if (hasActiveFilters) _buildActiveFilterBanner(),
 
                       // Grouped Transactions Ledger in Timeline View with Payment Time
-                      _buildTransactionsLedger(ledgerExpenses, provider),
+                      _buildTransactionsLedger(ledgerAll, provider),
                     ] else if (_viewMode == 'calendar') ...[
                       // Interactive Calendar Grid & Day Outflow View
                       _buildCalendarView(rangeExpenses, provider),
                     ] else ...[
-                      // Breakdown View (Category Donut & Ranked List)
-                      _buildCategoryBreakdownSection(categorySpendMap, totalSpent, rangeExpenses),
+                      // Breakdown View: Separate Expandable Expense & Income Cards
+                      _buildCategoryBreakdownSection(
+                        categorySpendMap: categorySpendMap,
+                        totalSpent: totalSpent,
+                        rangeExpenses: rangeExpenses,
+                        categoryIncomeMap: categoryIncomeMap,
+                        totalIncome: totalIncome,
+                        rangeIncomes: rangeIncomes,
+                      ),
                     ],
                   ],
                 ),
@@ -1410,7 +1436,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       children: grouped.entries.map((entry) {
         final dayExpenses = entry.value;
         final dayDate = dayExpenses.first.dateTime;
-        final dayTotal = dayExpenses.fold(0.0, (s, e) => s + e.amount);
+        final dayExpenseTotal = dayExpenses.where((e) => e.isExpense).fold(0.0, (s, e) => s + e.amount);
+        final dayIncomeTotal = dayExpenses.where((e) => e.isIncome).fold(0.0, (s, e) => s + e.amount);
 
         String dayTitle;
         if (entry.key == todayKey) {
@@ -1419,6 +1446,50 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           dayTitle = 'Yesterday, ${DateFormat('d MMM yyyy').format(dayDate)}';
         } else {
           dayTitle = DateFormat('EEEE, d MMM yyyy').format(dayDate);
+        }
+
+        Widget dayAmountBadge;
+        if (dayIncomeTotal > 0 && dayExpenseTotal == 0) {
+          dayAmountBadge = Text(
+            '+ ${currencyFmt.format(dayIncomeTotal)}',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF006948),
+            ),
+          );
+        } else if (dayExpenseTotal > 0 && dayIncomeTotal == 0) {
+          dayAmountBadge = Text(
+            '- ${currencyFmt.format(dayExpenseTotal)}',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF131B2E),
+            ),
+          );
+        } else {
+          dayAmountBadge = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '+${currencyFmt.format(dayIncomeTotal)}',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF006948),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '-${currencyFmt.format(dayExpenseTotal)}',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF131B2E),
+                ),
+              ),
+            ],
+          );
         }
 
         return Container(
@@ -1454,14 +1525,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         color: Color(0xFF334155),
                       ),
                     ),
-                    Text(
-                      '- ${currencyFmt.format(dayTotal)}',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF131B2E),
-                      ),
-                    ),
+                    dayAmountBadge,
                   ],
                 ),
               ),
@@ -2103,10 +2167,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   color: Color(0xFF131B2E),
                 ),
               ),
-              Text(
-                '${dayExpenses.length} Outflow${dayExpenses.length == 1 ? '' : 's'}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
-              ),
+              Builder(builder: (ctx) {
+                final dayOutflows = dayExpenses.where((e) => e.isExpense).length;
+                final dayInflows = dayExpenses.where((e) => e.isIncome).length;
+                String subtitle = '$dayOutflows Outflow${dayOutflows == 1 ? '' : 's'}';
+                if (dayOutflows > 0 && dayInflows > 0) {
+                  subtitle = '$dayOutflows Outflow${dayOutflows == 1 ? '' : 's'} • $dayInflows Inflow${dayInflows == 1 ? '' : 's'}';
+                } else if (dayInflows > 0) {
+                  subtitle = '$dayInflows Inflow${dayInflows == 1 ? '' : 's'}';
+                }
+                return Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
+                );
+              }),
             ],
           ),
           const SizedBox(height: 12),
@@ -2178,10 +2252,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF006948).withValues(alpha: 0.12),
+                          color: expense.isIncome
+                              ? const Color(0xFF006948).withValues(alpha: 0.12)
+                              : const Color(0xFF4B41E1).withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(CategoryIcons.get(expense.category), color: const Color(0xFF006948), size: 18),
+                        child: Icon(
+                          CategoryIcons.get(expense.category),
+                          color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -2202,8 +2282,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         ),
                       ),
                       Text(
-                        '-₹${expense.amount.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
+                        expense.isIncome
+                            ? '+₹${expense.amount.toStringAsFixed(2)}'
+                            : '-₹${expense.amount.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                        ),
                       ),
                     ],
                   ),
@@ -2241,192 +2327,391 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   // --- 7. Breakdown View (Category Donut & Ranked List) ---
-  Widget _buildCategoryBreakdownSection(
-    Map<String, double> categorySpendMap,
-    double totalSpent,
-    List<Expense> rangeExpenses,
-  ) {
-    if (categorySpendMap.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        alignment: Alignment.center,
-        child: const Text('No expense data available for this range', style: TextStyle(color: Color(0xFF64748B))),
-      );
-    }
-
+  // --- 7. Category Breakdown Section: Two Separate Expandable Cards (Expense & Income) ---
+  Widget _buildCategoryBreakdownSection({
+    required Map<String, double> categorySpendMap,
+    required double totalSpent,
+    required List<Expense> rangeExpenses,
+    required Map<String, double> categoryIncomeMap,
+    required double totalIncome,
+    required List<Expense> rangeIncomes,
+  }) {
     final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 2);
-    final sortedCategories = categorySpendMap.entries.toList()
+
+    return Column(
+      children: [
+        // CARD 1: EXPENSE BREAKDOWN (Expandable)
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x060F172A), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // Expandable Header
+              InkWell(
+                onTap: () => setState(() => _isExpenseBreakdownExpanded = !_isExpenseBreakdownExpanded),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFFECACA), width: 1.2),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.arrow_upward_rounded, size: 18, color: Color(0xFFDC2626)),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Expense Breakdown',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF131B2E),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${currencyFmt.format(totalSpent)} • ${categorySpendMap.length} ${categorySpendMap.length == 1 ? "category" : "categories"}',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      AnimatedRotation(
+                        turns: _isExpenseBreakdownExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Expanded Content
+              if (_isExpenseBreakdownExpanded) ...[
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                if (categorySpendMap.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'No expense data available for this range',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                    ),
+                  )
+                else
+                  _buildBreakdownCardContent(
+                    categoryMap: categorySpendMap,
+                    totalAmount: totalSpent,
+                    transactions: rangeExpenses,
+                    isIncome: false,
+                    currencyFmt: currencyFmt,
+                  ),
+              ],
+            ],
+          ),
+        ),
+
+        // CARD 2: INCOME BREAKDOWN (Expandable)
+        Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x060F172A), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // Expandable Header
+              InkWell(
+                onTap: () => setState(() => _isIncomeBreakdownExpanded = !_isIncomeBreakdownExpanded),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE6F4EA),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFA7F3D0), width: 1.2),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.arrow_downward_rounded, size: 18, color: Color(0xFF006948)),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Income Breakdown',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF131B2E),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${currencyFmt.format(totalIncome)} • ${categoryIncomeMap.length} ${categoryIncomeMap.length == 1 ? "category" : "categories"}',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF006948),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      AnimatedRotation(
+                        turns: _isIncomeBreakdownExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Expanded Content
+              if (_isIncomeBreakdownExpanded) ...[
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                if (categoryIncomeMap.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'No income recorded for this period',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                    ),
+                  )
+                else
+                  _buildBreakdownCardContent(
+                    categoryMap: categoryIncomeMap,
+                    totalAmount: totalIncome,
+                    transactions: rangeIncomes,
+                    isIncome: true,
+                    currencyFmt: currencyFmt,
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBreakdownCardContent({
+    required Map<String, double> categoryMap,
+    required double totalAmount,
+    required List<Expense> transactions,
+    required bool isIncome,
+    required NumberFormat currencyFmt,
+  }) {
+    final sortedCategories = categoryMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     // Prepare pie chart sections
     final List<PieChartSectionData> pieSections = [];
+    final incomePalette = [
+      const Color(0xFF006948),
+      const Color(0xFF059669),
+      const Color(0xFF10B981),
+      const Color(0xFF0D9488),
+      const Color(0xFF14B8A6),
+      const Color(0xFF0284C7),
+    ];
+
     for (int i = 0; i < sortedCategories.length; i++) {
       final entry = sortedCategories[i];
-      final color = _palette[i % _palette.length];
-      final pct = totalSpent > 0 ? (entry.value / totalSpent) * 100 : 0.0;
+      final color = isIncome
+          ? incomePalette[i % incomePalette.length]
+          : _palette[i % _palette.length];
+      final pct = totalAmount > 0 ? (entry.value / totalAmount) * 100 : 0.0;
 
       pieSections.add(
         PieChartSectionData(
           color: color,
           value: entry.value,
           title: pct >= 8 ? '${pct.toStringAsFixed(0)}%' : '',
-          radius: 36,
-          titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+          radius: 32,
+          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       );
     }
 
-    return Column(
-      children: [
-        // Donut Chart Card
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 190,
-                child: Stack(
-                  alignment: Alignment.center,
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Donut Chart
+          SizedBox(
+            height: 170,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PieChart(
+                  PieChartData(
+                    sections: pieSections,
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 52,
+                    startDegreeOffset: -90,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    PieChart(
-                      PieChartData(
-                        sections: pieSections,
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 58,
-                        startDegreeOffset: -90,
-                      ),
+                    Text(
+                      '${sortedCategories.length}',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF131B2E)),
                     ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
+                    Text(
+                      isIncome ? 'Sources' : 'Categories',
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isIncome
+                ? 'Tap any income source below to filter transactions in Ledger'
+                : 'Tap any category below to filter transactions in Ledger',
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 8),
+
+          // Ranked Category List
+          ...sortedCategories.map((entry) {
+            final pct = totalAmount > 0 ? (entry.value / totalAmount) : 0.0;
+            final catColor = isIncome
+                ? const Color(0xFF006948)
+                : _getCategoryColor(entry.key);
+            final catIcon = isIncome ? Icons.payments_rounded : CategoryIcons.get(entry.key);
+            final txCount = transactions.where((e) => e.category == entry.key).length;
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedCategoryFilter = entry.key;
+                  _viewMode = 'list';
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          '${sortedCategories.length}',
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF131B2E)),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: catColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(catIcon, size: 18, color: catColor),
                         ),
-                        const Text(
-                          'Categories',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry.key,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF131B2E),
+                                ),
+                              ),
+                              Text(
+                                '$txCount transaction${txCount == 1 ? '' : 's'}',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
                         ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              isIncome ? '+ ${currencyFmt.format(entry.value)}' : currencyFmt.format(entry.value),
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                              ),
+                            ),
+                            Text(
+                              '${(pct * 100).toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isIncome ? const Color(0xFF006948) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, size: 18, color: Color(0xFFCBD5E1)),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        valueColor: AlwaysStoppedAnimation<Color>(catColor),
+                        minHeight: 5,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Tap any category below to immediately view its filtered transactions in Ledger',
-                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // Ranked Category List
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Spending by Category',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF131B2E)),
-                ),
-              ),
-              ...sortedCategories.map((entry) {
-                final pct = totalSpent > 0 ? (entry.value / totalSpent) : 0.0;
-                final catColor = _getCategoryColor(entry.key);
-                final catIcon = CategoryIcons.get(entry.key);
-                final txCount = rangeExpenses.where((e) => e.category == entry.key).length;
-
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedCategoryFilter = entry.key;
-                      _viewMode = 'list';
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: catColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(catIcon, size: 18, color: catColor),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    entry.key,
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-                                  ),
-                                  Text(
-                                    '$txCount transaction${txCount == 1 ? '' : 's'}',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  currencyFmt.format(entry.value),
-                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
-                                ),
-                                Text(
-                                  '${(pct * 100).toStringAsFixed(1)}%',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right, size: 18, color: Color(0xFFCBD5E1)),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: pct,
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            valueColor: AlwaysStoppedAnimation<Color>(catColor),
-                            minHeight: 5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
+            );
+          }),
+        ],
+      ),
     );
   }
 }
