@@ -160,6 +160,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Tap on Settle Tab in CheQ Bottom Nav Bar
+      final settleTab = find.text('Settle');
+      expect(settleTab, findsOneWidget);
+      await tester.tap(settleTab);
+      await tester.pumpAndSettle();
+
       // Ensure "All settled up!" is NOT shown
       expect(find.text('All settled up! 🎉'), findsNothing);
       expect(find.text('No expenses yet'), findsNothing);
