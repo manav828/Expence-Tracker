@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../utils/category_icons.dart';
 import 'category_icon_picker_dialog.dart';
+import '../core/theme/app_colors.dart';
+
 
 class CategoryPaymentManagerSheet extends StatefulWidget {
   const CategoryPaymentManagerSheet({super.key});
@@ -106,10 +108,10 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF006948).withValues(alpha: 0.12),
+                                  color: AppColors.primary.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Icon(selectedIconData, color: const Color(0xFF006948), size: 20),
+                                child: Icon(selectedIconData, color: AppColors.primary, size: 20),
                               ),
                               const SizedBox(width: 12),
                               const Text(
@@ -122,9 +124,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                             children: [
                               Text(
                                 'Choose',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                               ),
-                              Icon(Icons.chevron_right, size: 18, color: Color(0xFF006948)),
+                              Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
                             ],
                           ),
                         ],
@@ -161,7 +163,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006948),
+                  backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -247,10 +249,10 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF006948).withValues(alpha: 0.12),
+                                  color: AppColors.primary.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Icon(selectedIconData, color: const Color(0xFF006948), size: 20),
+                                child: Icon(selectedIconData, color: AppColors.primary, size: 20),
                               ),
                               const SizedBox(width: 12),
                               const Text(
@@ -263,9 +265,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                             children: [
                               Text(
                                 'Choose',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                               ),
-                              Icon(Icons.chevron_right, size: 18, color: Color(0xFF006948)),
+                              Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
                             ],
                           ),
                         ],
@@ -307,7 +309,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006948),
+                  backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -369,9 +371,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF006948).withValues(alpha: 0.12) : const Color(0xFFF2F3FF),
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : const Color(0xFFF2F3FF),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? const Color(0xFF006948) : Colors.black12),
+          border: Border.all(color: isSelected ? AppColors.primary : Colors.black12),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -379,7 +381,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
             Icon(
               icon,
               size: 13,
-              color: isSelected ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+              color: isSelected ? AppColors.primary : const Color(0xFF6D7A72),
             ),
             const SizedBox(width: 4),
             Text(
@@ -387,7 +389,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                color: isSelected ? AppColors.primary : const Color(0xFF6D7A72),
               ),
             ),
           ],
@@ -497,9 +499,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
           const SizedBox(height: 12),
           TabBar(
             controller: _tabController,
-            labelColor: const Color(0xFF006948),
+            labelColor: AppColors.primary,
             unselectedLabelColor: const Color(0xFF6D7A72),
-            indicatorColor: const Color(0xFF006948),
+            indicatorColor: AppColors.primary,
             tabs: const [
               Tab(text: 'Categories'),
               Tab(text: 'Income'),
@@ -563,7 +565,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                             icon: const Icon(Icons.add, size: 16, color: Colors.white),
                             label: const Text('Add Category', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF006948),
+                              backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
@@ -615,13 +617,13 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                     width: 38,
                                     height: 38,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF006948).withValues(alpha: 0.12),
+                                      color: AppColors.primary.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-                                        Icon(catIcon, size: 20, color: const Color(0xFF006948)),
+                                        Icon(catIcon, size: 20, color: AppColors.primary),
                                         Positioned(
                                           bottom: 1,
                                           right: 1,
@@ -631,7 +633,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                               color: Colors.white,
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(Icons.edit, size: 8, color: Color(0xFF006948)),
+                                            child: const Icon(Icons.edit, size: 8, color: AppColors.primary),
                                           ),
                                         ),
                                       ],
@@ -666,7 +668,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 19, color: Color(0xFF006948)),
+                                    icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
                                     tooltip: 'Edit name & icon',
                                     onPressed: () => _promptEdit(context, true, cat),
                                   ),
@@ -743,7 +745,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                             icon: const Icon(Icons.add, size: 16, color: Colors.white),
                             label: const Text('Add Income Category', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF006948),
+                              backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
@@ -795,13 +797,13 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                     width: 38,
                                     height: 38,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF006948).withValues(alpha: 0.12),
+                                      color: AppColors.primary.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-                                        Icon(catIcon, size: 20, color: const Color(0xFF006948)),
+                                        Icon(catIcon, size: 20, color: AppColors.primary),
                                         Positioned(
                                           bottom: 1,
                                           right: 1,
@@ -811,7 +813,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                               color: Colors.white,
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(Icons.edit, size: 8, color: Color(0xFF006948)),
+                                            child: const Icon(Icons.edit, size: 8, color: AppColors.primary),
                                           ),
                                         ),
                                       ],
@@ -828,12 +830,12 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                        color: AppColors.primary.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         '$usageCount logged',
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
                                       ),
                                     ),
                                 ],
@@ -846,7 +848,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 19, color: Color(0xFF006948)),
+                                    icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
                                     tooltip: 'Edit name & icon',
                                     onPressed: () => _promptEdit(context, true, cat, isIncome: true),
                                   ),
@@ -923,7 +925,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                             icon: const Icon(Icons.add, size: 16, color: Colors.white),
                             label: const Text('Add Method', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF006948),
+                              backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
@@ -992,7 +994,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 19, color: Color(0xFF006948)),
+                                    icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
                                     tooltip: 'Edit name',
                                     onPressed: () => _promptEdit(context, false, pm),
                                   ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+
 
 /// CheQ-style unified 5-item Bottom Navigation Dock for Split Group screens.
 ///
@@ -22,7 +24,7 @@ class SplitBottomNavBar extends StatelessWidget {
     this.photoCount = 0,
   });
 
-  static const _activeGreen = Color(0xFF00B865);
+  static const _activeGreen = AppColors.primary;
   static const _inactiveSlate = Color(0xFF64748B);
 
   @override

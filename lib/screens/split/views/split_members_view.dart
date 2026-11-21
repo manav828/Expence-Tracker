@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../models/split_models.dart';
 import '../../../providers/split_provider.dart';
 import '../../../services/auth_service.dart';
+import '../../../core/theme/app_colors.dart';
+
 
 /// Screen 3: CheQ Style Trip Members & Combined Settlement Groups View.
 /// Pixel-accurate implementation matching `screen\split\member\code.html`.
@@ -39,7 +41,7 @@ class _SplitMembersViewState extends State<SplitMembersView> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
 
-  static const _primaryGreen = Color(0xFF00B865);
+  static const _primaryGreen = AppColors.primary;
   static const _primaryDark = Color(0xFF006D39);
   static const _surfaceLow = Color(0xFFF2F4F6);
   static const _brandDark = Color(0xFF13353B);

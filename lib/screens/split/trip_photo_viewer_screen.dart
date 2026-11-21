@@ -5,6 +5,8 @@ import '../../providers/trip_photo_provider.dart';
 import '../../services/trip_photo_service.dart';
 import '../../services/photo_download_helper.dart';
 import '../../widgets/shimmer_box.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class TripPhotoViewerScreen extends StatefulWidget {
   final List<TripPhoto> photos;
@@ -74,7 +76,7 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
           content: Text(
             success ? 'Photo saved to your phone!' : 'Failed to download photo.',
           ),
-          backgroundColor: success ? const Color(0xFF00B865) : Colors.redAccent,
+          backgroundColor: success ? AppColors.primary : Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -133,7 +135,7 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Photo deleted from vault.'),
-              backgroundColor: Color(0xFF00B865),
+              backgroundColor: AppColors.primary,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -280,7 +282,7 @@ class _TripPhotoViewerScreenState extends State<TripPhotoViewerScreen> {
                       return Center(
                         child: CircularProgressIndicator(
                           value: total != null ? loaded / total : null,
-                          color: const Color(0xFF00B865),
+                          color: AppColors.primary,
                         ),
                       );
                     },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/theme/app_colors.dart';
 import '../models/budget.dart';
 import '../models/expense.dart';
 import '../providers/budget_provider.dart';
@@ -64,7 +65,7 @@ class BudgetScreen extends StatelessWidget {
     switch (category.toLowerCase()) {
       case 'housing':
       case 'housing & utilities':
-        return const Color(0xFF006948);
+        return AppColors.primary;
       case 'groceries':
       case 'groceries & essentials':
         return const Color(0xFFF59E0B);
@@ -87,7 +88,7 @@ class BudgetScreen extends StatelessWidget {
       case 'tech & gear':
         return const Color(0xFF645EFB);
       default:
-        return const Color(0xFF006948);
+        return AppColors.primary;
     }
   }
 
@@ -120,7 +121,7 @@ class BudgetScreen extends StatelessWidget {
     final expenseProvider = context.watch<ExpenseProvider>();
 
     if (budgetProvider.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF006948)));
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final budgets = budgetProvider.budgets;
@@ -252,7 +253,7 @@ class BudgetScreen extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.calendar_month, size: 15, color: Color(0xFF006948)),
+                  const Icon(Icons.calendar_month, size: 15, color: AppColors.primary),
                   const SizedBox(width: 6),
                   Text(
                     currentMonthStr,
@@ -286,11 +287,11 @@ class BudgetScreen extends StatelessWidget {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF006948),
+            backgroundColor: AppColors.primary,
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             elevation: 2,
-            shadowColor: const Color(0x40006948),
+            shadowColor: AppColors.primary.withValues(alpha: 0.25),
           ),
         ),
       ],
@@ -321,8 +322,8 @@ class BudgetScreen extends StatelessWidget {
       healthBadgeText = const Color(0xFFB45309);
     } else {
       healthLabel = 'On Track';
-      healthBadgeBg = const Color(0xFF85F8C4).withValues(alpha: 0.4);
-      healthBadgeText = const Color(0xFF006948);
+      healthBadgeBg = AppColors.primaryLight;
+      healthBadgeText = AppColors.primaryDark;
     }
 
     // Top categories for donut legend
@@ -637,15 +638,15 @@ class BudgetScreen extends StatelessWidget {
       footerRightText = '$daysRemaining days left';
     } else {
       final left = progress.limit - progress.spentThisMonth;
-      cardBorder = const Color(0xFFBCCAC0).withValues(alpha: 0.22);
-      iconBg = const Color(0xFF85F8C4).withValues(alpha: 0.4);
-      iconColor = const Color(0xFF006948);
-      badgeBg = const Color(0xFF85F8C4).withValues(alpha: 0.4);
-      badgeText = const Color(0xFF006948);
+      cardBorder = AppColors.primaryBorder;
+      iconBg = AppColors.primaryLight;
+      iconColor = AppColors.primary;
+      badgeBg = AppColors.primaryLight;
+      badgeText = AppColors.primaryDark;
       badgeLabel = 'Safe (${_formatPercent(percent)}%)';
-      meterFill = const Color(0xFF006948);
+      meterFill = AppColors.primary;
       footerLeftText = '₹${left.toStringAsFixed(0)} left';
-      footerLeftColor = const Color(0xFF006948);
+      footerLeftColor = AppColors.primaryDark;
       footerRightText = percent < 35 ? 'Low activity' : 'Well paced';
     }
 
@@ -792,10 +793,10 @@ class BudgetScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
-              color: Color(0xFFEAEDFF),
+              color: AppColors.primaryLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.account_balance_wallet_outlined, size: 32, color: Color(0xFF006948)),
+            child: const Icon(Icons.account_balance_wallet_outlined, size: 32, color: AppColors.primary),
           ),
           const SizedBox(height: 12),
           const Text(
@@ -878,7 +879,7 @@ class BudgetDonutPainter extends CustomPainter {
     switch (category.toLowerCase()) {
       case 'housing':
       case 'housing & utilities':
-        return const Color(0xFF006948);
+        return AppColors.primary;
       case 'groceries':
       case 'groceries & essentials':
         return const Color(0xFFF59E0B);

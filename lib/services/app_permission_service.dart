@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../core/theme/app_colors.dart';
+
 
 /// Centralized service to manage user permissions with:
 /// 1. In-app rationale disclosures (App Store & Play Store compliant).
@@ -9,7 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 class AppPermissionService {
   AppPermissionService._();
 
-  static const Color _primaryColor = Color(0xFF006948);
+  static const Color _primaryColor = AppColors.primary;
   static const Color _textColor = Color(0xFF1E293B);
   static const Color _subtextColor = Color(0xFF64748B);
 

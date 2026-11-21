@@ -95,14 +95,14 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF006948), Color(0xFF00855D)],
+                    colors: [AppColors.primary, Color(0xFF00855D)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(22),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x1F006948),
+                      color: Color(0x1F00B865),
                       blurRadius: 16,
                       offset: Offset(0, 6),
                     ),

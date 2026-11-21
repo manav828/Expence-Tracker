@@ -10,6 +10,8 @@ import '../services/cloudflare_r2_service.dart';
 import 'searchable_selection_sheet.dart';
 import 'category_icon_picker_dialog.dart';
 import 'receipt_attachment_sheet.dart';
+import '../core/theme/app_colors.dart';
+
 
 class AddExpenseSheet extends StatefulWidget {
   final Expense? expenseToEdit;
@@ -107,7 +109,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF00B865),
+              primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: Color(0xFF131B2E),
             ),
@@ -213,10 +215,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               width: 34,
                               height: 34,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00B865).withValues(alpha: 0.15),
+                                color: AppColors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(selectedIconData, color: const Color(0xFF00B865), size: 18),
+                              child: Icon(selectedIconData, color: AppColors.primary, size: 18),
                             ),
                             const SizedBox(width: 10),
                             const Text(
@@ -229,9 +231,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                           children: [
                             Text(
                               'Choose',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF00B865)),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                             ),
-                            Icon(Icons.chevron_right, size: 18, color: Color(0xFF00B865)),
+                            Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
                           ],
                         ),
                       ],
@@ -269,7 +271,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00B865),
+                backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -363,7 +365,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               content: Text(_type == TransactionType.income
                   ? 'Updated income: ₹${amount.toStringAsFixed(2)} ($finalCategory)'
                   : 'Updated spend: ₹${amount.toStringAsFixed(2)} ($finalCategory)'),
-              backgroundColor: const Color(0xFF00B865),
+              backgroundColor: AppColors.primary,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -391,7 +393,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 content: Text(success
                     ? '✈️ Added ₹${amount.toStringAsFixed(2)} to $groupName trip!'
                     : 'Failed to add to trip group'),
-                backgroundColor: success ? const Color(0xFF00B865) : const Color(0xFFBA1A1A),
+                backgroundColor: success ? AppColors.primary : const Color(0xFFBA1A1A),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -449,7 +451,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 content: Text(_type == TransactionType.income
                     ? 'Added income: ₹${amount.toStringAsFixed(2)} ($finalCategory)'
                     : 'Added ₹${amount.toStringAsFixed(2)} to $finalCategory'),
-                backgroundColor: const Color(0xFF00B865),
+                backgroundColor: AppColors.primary,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -542,7 +544,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.flash_on, color: Color(0xFF00B865), size: 20),
+                        const Icon(Icons.flash_on, color: AppColors.primary, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -550,7 +552,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                             children: [
                               const Text(
                                 'Transaction Auto-Detected',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF00B865)),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
                               ),
                               const SizedBox(height: 1),
                               const Text(
@@ -654,7 +656,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                           height: 36,
                           decoration: BoxDecoration(
                             color: _routeToActiveTrip
-                                ? const Color(0xFF00B865)
+                                ? AppColors.primary
                                 : const Color(0xFF64748B),
                             shape: BoxShape.circle,
                           ),
@@ -684,7 +686,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: _routeToActiveTrip
-                                          ? const Color(0xFF00B865).withValues(alpha: 0.15)
+                                          ? AppColors.primary.withValues(alpha: 0.15)
                                           : const Color(0xFFE2E8F0),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
@@ -713,7 +715,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         ),
                         Switch.adaptive(
                           value: _routeToActiveTrip,
-                          activeColor: const Color(0xFF00B865),
+                          activeColor: AppColors.primary,
                           onChanged: (val) {
                             setState(() => _routeToActiveTrip = val);
                           },
@@ -816,7 +818,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               Icon(
                                 Icons.arrow_downward_rounded,
                                 size: 16,
-                                color: _type == TransactionType.income ? const Color(0xFF00B865) : const Color(0xFF6D7A72),
+                                color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF6D7A72),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -824,7 +826,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: _type == TransactionType.income ? const Color(0xFF00B865) : const Color(0xFF6D7A72),
+                                  color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF6D7A72),
                                 ),
                               ),
                             ],
@@ -845,14 +847,14 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: _type == TransactionType.income ? const Color(0xFF00B865) : const Color(0xFF131B2E),
+                  color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF131B2E),
                 ),
                 decoration: InputDecoration(
                   prefixText: _type == TransactionType.income ? '+ ₹ ' : '₹ ',
                   prefixStyle: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: _type == TransactionType.income ? const Color(0xFF00B865) : const Color(0xFF131B2E),
+                    color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF131B2E),
                   ),
                   labelText: _type == TransactionType.income ? 'Income Amount' : 'Spend Amount',
                   labelStyle: const TextStyle(color: Color(0xFF6D7A72)),
@@ -895,10 +897,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00B865).withValues(alpha: 0.12),
+                              color: AppColors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.calendar_today, color: Color(0xFF00B865), size: 18),
+                            child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
                           ),
                           const SizedBox(width: 12),
                           Column(
@@ -928,10 +930,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                           children: [
                             Text(
                               'Change',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF00B865)),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                             ),
                             SizedBox(width: 2),
-                            Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF00B865)),
+                            Icon(Icons.arrow_drop_down, size: 18, color: AppColors.primary),
                           ],
                         ),
                       ),
@@ -987,13 +989,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00B865).withValues(alpha: 0.15),
+                                color: AppColors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 CategoryIcons.get(effectiveCategory),
                                 size: 18,
-                                color: const Color(0xFF00B865),
+                                color: AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1056,13 +1058,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00B865).withValues(alpha: 0.12),
+                                color: AppColors.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 CategoryIcons.getPaymentMethodIcon(effectivePayment),
                                 size: 18,
-                                color: const Color(0xFF00B865),
+                                color: AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1116,7 +1118,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFF00B865), width: 1.5),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                 ),
               ),
@@ -1157,10 +1159,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         child: ElevatedButton(
                           onPressed: _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00B865),
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             elevation: 4,
-                            shadowColor: const Color(0xFF00B865).withValues(alpha: 0.3),
+                            shadowColor: AppColors.primary.withValues(alpha: 0.3),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                           child: Text(
@@ -1180,10 +1182,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   child: ElevatedButton(
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B865),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 4,
-                      shadowColor: const Color(0xFF00B865).withValues(alpha: 0.3),
+                      shadowColor: AppColors.primary.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: Text(
@@ -1227,7 +1229,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 }
 
   Widget _buildReceiptSection() {
-    const primaryColor = Color(0xFF00B865);
+    const primaryColor = AppColors.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

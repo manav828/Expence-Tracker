@@ -3,6 +3,8 @@ import '../../services/pixabay_service.dart';
 import '../../services/cloudflare_r2_service.dart';
 import '../../services/file_picker_service.dart';
 import '../../services/app_permission_service.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class GroupBannerPickerSheet extends StatefulWidget {
   final String? initialUrl;
@@ -32,7 +34,7 @@ class _GroupBannerPickerSheetState extends State<GroupBannerPickerSheet>
 
   String? _previewUrl;
 
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {

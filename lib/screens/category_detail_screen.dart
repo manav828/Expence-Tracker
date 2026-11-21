@@ -7,6 +7,8 @@ import '../models/expense.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/searchable_selection_sheet.dart';
 import '../utils/category_icons.dart';
+import '../core/theme/app_colors.dart';
+
 
 enum TimeFramePreset { week, month, threeMonths, sixMonths, nineMonths, year, custom }
 
@@ -115,11 +117,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF006948),
+              primary: AppColors.primary,
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Color(0xFF131B2E),
-              secondary: Color(0xFF85F8C4),
+              secondary: AppColors.primaryLight,
             ),
             dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
           ),
@@ -176,10 +178,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           icon: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: const Color(0xFF006948).withValues(alpha: 0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF006948)),
+            child: const Icon(Icons.arrow_back_ios_new, size: 16, color: AppColors.primary),
           ),
         ),
         title: const Text(
@@ -259,10 +261,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF006948).withValues(alpha: 0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(iconData, size: 22, color: const Color(0xFF006948)),
+              child: Icon(iconData, size: 22, color: AppColors.primary),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -300,9 +302,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  Icon(Icons.search, size: 14, color: Color(0xFF006948)),
+                  Icon(Icons.search, size: 14, color: AppColors.primary),
                   SizedBox(width: 4),
-                  Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF006948)),
+                  Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.primary),
                 ],
               ),
             ),
@@ -319,7 +321,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF006948), Color(0xFF00855D)],
+          colors: [AppColors.primary, Color(0xFF00855D)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -418,19 +420,19 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF006948).withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.2)),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<TimeFramePreset>(
                 value: _preset,
                 isDense: true,
-                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF006948), size: 22),
+                icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 22),
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF006948),
+                  color: AppColors.primary,
                 ),
                 items: const [
                   DropdownMenuItem(value: TimeFramePreset.week, child: Text('Week')),
@@ -454,7 +456,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           Container(
             height: 36,
             width: 1,
-            color: const Color(0x1F006948),
+            color: Color(0x1F00B865),
           ),
           const SizedBox(width: 12),
           // Right side: showing range From - To, clickable to open calendar modal
@@ -473,10 +475,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF006948).withValues(alpha: 0.12),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF006948)),
+                      child: const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.primary),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -512,7 +514,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                         ],
                       ),
                     ),
-                    const Icon(Icons.edit_calendar_outlined, size: 16, color: Color(0xFF006948)),
+                    const Icon(Icons.edit_calendar_outlined, size: 16, color: AppColors.primary),
                   ],
                 ),
               ),
@@ -545,7 +547,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               Icon(
                 _isLineChart ? Icons.show_chart : Icons.bar_chart,
                 size: 18,
-                color: const Color(0xFF006948),
+                color: AppColors.primary,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -582,7 +584,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             Icon(
                               Icons.bar_chart,
                               size: 14,
-                              color: !_isLineChart ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                              color: !_isLineChart ? AppColors.primary : const Color(0xFF6D7A72),
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -590,7 +592,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: !_isLineChart ? FontWeight.w700 : FontWeight.w500,
-                                color: !_isLineChart ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                                color: !_isLineChart ? AppColors.primary : const Color(0xFF6D7A72),
                               ),
                             ),
                           ],
@@ -613,7 +615,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             Icon(
                               Icons.show_chart,
                               size: 14,
-                              color: _isLineChart ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                              color: _isLineChart ? AppColors.primary : const Color(0xFF6D7A72),
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -621,7 +623,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: _isLineChart ? FontWeight.w700 : FontWeight.w500,
-                                color: _isLineChart ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                                color: _isLineChart ? AppColors.primary : const Color(0xFF6D7A72),
                               ),
                             ),
                           ],
@@ -805,7 +807,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             barRods: [
               BarChartRodData(
                 toY: points[i].amount,
-                color: const Color(0xFF006948),
+                color: AppColors.primary,
                 width: barWidth,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(barWidth > 10 ? 6 : 3)),
                 backDrawRodData: BackgroundBarChartRodData(
@@ -908,12 +910,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].amount)),
             isCurved: true,
             curveSmoothness: 0.25,
-            color: const Color(0xFF006948),
+            color: AppColors.primary,
             barWidth: 3,
             isStrokeCapRound: true,
             belowBarData: BarAreaData(
               show: true,
-              color: const Color(0xFF006948).withValues(alpha: 0.12),
+              color: AppColors.primary.withValues(alpha: 0.12),
             ),
             dotData: FlDotData(
               show: true,
@@ -925,7 +927,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 radius: 4,
                 color: Colors.white,
                 strokeWidth: 2,
-                strokeColor: const Color(0xFF006948),
+                strokeColor: AppColors.primary,
               ),
             ),
           ),
@@ -970,7 +972,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           padding: const EdgeInsets.only(left: 4, bottom: 10),
           child: Row(
             children: [
-              const Icon(Icons.receipt_long, size: 16, color: Color(0xFF006948)),
+              const Icon(Icons.receipt_long, size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
               Text(
                 'All Entries (${expenses.length})',
@@ -1018,10 +1020,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF006948).withValues(alpha: 0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(iconData, size: 18, color: const Color(0xFF006948)),
+              child: Icon(iconData, size: 18, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1047,11 +1049,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       ),
                       if (expense.receiptUrl != null && expense.receiptUrl!.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        const Icon(Icons.receipt_long, size: 12, color: Color(0xFF006948)),
+                        const Icon(Icons.receipt_long, size: 12, color: AppColors.primary),
                         const SizedBox(width: 2),
                         const Text(
                           'Bill',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
                         ),
                       ],
                     ],

@@ -7,6 +7,8 @@ import '../providers/expense_provider.dart';
 import '../services/sms_parser.dart';
 import '../services/transaction_detection_service.dart';
 import '../services/app_permission_service.dart';
+import '../core/theme/app_colors.dart';
+
 
 class SmsTesterSheet extends StatefulWidget {
   const SmsTesterSheet({super.key});
@@ -103,7 +105,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
         content: Text(isExpense
             ? 'Auto-Added Outflow: ₹${_parsedResult!.amount.toStringAsFixed(2)} (${_parsedResult!.category}) via Bank SMS'
             : 'Auto-Added Inflow: ₹${_parsedResult!.amount.toStringAsFixed(2)} (${_parsedResult!.category}) via Bank SMS'),
-        backgroundColor: const Color(0xFF006948),
+        backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -151,10 +153,10 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.sms_outlined, color: Color(0xFF006948)),
+                  child: const Icon(Icons.sms_outlined, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
                 const Column(
@@ -184,12 +186,12 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: _hasSmsPermission
-                      ? const Color(0xFF006948).withValues(alpha: 0.08)
+                      ? AppColors.primary.withValues(alpha: 0.08)
                       : const Color(0xFF4B41E1).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: _hasSmsPermission
-                        ? const Color(0xFF006948).withValues(alpha: 0.2)
+                        ? AppColors.primary.withValues(alpha: 0.2)
                         : const Color(0xFF4B41E1).withValues(alpha: 0.2),
                   ),
                 ),
@@ -197,7 +199,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                   children: [
                     Icon(
                       _hasSmsPermission ? Icons.verified_user_rounded : Icons.shield_outlined,
-                      color: _hasSmsPermission ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                      color: _hasSmsPermission ? AppColors.primary : const Color(0xFF4B41E1),
                       size: 24,
                     ),
                     const SizedBox(width: 10),
@@ -292,7 +294,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                   color: const Color(0xFFF2F3FF),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _parsedResult!.isExpense ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                    color: _parsedResult!.isExpense ? AppColors.primary : const Color(0xFF4B41E1),
                     width: 1.5,
                   ),
                 ),
@@ -305,7 +307,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                         Text(
                           _parsedResult!.isExpense ? 'VERIFIED OUTFLOW' : 'VERIFIED INFLOW',
                           style: TextStyle(
-                            color: _parsedResult!.isExpense ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                            color: _parsedResult!.isExpense ? AppColors.primary : const Color(0xFF4B41E1),
                             fontWeight: FontWeight.w800,
                             fontSize: 11,
                             letterSpacing: 0.5,
@@ -316,7 +318,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
-                            color: _parsedResult!.isExpense ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                            color: _parsedResult!.isExpense ? AppColors.primary : const Color(0xFF4B41E1),
                           ),
                         ),
                       ],
@@ -353,10 +355,10 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF006948),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 3,
-                    shadowColor: const Color(0x40006948),
+                    shadowColor: Color(0x4000B865),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
@@ -368,7 +370,7 @@ Rs.600.00 credited to HDFC Bank A/c XX8401 on 05-09-26 from VPA mistryshreya99@o
                 child: TextButton(
                   onPressed: _saveParsedExpense,
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF006948),
+                    foregroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: const Text(

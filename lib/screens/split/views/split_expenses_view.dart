@@ -7,6 +7,8 @@ import '../../../utils/category_icons.dart';
 import '../../../widgets/receipt_attachment_sheet.dart';
 import '../add_split_expense_sheet.dart';
 import '../widgets/dashed_border_painter.dart';
+import '../../../core/theme/app_colors.dart';
+
 
 /// Screen 1: CheQ-style Trip Expenses View.
 class SplitExpensesView extends StatelessWidget {
@@ -29,7 +31,7 @@ class SplitExpensesView extends StatelessWidget {
 
   static const _charcoal = Color(0xFF1A1D1F);
   static const _muted = Color(0xFF6F767E);
-  static const _cheqGreen = Color(0xFF00B865);
+  static const _cheqGreen = AppColors.primary;
   static const _cheqGreenDark = Color(0xFF008A4B);
 
   @override
@@ -139,7 +141,7 @@ class SplitExpensesView extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                 decoration: BoxDecoration(
                                   color: isTripActive
-                                      ? const Color(0xFF00B865).withValues(alpha: 0.25)
+                                      ? AppColors.primary.withValues(alpha: 0.25)
                                       : const Color(0xFF09423B).withValues(alpha: 0.7),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
@@ -871,17 +873,17 @@ class SplitExpensesView extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF006948).withValues(alpha: 0.08),
+                                color: AppColors.primary.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.receipt_long, size: 11, color: Color(0xFF006948)),
+                                  Icon(Icons.receipt_long, size: 11, color: AppColors.primary),
                                   SizedBox(width: 3),
                                   Text(
                                     'Bill Attached',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF006948)),
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
                                   ),
                                 ],
                               ),

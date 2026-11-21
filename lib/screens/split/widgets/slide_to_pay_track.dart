@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/app_colors.dart';
+
 
 /// CheQ-style interactive "Slide to Pay" draggable track with
 /// continuous speed animation, perfectly rounded stadium pill shape,
@@ -37,7 +39,7 @@ class _SlideToPayTrackState extends State<SlideToPayTrack>
   static const _padding = 4.0;
   static const _pillRadius = _trackHeight / 2; // 27.0 for perfect round stadium
 
-  static const _primaryGreen = Color(0xFF00B865);
+  static const _primaryGreen = AppColors.primary;
   static const _deepGreen = Color(0xFF008A4B);
   static const _emeraldDark = Color(0xFF065F46);
 
@@ -102,7 +104,7 @@ class _SlideToPayTrackState extends State<SlideToPayTrack>
               border: Border.all(color: const Color(0xFF6EE7B7), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF00B865).withValues(alpha: 0.08),
+                  color: AppColors.primary.withValues(alpha: 0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),

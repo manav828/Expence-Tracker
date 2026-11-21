@@ -4,6 +4,8 @@ import '../../providers/split_provider.dart';
 import '../../models/split_models.dart';
 import '../../services/cloudflare_r2_service.dart';
 import '../../widgets/receipt_attachment_sheet.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class AddSplitExpenseSheet extends StatefulWidget {
   final String groupId;
@@ -39,7 +41,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
   bool _isSaved = false;
   bool _isLoading = false;
 
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {
@@ -535,7 +537,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isGroupChecked != false
-                              ? const Color(0xFF006948).withValues(alpha: 0.3)
+                              ? AppColors.primary.withValues(alpha: 0.3)
                               : const Color(0xFFE2E8F0),
                         ),
                       ),
@@ -557,7 +559,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                                     ? _getExpenseGroupIcon(group.icon)
                                     : (isCollapsed ? Icons.folder_rounded : Icons.folder_open_rounded),
                                 size: 18,
-                                color: const Color(0xFF006948),
+                                color: AppColors.primary,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -582,7 +584,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: isGroupChecked != false
-                                            ? const Color(0xFF006948)
+                                            ? AppColors.primary
                                             : const Color(0xFF64748B),
                                       ),
                                     ),
@@ -599,7 +601,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                               Checkbox(
                                 tristate: true,
                                 value: isGroupChecked,
-                                activeColor: const Color(0xFF006948),
+                                activeColor: AppColors.primary,
                                 visualDensity: VisualDensity.compact,
                                 onChanged: (_) => setState(() {
                                   if (isGroupChecked == true || isGroupChecked == null) {
@@ -1076,14 +1078,14 @@ class _MemberSplitRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: included ? const Color(0xFF006948).withValues(alpha: 0.3) : const Color(0xFFBCCAC0)),
+        border: Border.all(color: included ? AppColors.primary.withValues(alpha: 0.3) : const Color(0xFFBCCAC0)),
       ),
       child: Row(
         children: [
           Checkbox(
             value: included,
             onChanged: (v) => onToggle(v ?? false),
-            activeColor: const Color(0xFF006948),
+            activeColor: AppColors.primary,
             visualDensity: VisualDensity.compact,
           ),
           Expanded(child: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w600))),
@@ -1099,7 +1101,7 @@ class _MemberSplitRow extends StatelessWidget {
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   border: OutlineInputBorder(),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF006948))),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
                 ),
                 style: const TextStyle(fontSize: 13),
               ),
@@ -1152,7 +1154,7 @@ class _Field extends StatelessWidget {
           fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFBCCAC0))),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFBCCAC0))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
         ),
       );
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_colors.dart';
+
 
 /// CheQ-style festive celebration modal on settlement completion.
 class SettlementCelebrationModal extends StatelessWidget {
@@ -79,7 +81,7 @@ class SettlementCelebrationModal extends StatelessWidget {
                     border: Border.all(color: const Color(0xFFA7F3D0), width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF00B865).withValues(alpha: 0.25),
+                        color: AppColors.primary.withValues(alpha: 0.25),
                         blurRadius: 18,
                         spreadRadius: 2,
                       ),
@@ -90,7 +92,7 @@ class SettlementCelebrationModal extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF00B865),
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -229,7 +231,7 @@ class SettlementCelebrationModal extends StatelessWidget {
                   height: 44,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B865),
+                      backgroundColor: AppColors.primary,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

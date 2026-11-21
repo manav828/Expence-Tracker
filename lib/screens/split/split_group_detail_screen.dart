@@ -16,6 +16,8 @@ import 'views/split_expenses_view.dart';
 import 'views/split_settle_view.dart';
 import 'views/split_members_view.dart';
 import 'widgets/split_bottom_nav_bar.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class SplitGroupDetailScreen extends StatefulWidget {
   final SplitGroup group;
@@ -31,7 +33,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
   late SplitGroup _group;
   late int _currentTabIndex;
   bool _loadingDetail = true;
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {
@@ -251,7 +253,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006948)),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             onPressed: () async {
               final newName = ctrl.text.trim();
               if (newName.isNotEmpty) {
@@ -320,10 +322,10 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF006948).withValues(alpha: 0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.flight_land_rounded, color: Color(0xFF006948), size: 24),
+                      child: const Icon(Icons.flight_land_rounded, color: AppColors.primary, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -364,8 +366,8 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Your Total Net Share', style: TextStyle(color: Color(0xFF006948), fontWeight: FontWeight.w700, fontSize: 13.5)),
-                          Text('₹${fmt.format(userNetShare)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF006948))),
+                          const Text('Your Total Net Share', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                          Text('₹${fmt.format(userNetShare)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary)),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -379,14 +381,14 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                 const SizedBox(height: 16),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF006948).withValues(alpha: 0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.2)),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(
                     children: [
-                      const Icon(Icons.bookmark_added_rounded, color: Color(0xFF006948), size: 22),
+                      const Icon(Icons.bookmark_added_rounded, color: AppColors.primary, size: 22),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -405,7 +407,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                       ),
                       Switch.adaptive(
                         value: saveToPersonal,
-                        activeColor: const Color(0xFF006948),
+                        activeColor: AppColors.primary,
                         onChanged: (v) => setSheetState(() => saveToPersonal = v),
                       ),
                     ],
@@ -417,7 +419,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                   height: 48,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF006948),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
@@ -447,7 +449,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                             content: Text(saveToPersonal && userNetShare > 0
                                 ? 'Trip Mode ended & ₹${fmt.format(userNetShare)} saved to Travel expenses!'
                                 : 'Trip Mode ended for "${group.name}".'),
-                            backgroundColor: const Color(0xFF006948),
+                            backgroundColor: AppColors.primary,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -517,7 +519,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
           return const Scaffold(
             backgroundColor: Color(0xFFF5F8F7),
             body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF00B865)),
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
         }
@@ -544,7 +546,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('✈️ Trip Mode activated for "${_group.name}"! All new expenses will default here.'),
-                    backgroundColor: const Color(0xFF00B865),
+                    backgroundColor: AppColors.primary,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -703,7 +705,7 @@ void _showExpenseGroupModal(
                         color: const Color(0xFFE8F7F0),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.playlist_add_check_rounded, color: Color(0xFF006948), size: 22),
+                      child: const Icon(Icons.playlist_add_check_rounded, color: AppColors.primary, size: 22),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -793,7 +795,7 @@ void _showExpenseGroupModal(
                       return CheckboxListTile(
                         value: isSelected,
                         dense: true,
-                        activeColor: const Color(0xFF006948),
+                        activeColor: AppColors.primary,
                         title: Text(m.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                         onChanged: (val) {
                           setState(() {
@@ -814,7 +816,7 @@ void _showExpenseGroupModal(
                   height: 48,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF006948),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

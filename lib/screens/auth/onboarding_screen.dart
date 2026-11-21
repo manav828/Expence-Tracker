@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'login_screen.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -90,13 +92,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   width: 220,
                                   height: 220,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF006948).withValues(alpha: 0.08),
+                                    color: AppColors.primary.withValues(alpha: 0.08),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
                                     Icons.savings_rounded,
                                     size: 80,
-                                    color: Color(0xFF006948),
+                                    color: AppColors.primary,
                                   ),
                                 );
                               },
@@ -120,7 +122,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               TextSpan(text: item.titlePrefix),
                               TextSpan(
                                 text: item.titleHighlight,
-                                style: const TextStyle(color: Color(0xFF006948)),
+                                style: const TextStyle(color: AppColors.primary),
                               ),
                             ],
                           ),
@@ -156,7 +158,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   width: isSelected ? 22 : 7,
                   height: 7,
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF006948) : const Color(0xFFD9DDEB),
+                    color: isSelected ? AppColors.primary : const Color(0xFFD9DDEB),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 );
@@ -174,7 +176,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     height: 54,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF006948),
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

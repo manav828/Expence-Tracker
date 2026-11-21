@@ -7,6 +7,8 @@ import '../utils/category_icons.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/receipt_attachment_sheet.dart';
 import 'search_screen.dart';
+import '../core/theme/app_colors.dart';
+
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -34,7 +36,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF006948)));
+            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
 
           if (provider.expenses.isEmpty) {
@@ -90,10 +92,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 icon: Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                    color: AppColors.primary.withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.search, size: 18, color: Color(0xFF006948)),
+                                  child: const Icon(Icons.search, size: 18, color: AppColors.primary),
                                 ),
                                 tooltip: 'Search & Filter',
                               ),
@@ -101,12 +103,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                  color: AppColors.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   '${provider.expenses.length} Total',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF006948)),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary),
                                 ),
                               ),
                             ],
@@ -188,7 +190,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Transaction removed from ledger'),
-                      backgroundColor: const Color(0xFF006948),
+                      backgroundColor: AppColors.primary,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -222,13 +224,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               height: 44,
                               decoration: BoxDecoration(
                                 color: isInc
-                                    ? const Color(0xFF006948).withValues(alpha: 0.12)
-                                    : const Color(0xFF006948).withValues(alpha: 0.08),
+                                    ? AppColors.primary.withValues(alpha: 0.12)
+                                    : AppColors.primary.withValues(alpha: 0.08),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 CategoryIcons.get(expense.category),
-                                color: const Color(0xFF006948),
+                                color: AppColors.primary,
                                 size: 22,
                               ),
                             ),
@@ -248,7 +250,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 6),
-                                      const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF006948)),
+                                      const Icon(Icons.edit_outlined, size: 14, color: AppColors.primary),
                                     ],
                                   ),
                                   const SizedBox(height: 3),
@@ -276,25 +278,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                          color: AppColors.primary.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.25)),
+                                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
                                         ),
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.receipt_long, size: 12, color: Color(0xFF006948)),
+                                            Icon(Icons.receipt_long, size: 12, color: AppColors.primary),
                                             SizedBox(width: 4),
                                             Text(
                                               'Bill Attached',
                                               style: TextStyle(
                                                 fontSize: 10.5,
                                                 fontWeight: FontWeight.w700,
-                                                color: Color(0xFF006948),
+                                                color: AppColors.primary,
                                               ),
                                             ),
                                             SizedBox(width: 2),
-                                            Icon(Icons.zoom_in, size: 12, color: Color(0xFF006948)),
+                                            Icon(Icons.zoom_in, size: 12, color: AppColors.primary),
                                           ],
                                         ),
                                       ),
@@ -313,7 +315,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: isInc ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                                    color: isInc ? AppColors.primary : const Color(0xFF131B2E),
                                   ),
                                 ),
                                 const SizedBox(height: 3),
@@ -321,7 +323,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                   decoration: BoxDecoration(
                                     color: isInc
-                                        ? const Color(0xFF85F8C4).withValues(alpha: 0.35)
+                                        ? AppColors.primaryLight
                                         : const Color(0xFFF2F3FF),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
@@ -330,7 +332,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600,
-                                      color: isInc ? const Color(0xFF005137) : const Color(0xFF3D4A42),
+                                      color: isInc ? AppColors.primaryDark : const Color(0xFF3D4A42),
                                     ),
                                   ),
                                 ),
@@ -362,15 +364,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF006948) : Colors.white,
+          color: isSelected ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFF006948) : const Color(0x1F000000),
+            color: isSelected ? AppColors.primary : const Color(0x1F000000),
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF006948).withValues(alpha: 0.2),
+                    color: AppColors.primary.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),

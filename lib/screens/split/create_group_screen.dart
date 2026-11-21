@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/split_provider.dart';
 import '../../services/auth_service.dart';
 import 'group_banner_picker_sheet.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -19,7 +21,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   String? _customBannerUrl;
   bool _isLoading = false;
 
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {
@@ -373,7 +375,7 @@ class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.icon});
   @override
   Widget build(BuildContext context) => Row(children: [
-    Icon(icon, size: 18, color: const Color(0xFF006948)),
+    Icon(icon, size: 18, color: AppColors.primary),
     const SizedBox(width: 6),
     Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF131B2E))),
   ]);
@@ -410,7 +412,7 @@ class _InputField extends StatelessWidget {
       filled: true, fillColor: Colors.white,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFBCCAC0))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFBCCAC0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
     ),
   );
 }

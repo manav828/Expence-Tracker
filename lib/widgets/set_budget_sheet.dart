@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/theme/app_colors.dart';
 import '../models/budget.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
@@ -114,7 +115,7 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Monthly budget of ₹${limit.toStringAsFixed(0)} saved for $_selectedCategory'),
-            backgroundColor: const Color(0xFF006948),
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -163,7 +164,7 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Budget limit removed'),
-            backgroundColor: Color(0xFF006948),
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -289,8 +290,12 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF85F8C4) : const Color(0xFFF2F3FF),
+                      color: isSelected ? AppColors.primaryLight : AppColors.surfaceSubtle,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primaryBorder : Colors.transparent,
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -298,7 +303,7 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
                         Icon(
                           catIcon,
                           size: 15,
-                          color: isSelected ? const Color(0xFF002114) : const Color(0xFF131B2E),
+                          color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -306,7 +311,7 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected ? const Color(0xFF002114) : const Color(0xFF131B2E),
+                            color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -407,11 +412,11 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveBudget,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF006948),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: const StadiumBorder(),
                 elevation: 3,
-                shadowColor: const Color(0x40006948),
+                shadowColor: AppColors.primary.withValues(alpha: 0.25),
               ),
               child: _isSaving
                   ? const SizedBox(
@@ -457,8 +462,9 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFEAEDFF),
+            color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primaryBorder.withValues(alpha: 0.5)),
           ),
           child: Center(
             child: Text(
@@ -466,7 +472,7 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF131B2E),
+                color: AppColors.primaryDark,
               ),
             ),
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/file_picker_service.dart';
 import '../../services/app_permission_service.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class UploadPhotosSheet extends StatefulWidget {
   final String groupId;
@@ -27,7 +29,7 @@ class _UploadPhotosSheetState extends State<UploadPhotosSheet> {
   bool _originalQuality = false;
   bool _isPickingMore = false;
 
-  static const _primaryColor = Color(0xFF00B865);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {

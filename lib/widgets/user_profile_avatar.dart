@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../core/theme/app_colors.dart';
+
 
 class UserProfileAvatar extends StatelessWidget {
   final double size;
@@ -43,7 +45,7 @@ class UserProfileAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: showBorder
-            ? Border.all(color: const Color(0xFF85F8C4), width: 2)
+            ? Border.all(color: AppColors.primaryBorder, width: 2)
             : null,
         boxShadow: [
           BoxShadow(
@@ -73,7 +75,7 @@ class UserProfileAvatar extends StatelessWidget {
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          colors: [Color(0xFF006948), Color(0xFF00875A)],
+          colors: [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/category_icons.dart';
+import '../core/theme/app_colors.dart';
+
 
 class CategoryIconPickerDialog extends StatefulWidget {
   final String? initialIconKey;
@@ -69,7 +71,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog> {
               decoration: InputDecoration(
                 hintText: 'Search icons (e.g. food, car, bill)...',
                 hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF6D7A72)),
-                prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF006948)),
+                prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.primary),
                 filled: true,
                 fillColor: const Color(0xFFF2F3FF),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -104,10 +106,10 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog> {
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF85F8C4).withValues(alpha: 0.3) : const Color(0xFFF9FAFC),
+                              color: isSelected ? AppColors.primaryLight : const Color(0xFFF9FAFC),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isSelected ? const Color(0xFF006948) : const Color(0x0F000000),
+                                color: isSelected ? AppColors.primary : const Color(0x0F000000),
                                 width: isSelected ? 1.5 : 1.0,
                               ),
                             ),
@@ -117,7 +119,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog> {
                                 Icon(
                                   option.icon,
                                   size: 26,
-                                  color: isSelected ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                                  color: isSelected ? AppColors.primary : const Color(0xFF131B2E),
                                 ),
                                 const SizedBox(height: 4),
                                 Padding(
@@ -130,7 +132,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                      color: isSelected ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+                                      color: isSelected ? AppColors.primary : const Color(0xFF6D7A72),
                                     ),
                                   ),
                                 ),

@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/legal_sheets.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -137,7 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       errorBuilder: (_, __, ___) => const Icon(
                         Icons.account_balance_wallet_rounded,
                         size: 80,
-                        color: Color(0xFF006948),
+                        color: AppColors.primary,
                       ),
                     ),
                   ),
@@ -172,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: Color(0xFF006948),
+                    color: AppColors.primary,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -229,7 +231,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -265,7 +267,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -311,7 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -340,7 +342,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (strength <= 1) {
                           barColor = const Color(0xFFF43F5E);
                         } else if (strength <= 3) {
-                          barColor = const Color(0xFF006948);
+                          barColor = AppColors.primary;
                         } else {
                           barColor = const Color(0xFF10B981);
                         }
@@ -370,7 +372,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ? const Color(0xFFF43F5E)
                             : strength <= 3
                                 ? const Color(0xFFF59E0B)
-                                : const Color(0xFF006948),
+                                : AppColors.primary,
                       ),
                     ),
                   ],
@@ -411,7 +413,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -439,7 +441,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       height: 24,
                       child: Checkbox(
                         value: _agreedToTerms,
-                        activeColor: const Color(0xFF006948),
+                        activeColor: AppColors.primary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         onChanged: (val) => setState(() => _agreedToTerms = val ?? false),
                       ),
@@ -485,7 +487,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF006948),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -591,7 +593,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF006948),
+                          color: AppColors.primary,
                         ),
                       ),
                     ),

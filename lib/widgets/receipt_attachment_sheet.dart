@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../services/cloudflare_r2_service.dart';
 import '../services/file_picker_service.dart';
 import '../services/app_permission_service.dart';
+import '../core/theme/app_colors.dart';
+
 
 class ReceiptAttachmentSheet extends StatefulWidget {
   final String? initialUrl;
@@ -20,7 +22,7 @@ class _ReceiptAttachmentSheetState extends State<ReceiptAttachmentSheet> {
   bool _isUploading = false;
   String? _previewUrl;
 
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {

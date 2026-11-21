@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../services/storage_preference_service.dart';
 import '../services/auth_service.dart';
 import '../providers/expense_provider.dart';
+import '../core/theme/app_colors.dart';
+
 
 class StorageChoiceDialog extends StatefulWidget {
   final bool isDismissible;
@@ -97,7 +99,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
                 : 'Device local storage activated!',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          backgroundColor: const Color(0xFF006948),
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -121,10 +123,10 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.table_chart, color: Color(0xFF006948), size: 24),
+                  child: const Icon(Icons.table_chart, color: AppColors.primary, size: 24),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -160,7 +162,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
               title: 'Cloud Storage',
               subtitle: 'Encrypted sync & backup. Access your expenses seamlessly across all your devices.',
               icon: Icons.cloud_upload_outlined,
-              iconColor: const Color(0xFF006948),
+              iconColor: AppColors.primary,
               badge: 'RECOMMENDED',
             ),
             const SizedBox(height: 12),
@@ -199,7 +201,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006948),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
@@ -239,7 +241,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
           color: isSelected ? const Color(0xFFF2F3FF).withValues(alpha: 0.6) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFF006948) : const Color(0xFFE5E7EB),
+            color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -297,7 +299,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
             Radio<StorageMode>(
               value: mode,
               groupValue: _selectedMode,
-              activeColor: const Color(0xFF006948),
+              activeColor: AppColors.primary,
               onChanged: (val) {
                 if (val != null) setState(() => _selectedMode = val);
               },

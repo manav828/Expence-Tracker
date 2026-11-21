@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../core/theme/app_colors.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense.dart';
 import '../widgets/add_expense_sheet.dart';
@@ -39,7 +40,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   static const List<Color> _palette = [
-    Color(0xFF006948),
+    AppColors.primary,
     Color(0xFF4B41E1),
     Color(0xFF008096),
     Color(0xFF645EFB),
@@ -65,7 +66,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     } else if (lower.contains('health') || lower.contains('fitness') || lower.contains('gym')) {
       return const Color(0xFF10B981);
     } else if (lower.contains('grocer')) {
-      return const Color(0xFF006948);
+      return AppColors.primary;
     }
     final hash = category.codeUnits.fold(0, (sum, c) => sum + c);
     return _palette[hash % _palette.length];
@@ -162,7 +163,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF006948),
+              primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: Color(0xFF131B2E),
             ),
@@ -248,7 +249,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             });
                             Navigator.pop(ctx);
                           },
-                          child: const Text('Reset', style: TextStyle(color: Color(0xFF006948), fontWeight: FontWeight.bold)),
+                          child: const Text('Reset', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -265,7 +266,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         return ChoiceChip(
                           label: Text(method),
                           selected: isSel,
-                          selectedColor: const Color(0xFF006948),
+                          selectedColor: AppColors.primary,
                           backgroundColor: const Color(0xFFF1F5F9),
                           labelStyle: TextStyle(
                             fontSize: 12,
@@ -296,7 +297,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         return ChoiceChip(
                           label: Text(item['label']!),
                           selected: isSel,
-                          selectedColor: const Color(0xFF006948),
+                          selectedColor: AppColors.primary,
                           backgroundColor: const Color(0xFFF1F5F9),
                           labelStyle: TextStyle(
                             fontSize: 12,
@@ -370,7 +371,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 12),
               ListTile(
-                leading: const Icon(Icons.calendar_today, color: Color(0xFF006948)),
+                leading: const Icon(Icons.calendar_today, color: AppColors.primary),
                 title: const Text('Pick a Specific Day', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('View transactions from an exact single date'),
                 onTap: () => Navigator.pop(ctx, 'single'),
@@ -397,7 +398,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           return Theme(
             data: Theme.of(context).copyWith(
               colorScheme: const ColorScheme.light(
-                primary: Color(0xFF006948),
+                primary: AppColors.primary,
                 onPrimary: Colors.white,
                 onSurface: Color(0xFF131B2E),
               ),
@@ -429,7 +430,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           return Theme(
             data: Theme.of(context).copyWith(
               colorScheme: const ColorScheme.light(
-                primary: Color(0xFF006948),
+                primary: AppColors.primary,
                 onPrimary: Colors.white,
                 onSurface: Color(0xFF131B2E),
               ),
@@ -772,10 +773,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF006948) : const Color(0xFFF1F5F9),
+                        color: isSelected ? AppColors.primary : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                          color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Text(
@@ -850,13 +851,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF006948).withValues(alpha: 0.08),
+                  color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.receipt_long, size: 13, color: Color(0xFF006948)),
+                    const Icon(Icons.receipt_long, size: 13, color: AppColors.primaryDark),
                     const SizedBox(width: 4),
                     Text(
                       isShowingFiltered
@@ -865,7 +866,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF006948),
+                        color: AppColors.primaryDark,
                       ),
                     ),
                   ],
@@ -1028,7 +1029,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: isHighlight ? const Color(0xFF006948) : const Color(0xFF94A3B8),
+              color: isHighlight ? AppColors.primaryDark : const Color(0xFF94A3B8),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1073,7 +1074,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             height: barHeight,
             margin: const EdgeInsets.symmetric(horizontal: 1.5),
             decoration: BoxDecoration(
-              color: hasSpend ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+              color: hasSpend ? AppColors.primary : const Color(0xFFE2E8F0),
               borderRadius: BorderRadius.circular(3),
             ),
           );
@@ -1111,10 +1112,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF006948) : Colors.transparent,
+          color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           boxShadow: isSelected
-              ? const [BoxShadow(color: Color(0x1F006948), blurRadius: 4, offset: Offset(0, 1))]
+              ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.25), blurRadius: 4, offset: const Offset(0, 1))]
               : null,
         ),
         child: Row(
@@ -1187,10 +1188,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             height: 44,
             width: 44,
             decoration: BoxDecoration(
-              color: hasFilterActive ? const Color(0xFF006948).withValues(alpha: 0.1) : Colors.white,
+              color: hasFilterActive ? AppColors.primaryLight : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: hasFilterActive ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                color: hasFilterActive ? AppColors.primary : const Color(0xFFE2E8F0),
               ),
             ),
             child: Stack(
@@ -1199,7 +1200,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 Icon(
                   Icons.tune_rounded,
                   size: 20,
-                  color: hasFilterActive ? const Color(0xFF006948) : const Color(0xFF64748B),
+                  color: hasFilterActive ? AppColors.primaryDark : const Color(0xFF64748B),
                 ),
                 if (hasFilterActive)
                   Positioned(
@@ -1209,7 +1210,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       width: 6,
                       height: 6,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF006948),
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -1239,7 +1240,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               label: Text('All ($totalCount)'),
               selected: _selectedCategoryFilter == null,
               onSelected: (_) => setState(() => _selectedCategoryFilter = null),
-              selectedColor: const Color(0xFF006948),
+              selectedColor: AppColors.primary,
               backgroundColor: Colors.white,
               labelStyle: TextStyle(
                 fontSize: 12,
@@ -1247,7 +1248,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 color: _selectedCategoryFilter == null ? Colors.white : const Color(0xFF334155),
               ),
               side: BorderSide(
-                color: _selectedCategoryFilter == null ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                color: _selectedCategoryFilter == null ? AppColors.primary : const Color(0xFFE2E8F0),
               ),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               showCheckmark: false,
@@ -1273,7 +1274,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     _selectedCategoryFilter = selected ? entry.key : null;
                   });
                 },
-                selectedColor: const Color(0xFF006948),
+                selectedColor: AppColors.primary,
                 backgroundColor: Colors.white,
                 labelStyle: TextStyle(
                   fontSize: 12,
@@ -1281,7 +1282,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   color: isSelected ? Colors.white : const Color(0xFF334155),
                 ),
                 side: BorderSide(
-                  color: isSelected ? const Color(0xFF006948) : const Color(0xFFE2E8F0),
+                  color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 showCheckmark: false,
@@ -1299,13 +1300,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF006948).withValues(alpha: 0.06),
+        color: AppColors.primaryLight,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.15)),
+        border: Border.all(color: AppColors.primaryBorder),
       ),
       child: Row(
         children: [
-          const Icon(Icons.tune_rounded, size: 14, color: Color(0xFF006948)),
+          const Icon(Icons.tune_rounded, size: 14, color: AppColors.primaryDark),
           const SizedBox(width: 6),
           Expanded(
             child: Wrap(
@@ -1350,16 +1351,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.primaryBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF006948))),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
           const SizedBox(width: 3),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close, size: 12, color: Color(0xFF006948)),
+            child: const Icon(Icons.close, size: 12, color: AppColors.primaryDark),
           ),
         ],
       ),
@@ -1397,8 +1398,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             OutlinedButton(
               onPressed: _clearAllFilters,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF006948),
-                side: const BorderSide(color: Color(0xFF006948)),
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Clear All Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
@@ -1455,7 +1456,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF006948),
+              color: AppColors.primary,
             ),
           );
         } else if (dayExpenseTotal > 0 && dayIncomeTotal == 0) {
@@ -1476,7 +1477,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF006948),
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 6),
@@ -1699,7 +1700,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w800,
-                            color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                            color: expense.isIncome ? AppColors.primary : const Color(0xFF131B2E),
                           ),
                         ),
                       ],
@@ -1829,7 +1830,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         width: 38,
         height: 38,
         decoration: const BoxDecoration(
-          color: Color(0xFF006948),
+          color: AppColors.primary,
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
@@ -1938,7 +1939,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     children: [
                       Row(
                         children: [
-                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF006948), shape: BoxShape.circle)),
+                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
                           const SizedBox(width: 4),
                           const Text('<₹2000', style: TextStyle(fontSize: 10, color: Color(0xFF3D4A42))),
                         ],
@@ -2019,7 +2020,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.event_available, size: 18, color: Color(0xFF006948)),
+                        const Icon(Icons.event_available, size: 18, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Text(
                           '${DateFormat('MMM').format(monthStart)} $activeDay, ${monthStart.year}',
@@ -2039,7 +2040,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF006948),
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
@@ -2071,20 +2072,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     Color badgeColor = const Color(0xFF131B2E);
 
     if (isSelected) {
-      cellBg = const Color(0xFF006948);
+      cellBg = AppColors.primary;
       textColor = Colors.white;
       badgeBg = Colors.white;
-      badgeColor = const Color(0xFF006948);
+      badgeColor = AppColors.primary;
     } else if (isHigh) {
       cellBg = const Color(0xFF645EFB).withValues(alpha: 0.15);
       textColor = const Color(0xFF4B41E1);
       badgeBg = const Color(0xFF4B41E1);
       badgeColor = Colors.white;
     } else if (hasSpend) {
-      cellBg = const Color(0xFF85F8C4).withValues(alpha: 0.3);
-      textColor = const Color(0xFF005137);
-      badgeBg = const Color(0xFF85F8C4);
-      badgeColor = const Color(0xFF002114);
+      cellBg = AppColors.primaryLight;
+      textColor = AppColors.primaryDark;
+      badgeBg = AppColors.primaryLight;
+      badgeColor = AppColors.primaryDark;
     }
 
     return GestureDetector(
@@ -2093,7 +2094,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         decoration: BoxDecoration(
           color: cellBg,
           borderRadius: BorderRadius.circular(10),
-          border: isSelected ? Border.all(color: const Color(0xFF006948), width: 1.5) : null,
+          border: isSelected ? Border.all(color: AppColors.primary, width: 1.5) : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -2178,7 +2179,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 }
                 return Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006948)),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
                 );
               }),
             ],
@@ -2211,7 +2212,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     icon: const Icon(Icons.add, size: 14),
                     label: const Text('Add Expense'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF006948),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -2253,13 +2254,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         height: 36,
                         decoration: BoxDecoration(
                           color: expense.isIncome
-                              ? const Color(0xFF006948).withValues(alpha: 0.12)
+                              ? AppColors.primaryLight
                               : const Color(0xFF4B41E1).withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           CategoryIcons.get(expense.category),
-                          color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+                          color: expense.isIncome ? AppColors.primary : const Color(0xFF4B41E1),
                           size: 18,
                         ),
                       ),
@@ -2288,7 +2289,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                          color: expense.isIncome ? AppColors.primary : const Color(0xFF131B2E),
                         ),
                       ),
                     ],
@@ -2463,12 +2464,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE6F4EA),
+                              color: AppColors.primaryLight,
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFFA7F3D0), width: 1.2),
+                              border: Border.all(color: AppColors.primaryBorder, width: 1.2),
                             ),
                             alignment: Alignment.center,
-                            child: const Icon(Icons.arrow_downward_rounded, size: 18, color: Color(0xFF006948)),
+                            child: const Icon(Icons.arrow_downward_rounded, size: 18, color: AppColors.primaryDark),
                           ),
                           const SizedBox(width: 12),
                           Column(
@@ -2488,7 +2489,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 style: const TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF006948),
+                                  color: AppColors.primaryDark,
                                 ),
                               ),
                             ],
@@ -2546,7 +2547,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     // Prepare pie chart sections
     final List<PieChartSectionData> pieSections = [];
     final incomePalette = [
-      const Color(0xFF006948),
+      AppColors.primary,
       const Color(0xFF059669),
       const Color(0xFF10B981),
       const Color(0xFF0D9488),
@@ -2622,7 +2623,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ...sortedCategories.map((entry) {
             final pct = totalAmount > 0 ? (entry.value / totalAmount) : 0.0;
             final catColor = isIncome
-                ? const Color(0xFF006948)
+                ? AppColors.primary
                 : _getCategoryColor(entry.key);
             final catIcon = isIncome ? Icons.payments_rounded : CategoryIcons.get(entry.key);
             final txCount = transactions.where((e) => e.category == entry.key).length;
@@ -2678,7 +2679,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w800,
-                                color: isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                                color: isIncome ? AppColors.primary : const Color(0xFF131B2E),
                               ),
                             ),
                             Text(
@@ -2686,7 +2687,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: isIncome ? const Color(0xFF006948) : const Color(0xFF64748B),
+                                color: isIncome ? AppColors.primary : const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -2757,7 +2758,7 @@ class _TimelineTrackPainter extends CustomPainter {
     }
 
     // 2. Milestone Node
-    final nodeColor = isIncome ? const Color(0xFF006948) : const Color(0xFF006948);
+    final nodeColor = isIncome ? AppColors.primary : AppColors.primary;
 
     // Outer glow / halo ring
     final haloPaint = Paint()

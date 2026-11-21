@@ -9,6 +9,8 @@ import '../../services/app_permission_service.dart';
 import '../../widgets/shimmer_box.dart';
 import 'trip_photo_viewer_screen.dart';
 import 'upload_photos_sheet.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class TripPhotoVaultTab extends StatefulWidget {
   final SplitGroup group;
@@ -25,7 +27,7 @@ class TripPhotoVaultTab extends StatefulWidget {
 }
 
 class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
-  static const _primaryColor = Color(0xFF00B865);
+  static const _primaryColor = AppColors.primary;
   static const _likedHeartColor = Color(0xFFE11D48);
 
   // Samsung Gallery zoom levels: 3 (zoomed in), 4 (default), 7 (zoomed out)

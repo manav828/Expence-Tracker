@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../services/data_export_service.dart';
+import '../core/theme/app_colors.dart';
+
 
 class ExportDataSheet extends StatefulWidget {
   const ExportDataSheet({super.key});
@@ -40,7 +42,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('CSV Export ready! File downloaded / shared.'),
-            backgroundColor: Color(0xFF006948),
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -70,7 +72,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('JSON Backup ready! File downloaded / shared.'),
-            backgroundColor: Color(0xFF006948),
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -98,7 +100,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('CSV data copied to clipboard! You can paste it directly into Excel or Google Sheets.'),
-          backgroundColor: Color(0xFF006948),
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -117,7 +119,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('JSON raw backup copied to clipboard!'),
-          backgroundColor: Color(0xFF006948),
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -173,10 +175,10 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF006948).withValues(alpha: 0.12),
+                      color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.file_download_outlined, color: Color(0xFF006948), size: 22),
+                    child: const Icon(Icons.file_download_outlined, color: AppColors.primary, size: 22),
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -224,7 +226,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
                   children: [
                     const Text('ACCUMULATED SUM', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6D7A72))),
                     const SizedBox(height: 4),
-                    Text('₹${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF006948))),
+                    Text('₹${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primary)),
                   ],
                 ),
               ],
@@ -234,9 +236,9 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
 
           TabBar(
             controller: _tabController,
-            labelColor: const Color(0xFF006948),
+            labelColor: AppColors.primary,
             unselectedLabelColor: const Color(0xFF6D7A72),
-            indicatorColor: const Color(0xFF006948),
+            indicatorColor: AppColors.primary,
             tabs: const [
               Tab(text: 'Excel / CSV (.csv)'),
               Tab(text: 'Full JSON Backup (.json)'),
@@ -273,7 +275,7 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF006948),
+                          backgroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                       ),
@@ -284,13 +286,13 @@ class _ExportDataSheetState extends State<ExportDataSheet> with SingleTickerProv
                       height: 44,
                       child: OutlinedButton.icon(
                         onPressed: _copyCsv,
-                        icon: const Icon(Icons.copy, size: 16, color: Color(0xFF006948)),
+                        icon: const Icon(Icons.copy, size: 16, color: AppColors.primary),
                         label: const Text(
                           'Copy CSV Content to Clipboard',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006948)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF006948)),
+                          side: const BorderSide(color: AppColors.primary),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                       ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../core/theme/app_colors.dart';
+
 
 class LegalSheets {
   static void showPrivacyPolicy(BuildContext context) {
@@ -149,7 +151,7 @@ class LegalSheets {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF006948),
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -173,7 +175,7 @@ class LegalSheets {
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006948),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,

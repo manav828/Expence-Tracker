@@ -12,6 +12,8 @@ import '../widgets/legal_sheets.dart';
 import '../widgets/user_profile_avatar.dart';
 import 'history_screen.dart';
 import 'payment_reminders_screen.dart';
+import '../core/theme/app_colors.dart';
+
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -72,7 +74,7 @@ class SettingsScreen extends StatelessWidget {
                 const _StorageModeTile(),
                 const Divider(height: 1, indent: 56),
                 ListTile(
-                  leading: const Icon(Icons.security, color: Color(0xFF006948)),
+                  leading: const Icon(Icons.security, color: AppColors.primary),
                   title: const Text('Security & Biometrics', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Device screen lock & authentication', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
@@ -95,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1, indent: 56),
                 ListTile(
-                  leading: const Icon(Icons.category_outlined, color: Color(0xFF006948)),
+                  leading: const Icon(Icons.category_outlined, color: AppColors.primary),
                   title: const Text('Categories & Payment Methods', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Manage custom categories & methods', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
@@ -110,7 +112,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1, indent: 56),
                 ListTile(
-                  leading: const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF006948)),
+                  leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
                   title: const Text('Category Budgets & Spending Limits', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Monthly spend caps & alerts', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
@@ -233,7 +235,7 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.privacy_tip_outlined, color: Color(0xFF006948)),
+                  leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.primary),
                   title: const Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.w600)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => LegalSheets.showPrivacyPolicy(context),
@@ -347,7 +349,7 @@ class SettingsScreen extends StatelessWidget {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF006948)),
+                              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
                               onPressed: () => _showEditNameDialog(context),
                               tooltip: 'Edit Display Name',
                               padding: EdgeInsets.zero,
@@ -374,14 +376,14 @@ class SettingsScreen extends StatelessWidget {
                         color: isGoogle
                             ? const Color(0xFFEA4335).withValues(alpha: 0.08)
                             : (auth.isAuthenticated
-                                ? const Color(0xFF006948).withValues(alpha: 0.08)
+                                ? AppColors.primary.withValues(alpha: 0.08)
                                 : const Color(0xFFD97706).withValues(alpha: 0.1)),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isGoogle
                               ? const Color(0xFFEA4335).withValues(alpha: 0.25)
                               : (auth.isAuthenticated
-                                  ? const Color(0xFF006948).withValues(alpha: 0.2)
+                                  ? AppColors.primary.withValues(alpha: 0.2)
                                   : const Color(0xFFD97706).withValues(alpha: 0.3)),
                         ),
                       ),
@@ -398,7 +400,7 @@ class SettingsScreen extends StatelessWidget {
                             color: isGoogle
                                 ? const Color(0xFFEA4335)
                                 : (auth.isAuthenticated
-                                    ? const Color(0xFF006948)
+                                    ? AppColors.primary
                                     : const Color(0xFFD97706)),
                           ),
                           const SizedBox(width: 4),
@@ -414,7 +416,7 @@ class SettingsScreen extends StatelessWidget {
                               color: isGoogle
                                   ? const Color(0xFFC5221F)
                                   : (auth.isAuthenticated
-                                      ? const Color(0xFF006948)
+                                      ? AppColors.primary
                                       : const Color(0xFFB45309)),
                             ),
                           ),
@@ -438,7 +440,7 @@ class SettingsScreen extends StatelessWidget {
                   Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006948),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -490,7 +492,7 @@ class SettingsScreen extends StatelessWidget {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF006948), width: 2),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
                 ),
               ),
             ),
@@ -503,7 +505,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF006948),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -611,7 +613,7 @@ class _StorageModeTileState extends State<_StorageModeTile> {
     return ListTile(
       leading: Icon(
         isCloud ? Icons.cloud_done_outlined : Icons.sd_storage_outlined,
-        color: isCloud ? const Color(0xFF006948) : const Color(0xFF4B41E1),
+        color: isCloud ? AppColors.primary : const Color(0xFF4B41E1),
       ),
       title: const Text('Personal Expense Storage', style: TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
@@ -620,7 +622,7 @@ class _StorageModeTileState extends State<_StorageModeTile> {
             : (isCloud ? 'Cloud Sync & Backup (Connected)' : 'Device Local Storage (Offline Mode)'),
         style: TextStyle(
           fontSize: 12,
-          color: isCloud ? const Color(0xFF006948) : const Color(0xFF6D7A72),
+          color: isCloud ? AppColors.primary : const Color(0xFF6D7A72),
           fontWeight: isCloud ? FontWeight.w600 : FontWeight.normal,
         ),
       ),

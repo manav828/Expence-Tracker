@@ -8,6 +8,8 @@ import 'split_group_detail_screen.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
 import 'split_illustrations.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class SplitScreen extends StatefulWidget {
   const SplitScreen({super.key});
@@ -17,7 +19,7 @@ class SplitScreen extends StatefulWidget {
 }
 
 class _SplitScreenState extends State<SplitScreen> {
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
   static const _secondaryColor = Color(0xFF4B41E1);
   static const _bgColor = Color(0xFFFAF9FD);
 
@@ -26,7 +28,7 @@ class _SplitScreenState extends State<SplitScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   static const List<Color> _avatarColors = [
-    Color(0xFF006948),
+    AppColors.primary,
     Color(0xFF4B41E1),
     Color(0xFF0284C7),
     Color(0xFFD97706),
@@ -359,7 +361,7 @@ class _SplitScreenState extends State<SplitScreen> {
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
-                    color: Color(0xFF006948),
+                    color: AppColors.primary,
                   ),
                 ),
                 SizedBox(height: 6),
@@ -632,12 +634,12 @@ class _SplitScreenState extends State<SplitScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFFE8F8F2),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.15)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.download, size: 13, color: Color(0xFF00875A)),
+            const Icon(Icons.download, size: 13, color: AppColors.primaryDark),
             const SizedBox(width: 4),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,7 +650,7 @@ class _SplitScreenState extends State<SplitScreen> {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF00875A),
+                    color: AppColors.primaryDark,
                   ),
                 ),
                 Text(
@@ -656,7 +658,7 @@ class _SplitScreenState extends State<SplitScreen> {
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF00875A),
+                    color: AppColors.primaryDark,
                     height: 1.1,
                   ),
                 ),
@@ -730,7 +732,7 @@ class _SplitScreenState extends State<SplitScreen> {
     final l = group.name.toLowerCase();
     String? imageUrl = group.imageUrl;
     IconData fallbackIcon = Icons.groups;
-    Color iconColor = const Color(0xFF006948);
+    Color iconColor = AppColors.primary;
     Color bgColor = const Color(0xFFE6F4EA);
 
     if (imageUrl == null || imageUrl.isEmpty) {

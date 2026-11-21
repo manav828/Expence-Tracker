@@ -8,6 +8,8 @@ import '../settle_up_screen.dart';
 import '../widgets/dashed_border_painter.dart';
 import '../widgets/settlement_celebration_modal.dart';
 import '../widgets/slide_to_pay_track.dart';
+import '../../../core/theme/app_colors.dart';
+
 
 /// Screen 2: CheQ Wallet & Balances / Settle Screen
 /// Pixel-accurate implementation matching `screen\split\settlement_screen\settilement_screen.html`.
@@ -35,7 +37,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
   static const _brandDark = Color(0xFF13353B);
   static const _walletTeal = Color(0xFF1C6961);
   static const _walletBack = Color(0xFF165750);
-  static const _primaryGreen = Color(0xFF00B865);
+  static const _primaryGreen = AppColors.primary;
   static const _mintBadge = Color(0xFF4ADE80);
   static const _mintBg = Color(0xFFE6F8F0);
 
@@ -926,7 +928,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF00B865).withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF13353B).withValues(alpha: 0.04),
@@ -2238,7 +2240,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                                   width: 14,
                                   height: 14,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF00B865),
+                                    color: AppColors.primary,
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white, width: 1.5),
                                   ),
@@ -2689,7 +2691,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                                     width: 14,
                                     height: 14,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF00B865),
+                                      color: AppColors.primary,
                                       shape: BoxShape.circle,
                                       border: Border.all(color: Colors.white, width: 1.5),
                                     ),

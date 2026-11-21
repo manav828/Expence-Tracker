@@ -15,6 +15,7 @@ class AppTheme {
         displayColor: AppColors.textPrimary,
       ),
       scaffoldBackgroundColor: AppColors.background,
+      primaryColor: AppColors.primary,
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         onPrimary: AppColors.onPrimary,
@@ -30,6 +31,14 @@ class AppTheme {
         outline: AppColors.outline,
         outlineVariant: AppColors.outlineVariant,
         error: AppColors.error,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+        linearTrackColor: AppColors.primaryLight,
       ),
       cardTheme: CardThemeData(
         color: AppColors.surface,

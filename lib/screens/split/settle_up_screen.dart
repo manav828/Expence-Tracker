@@ -5,6 +5,8 @@ import '../../providers/expense_provider.dart';
 import '../../models/split_models.dart';
 import '../../models/expense.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/app_colors.dart';
+
 
 class SettleUpScreen extends StatefulWidget {
   final Debt debt;
@@ -22,7 +24,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
   bool _recordToPersonal = true;
   late String _selectedFromMemberId;
   late String _selectedToMemberId;
-  static const _primaryColor = Color(0xFF006948);
+  static const _primaryColor = AppColors.primary;
 
   @override
   void initState() {
@@ -100,7 +102,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF006948).withValues(alpha: 0.06),
+                  color: AppColors.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
@@ -157,7 +159,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                     return ChoiceChip(
                       label: Text(name),
                       selected: isSelected,
-                      selectedColor: const Color(0xFF006948),
+                      selectedColor: AppColors.primary,
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : const Color(0xFF131B2E),
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -188,7 +190,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                     return ChoiceChip(
                       label: Text(name),
                       selected: isSelected,
-                      selectedColor: const Color(0xFF006948),
+                      selectedColor: AppColors.primary,
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : const Color(0xFF131B2E),
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -209,7 +211,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                 decoration: InputDecoration(
                   labelText: 'Amount (₹)',
-                  prefixIcon: const Icon(Icons.currency_rupee, color: Color(0xFF006948)),
+                  prefixIcon: const Icon(Icons.currency_rupee, color: AppColors.primary),
                   helperText: 'You can enter a partial amount to settle partially',
                   helperStyle: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   filled: true,
@@ -242,9 +244,9 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
               // Save to Personal Expenses Switch
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF006948).withValues(alpha: 0.08),
+                  color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.2)),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(

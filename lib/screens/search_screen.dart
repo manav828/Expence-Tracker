@@ -7,6 +7,8 @@ import '../providers/expense_provider.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/receipt_attachment_sheet.dart';
 import '../utils/category_icons.dart';
+import '../core/theme/app_colors.dart';
+
 
 class SearchScreen extends StatefulWidget {
   final String? initialCategory;
@@ -65,7 +67,7 @@ class _SearchScreenState extends State<SearchScreen> {
           return Theme(
             data: Theme.of(context).copyWith(
               colorScheme: const ColorScheme.light(
-                primary: Color(0xFF006948),
+                primary: AppColors.primary,
                 onPrimary: Colors.white,
                 surface: Colors.white,
                 onSurface: Color(0xFF131B2E),
@@ -176,7 +178,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 color: const Color(0xFFF2F4F7),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _searchFocusNode.hasFocus ? const Color(0xFF006948) : Colors.transparent,
+                  color: _searchFocusNode.hasFocus ? AppColors.primary : Colors.transparent,
                   width: 1.5,
                 ),
               ),
@@ -189,7 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search remarks, categories, payment...',
                   hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF8C9BA2)),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF006948), size: 20),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18, color: Color(0xFF6D7A72)),
@@ -208,7 +210,7 @@ class _SearchScreenState extends State<SearchScreen> {
             children: [
               Material(
                 color: _filter.hasActiveFilters
-                    ? const Color(0xFF006948).withValues(alpha: 0.12)
+                    ? AppColors.primary.withValues(alpha: 0.12)
                     : const Color(0xFFF2F4F7),
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
@@ -221,7 +223,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: Icon(
                       Icons.tune_rounded,
                       size: 20,
-                      color: _filter.hasActiveFilters ? const Color(0xFF006948) : const Color(0xFF3D4A42),
+                      color: _filter.hasActiveFilters ? AppColors.primary : const Color(0xFF3D4A42),
                     ),
                   ),
                 ),
@@ -233,7 +235,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF006948),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                     constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
@@ -283,9 +285,9 @@ class _SearchScreenState extends State<SearchScreen> {
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               color: isSelected ? Colors.white : const Color(0xFF3D4A42),
             ),
-            backgroundColor: isSelected ? const Color(0xFF006948) : Colors.white,
+            backgroundColor: isSelected ? AppColors.primary : Colors.white,
             side: BorderSide(
-              color: isSelected ? const Color(0xFF006948) : const Color(0x1F000000),
+              color: isSelected ? AppColors.primary : const Color(0x1F000000),
             ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -324,10 +326,10 @@ class _SearchScreenState extends State<SearchScreen> {
             for (var cat in _filter.categories) ...[
               InputChip(
                 label: Text(cat),
-                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF006948)),
-                backgroundColor: const Color(0xFF006948).withValues(alpha: 0.1),
+                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 side: BorderSide.none,
-                deleteIconColor: const Color(0xFF006948),
+                deleteIconColor: AppColors.primary,
                 onDeleted: () {
                   final newCats = Set<String>.from(_filter.categories)..remove(cat);
                   setState(() {
@@ -427,7 +429,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF006948),
+                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -449,7 +451,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.sort_rounded, size: 14, color: Color(0xFF006948)),
+                  const Icon(Icons.sort_rounded, size: 14, color: AppColors.primary),
                   const SizedBox(width: 4),
                   Text(
                     _getShortSortLabel(_filter.sortBy),
@@ -464,7 +466,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: Row(
                   children: [
                     if (_filter.sortBy == opt)
-                      const Icon(Icons.check, size: 16, color: Color(0xFF006948))
+                      const Icon(Icons.check, size: 16, color: AppColors.primary)
                     else
                       const SizedBox(width: 16),
                     const SizedBox(width: 8),
@@ -549,7 +551,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Transaction removed from ledger'),
-                backgroundColor: const Color(0xFF006948),
+                backgroundColor: AppColors.primary,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -583,13 +585,13 @@ class _SearchScreenState extends State<SearchScreen> {
                         height: 44,
                         decoration: BoxDecoration(
                           color: expense.isIncome
-                              ? const Color(0xFF006948).withValues(alpha: 0.12)
-                              : const Color(0xFF006948).withValues(alpha: 0.08),
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : AppColors.primary.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           CategoryIcons.get(expense.category),
-                          color: const Color(0xFF006948),
+                          color: AppColors.primary,
                           size: 22,
                         ),
                       ),
@@ -609,7 +611,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF006948)),
+                                const Icon(Icons.edit_outlined, size: 14, color: AppColors.primary),
                               ],
                             ),
                             const SizedBox(height: 3),
@@ -637,25 +639,25 @@ class _SearchScreenState extends State<SearchScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF006948).withValues(alpha: 0.1),
+                                    color: AppColors.primary.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF006948).withValues(alpha: 0.25)),
+                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.receipt_long, size: 12, color: Color(0xFF006948)),
+                                      Icon(Icons.receipt_long, size: 12, color: AppColors.primary),
                                       SizedBox(width: 4),
                                       Text(
                                         'Bill Attached',
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w700,
-                                          color: Color(0xFF006948),
+                                          color: AppColors.primary,
                                         ),
                                       ),
                                       SizedBox(width: 2),
-                                      Icon(Icons.zoom_in, size: 12, color: Color(0xFF006948)),
+                                      Icon(Icons.zoom_in, size: 12, color: AppColors.primary),
                                     ],
                                   ),
                                 ),
@@ -674,7 +676,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: expense.isIncome ? const Color(0xFF006948) : const Color(0xFF131B2E),
+                              color: expense.isIncome ? AppColors.primary : const Color(0xFF131B2E),
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -682,7 +684,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
                               color: expense.isIncome
-                                  ? const Color(0xFF85F8C4).withValues(alpha: 0.35)
+                                  ? AppColors.primaryLight
                                   : const Color(0xFFF2F3FF),
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -691,7 +693,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
-                                color: expense.isIncome ? const Color(0xFF005137) : const Color(0xFF3D4A42),
+                                color: expense.isIncome ? AppColors.primaryDark : const Color(0xFF3D4A42),
                               ),
                             ),
                           ),
@@ -719,10 +721,10 @@ class _SearchScreenState extends State<SearchScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: const Color(0xFF006948).withValues(alpha: 0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.search_off_rounded, size: 40, color: Color(0xFF006948)),
+              child: const Icon(Icons.search_off_rounded, size: 40, color: AppColors.primary),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -746,7 +748,7 @@ class _SearchScreenState extends State<SearchScreen> {
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Reset All Filters'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF006948),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -900,15 +902,15 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                       return FilterChip(
                         label: Text(cat),
                         selected: isSelected,
-                        selectedColor: const Color(0xFF006948).withValues(alpha: 0.15),
-                        checkmarkColor: const Color(0xFF006948),
+                        selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                        checkmarkColor: AppColors.primary,
                         labelStyle: TextStyle(
                           fontSize: 12,
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF006948) : const Color(0xFF3D4A42),
+                          color: isSelected ? AppColors.primary : const Color(0xFF3D4A42),
                         ),
                         side: BorderSide(
-                          color: isSelected ? const Color(0xFF006948) : const Color(0x1F000000),
+                          color: isSelected ? AppColors.primary : const Color(0x1F000000),
                         ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         onSelected: (selected) {
@@ -1020,14 +1022,14 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                       return ChoiceChip(
                         label: Text(sort.label),
                         selected: isSelected,
-                        selectedColor: const Color(0xFF006948).withValues(alpha: 0.15),
+                        selectedColor: AppColors.primary.withValues(alpha: 0.15),
                         labelStyle: TextStyle(
                           fontSize: 12,
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF006948) : const Color(0xFF3D4A42),
+                          color: isSelected ? AppColors.primary : const Color(0xFF3D4A42),
                         ),
                         side: BorderSide(
-                          color: isSelected ? const Color(0xFF006948) : const Color(0x1F000000),
+                          color: isSelected ? AppColors.primary : const Color(0x1F000000),
                         ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         onSelected: (selected) {
@@ -1054,7 +1056,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             child: ElevatedButton(
               onPressed: _apply,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF006948),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,

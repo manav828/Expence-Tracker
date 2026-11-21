@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../services/google_sheets_service.dart';
+import '../core/theme/app_colors.dart';
+
 
 class GoogleSheetsSyncSheet extends StatefulWidget {
   const GoogleSheetsSyncSheet({super.key});
@@ -52,7 +54,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Google Sheets Webhook URL saved!'),
-          backgroundColor: Color(0xFF006948),
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -123,7 +125,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(res['message'] as String),
-          backgroundColor: isSuccess ? const Color(0xFF006948) : const Color(0xFFBA1A1A),
+          backgroundColor: isSuccess ? AppColors.primary : const Color(0xFFBA1A1A),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),
         ),
@@ -136,7 +138,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Apps Script code copied to clipboard!'),
-        backgroundColor: Color(0xFF006948),
+        backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -147,7 +149,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
     if (_isLoading) {
       return const SizedBox(
         height: 300,
-        child: Center(child: CircularProgressIndicator(color: Color(0xFF006948))),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
@@ -243,7 +245,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: const Text('Reset', style: TextStyle(fontSize: 11, color: Color(0xFF006948), fontWeight: FontWeight.w700)),
+                            child: const Text('Reset', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w700)),
                           ),
                         ],
                       ),
@@ -268,7 +270,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF006948), width: 1.5),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                           ),
                         ),
                       ),
@@ -281,7 +283,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                               icon: const Icon(Icons.check, size: 16),
                               label: const Text('Save URL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF006948),
+                                backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -296,15 +298,15 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                                   ? const SizedBox(
                                       width: 14,
                                       height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF006948)),
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                                     )
-                                  : const Icon(Icons.cable, size: 16, color: Color(0xFF006948)),
+                                  : const Icon(Icons.cable, size: 16, color: AppColors.primary),
                               label: Text(
                                 _isTesting ? 'Testing...' : 'Test Ping',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006948)),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
                               ),
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF006948)),
+                                side: const BorderSide(color: AppColors.primary),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                               ),
@@ -321,11 +323,11 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: _testSuccess == true
-                                ? const Color(0xFF85F8C4).withValues(alpha: 0.25)
+                                ? AppColors.primaryLight
                                 : const Color(0xFFFFDAD6).withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: _testSuccess == true ? const Color(0xFF006948) : const Color(0xFFBA1A1A),
+                              color: _testSuccess == true ? AppColors.primary : const Color(0xFFBA1A1A),
                               width: 1,
                             ),
                           ),
@@ -335,7 +337,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                               Icon(
                                 _testSuccess == true ? Icons.check_circle : Icons.error_outline,
                                 size: 18,
-                                color: _testSuccess == true ? const Color(0xFF006948) : const Color(0xFFBA1A1A),
+                                color: _testSuccess == true ? AppColors.primary : const Color(0xFFBA1A1A),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -376,10 +378,10 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF006948).withValues(alpha: 0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.sync, color: Color(0xFF006948), size: 18),
+                            child: const Icon(Icons.sync, color: AppColors.primary, size: 18),
                           ),
                           const SizedBox(width: 12),
                           Column(
@@ -399,7 +401,7 @@ class _GoogleSheetsSyncSheetState extends State<GoogleSheetsSyncSheet> {
                       ),
                       Switch(
                         value: _autoSync,
-                        activeColor: const Color(0xFF006948),
+                        activeColor: AppColors.primary,
                         onChanged: (val) async {
                           setState(() => _autoSync = val);
                           await GoogleSheetsService.instance.setAutoSyncEnabled(val);
