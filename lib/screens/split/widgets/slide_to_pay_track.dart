@@ -222,109 +222,86 @@ class _SlideToPayTrackState extends State<SlideToPayTrack>
                     ),
                   ),
 
-                // 4. Completed Success Banner State
-                if (_isCompleted)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [_primaryGreen, _deepGreen],
-                        ),
-                        borderRadius: BorderRadius.circular(_pillRadius),
-                      ),
-                      child: const Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Payment Marked as Settled!',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                letterSpacing: 0.1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // 5. Draggable Knob (Circular thumb with forward arrow)
-                if (!_isCompleted)
-                  Positioned(
-                    left: _padding + _dragPosition,
-                    top: (_trackHeight - _knobSize) / 2, // Exactly 4.0 to center vertically
-                    child: GestureDetector(
-                      onHorizontalDragStart: (_) {
-                        if (_isProcessing || _isCompleted) return;
-                        _snapBackController.stop();
-                      },
-                      onHorizontalDragUpdate: (details) {
-                        if (_isProcessing || _isCompleted) return;
+                // 4. Draggable Knob (Circular thumb with forward arrow, turns into checkmark on complete)
+                Positioned(
+                  left: _padding + _dragPosition,
+                  top: (_trackHeight - _knobSize) / 2, // Exactly 4.0 to center vertically
+                  child: GestureDetector(
+                    onHorizontalDragStart: (_) {
+                      if (_isProcessing || _isCompleted) return;
+                      _snapBackController.stop();
+                    },
+                    onHorizontalDragUpdate: (details) {
+                      if (_isProcessing || _isCompleted) return;
+                      setState(() {
+                        _dragPosition = (_dragPosition + details.delta.dx).clamp(0.0, maxDistance);
+                      });
+                    },
+                    onHorizontalDragEnd: (details) async {
+                      if (_isProcessing || _isCompleted) return;
+                      if (_dragPosition >= maxDistance * 0.75) {
+                        // Trigger payment confirmation
+                        HapticFeedback.mediumImpact();
                         setState(() {
-                          _dragPosition = (_dragPosition + details.delta.dx).clamp(0.0, maxDistance);
+                          _dragPosition = maxDistance;
+                          _isProcessing = true;
+                          _isCompleted = true;
                         });
-                      },
-                      onHorizontalDragEnd: (details) async {
-                        if (_isProcessing || _isCompleted) return;
-                        if (_dragPosition >= maxDistance * 0.75) {
-                          // Trigger payment confirmation
-                          HapticFeedback.mediumImpact();
-                          setState(() {
-                            _dragPosition = maxDistance;
-                            _isProcessing = true;
-                            _isCompleted = true;
-                          });
-                          try {
-                            await widget.onPayCompleted();
-                          } catch (_) {
-                            if (mounted) {
-                              setState(() {
-                                _isCompleted = false;
-                                _isProcessing = false;
-                                _dragPosition = 0;
-                              });
-                            }
+                        try {
+                          await widget.onPayCompleted();
+                        } catch (_) {
+                          if (mounted) {
+                            setState(() {
+                              _isCompleted = false;
+                              _isProcessing = false;
+                              _dragPosition = 0;
+                            });
                           }
-                        } else {
-                          // Spring snap back smoothly to starting position
-                          _snapBackToZero(_dragPosition);
                         }
-                      },
-                      child: Container(
-                        width: _knobSize,
-                        height: _knobSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF34D399), _primaryGreen, _deepGreen],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(color: Colors.white, width: 2.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _primaryGreen.withValues(alpha: 0.45),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                              offset: const Offset(1, 2),
-                            ),
-                          ],
+                      } else {
+                        // Spring snap back smoothly to starting position
+                        _snapBackToZero(_dragPosition);
+                      }
+                    },
+                    child: Container(
+                      width: _knobSize,
+                      height: _knobSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF34D399), _primaryGreen, _deepGreen],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 22,
+                        border: Border.all(color: Colors.white, width: 2.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _primaryGreen.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                            offset: const Offset(1, 2),
                           ),
-                        ),
+                        ],
+                      ),
+                      child: Center(
+                        child: _isProcessing
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Icon(
+                                _isCompleted ? Icons.check_rounded : Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
                       ),
                     ),
                   ),
+                ),
               ],
             ),
           );

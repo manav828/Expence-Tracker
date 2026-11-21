@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // --- Primary Brand: Imperial Pine Green ---
-  static const Color primary = Color(0xFF006948);
-  static const Color primaryContainer = Color(0xFF00855D);
+  // --- Primary Brand: Emerald Mint Green (matching Split Group theme) ---
+  static const Color primary = Color(0xFF00B865);
+  static const Color primaryContainer = Color(0xFF008A4B);
   static const Color onPrimary = Colors.white;
-  static const Color onPrimaryContainer = Color(0xFFF5FFF7);
+  static const Color onPrimaryContainer = Color(0xFFE8FBF3);
+  static const Color primaryLight = Color(0xFFE8FBF3);
+  static const Color primaryFill = Color(0xFFF0FDF4);
+  static const Color primaryBorder = Color(0xFFA7F3D0);
 
   // --- Secondary: Electric Indigo ---
   static const Color secondary = Color(0xFF4B41E1);

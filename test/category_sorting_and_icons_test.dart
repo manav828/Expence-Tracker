@@ -61,25 +61,21 @@ void main() {
     test('Usage count and most-used-first sorting places frequent items forward', () async {
       final provider = ExpenseProvider(autoFetch: false);
 
-      provider.expenses.clear();
-      provider.categories.clear();
-      provider.categories.addAll(['Food & Dining', 'Shopping', 'Transport', 'Entertainment']);
-      provider.paymentMethods.clear();
-      provider.paymentMethods.addAll(['Cash', 'Card', 'UPI', 'Transfer']);
-
-      // Add dummy expenses:
-      // Shopping: 3 times
-      // Food: 2 times
-      // Transport: 1 time
       final now = DateTime.now().millisecondsSinceEpoch;
-      provider.expenses.addAll([
+      final dummyExpenses = [
         Expense(amount: 100, category: 'Shopping', paymentMethod: 'UPI', createdAt: now, updatedAt: now, expenseDate: now),
         Expense(amount: 200, category: 'Shopping', paymentMethod: 'UPI', createdAt: now, updatedAt: now, expenseDate: now),
         Expense(amount: 300, category: 'Shopping', paymentMethod: 'Card', createdAt: now, updatedAt: now, expenseDate: now),
         Expense(amount: 50, category: 'Food & Dining', paymentMethod: 'Card', createdAt: now, updatedAt: now, expenseDate: now),
         Expense(amount: 60, category: 'Food & Dining', paymentMethod: 'Cash', createdAt: now, updatedAt: now, expenseDate: now),
         Expense(amount: 20, category: 'Transport', paymentMethod: 'UPI', createdAt: now, updatedAt: now, expenseDate: now),
-      ]);
+      ];
+
+      provider.setExpensesForTesting(
+        dummyExpenses,
+        categories: ['Food & Dining', 'Shopping', 'Transport', 'Entertainment'],
+        paymentMethods: ['Cash', 'Card', 'UPI', 'Transfer'],
+      );
 
       expect(provider.getCategoryUsageCount('Shopping'), 3);
       expect(provider.getCategoryUsageCount('Food & Dining'), 2);
@@ -134,10 +130,11 @@ void main() {
 
     testWidgets('CategoryPaymentManagerSheet renders with drag & drop chips, handles, and category icons', (tester) async {
       final provider = ExpenseProvider(autoFetch: false);
-      provider.categories.clear();
-      provider.categories.addAll(['Food & Dining', 'Shopping', 'Transport']);
-      provider.paymentMethods.clear();
-      provider.paymentMethods.addAll(['UPI', 'Card', 'Cash']);
+      provider.setExpensesForTesting(
+        [],
+        categories: ['Food & Dining', 'Shopping', 'Transport'],
+        paymentMethods: ['UPI', 'Card', 'Cash'],
+      );
 
       await tester.pumpWidget(
         MaterialApp(

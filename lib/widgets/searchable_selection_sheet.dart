@@ -124,13 +124,13 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                 if (widget.onAddNew != null)
                   TextButton.icon(
                     onPressed: _triggerAddNew,
-                    icon: const Icon(Icons.add, size: 16, color: Color(0xFF006948)),
+                    icon: const Icon(Icons.add, size: 16, color: Color(0xFF00B865)),
                     label: const Text(
                       'Add New',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF006948),
+                        color: Color(0xFF00B865),
                       ),
                     ),
                   )
@@ -154,7 +154,7 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
               decoration: InputDecoration(
                 hintText: widget.isCategory ? 'Search category...' : 'Search payment method...',
                 hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF6D7A72)),
-                prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF006948)),
+                prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF00B865)),
                 suffixIcon: _query.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 18, color: Color(0xFF6D7A72)),
@@ -165,11 +165,19 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                       )
                     : null,
                 filled: true,
-                fillColor: const Color(0xFFF2F3FF),
+                fillColor: const Color(0xFFF0FDF4),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(color: Color(0xFFA7F3D0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFA7F3D0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFF00B865), width: 1.5),
                 ),
               ),
             ),
@@ -229,7 +237,7 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                               icon: const Icon(Icons.add, size: 16, color: Colors.white),
                               label: Text('Create "$_query"', style: const TextStyle(color: Colors.white)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF006948),
+                                backgroundColor: const Color(0xFF00B865),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
@@ -260,10 +268,10 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF85F8C4).withValues(alpha: 0.25) : const Color(0xFFF9FAFC),
+                            color: isSelected ? const Color(0xFFE8FBF3) : const Color(0xFFF9FAFC),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF006948) : Colors.transparent,
+                              color: isSelected ? const Color(0xFF00B865) : const Color(0xFFE2E8F0),
                               width: 1.2,
                             ),
                           ),
@@ -274,14 +282,14 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                                 height: 38,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF006948)
-                                      : const Color(0xFF006948).withValues(alpha: 0.1),
+                                      ? const Color(0xFF00B865)
+                                      : const Color(0xFF00B865).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
                                   icon,
                                   size: 20,
-                                  color: isSelected ? Colors.white : const Color(0xFF006948),
+                                  color: isSelected ? Colors.white : const Color(0xFF00B865),
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -302,7 +310,7 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                                       usageCount > 0 ? '$usageCount transactions logged' : 'Not used yet',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: usageCount > 0 ? const Color(0xFF3D4A42) : const Color(0xFF6D7A72),
+                                        color: usageCount > 0 ? const Color(0xFF047857) : const Color(0xFF6D7A72),
                                         fontWeight: usageCount > 0 ? FontWeight.w600 : FontWeight.normal,
                                       ),
                                     ),
@@ -310,7 +318,7 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
                                 ),
                               ),
                               if (isSelected)
-                                const Icon(Icons.check_circle, color: Color(0xFF006948), size: 22)
+                                const Icon(Icons.check_circle, color: Color(0xFF00B865), size: 22)
                               else if (usageCount > 0)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

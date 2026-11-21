@@ -1035,9 +1035,21 @@ class SplitService {
         await _db.from('split_expenses').update(updateData).eq('id', expenseId);
       } catch (updateErr) {
         final errStr = updateErr.toString().toLowerCase();
-        if (errStr.contains('receipt_url') && updateData.containsKey('receipt_url')) {
-          debugPrint('receipt_url column missing on split_expenses table, updating without receipt_url');
-          final fallbackData = Map<String, dynamic>.from(updateData)..remove('receipt_url');
+        final fallbackData = Map<String, dynamic>.from(updateData);
+        bool handled = false;
+        if (errStr.contains('receipt_url') && fallbackData.containsKey('receipt_url')) {
+          fallbackData.remove('receipt_url');
+          handled = true;
+        }
+        if (errStr.contains('note') && fallbackData.containsKey('note')) {
+          fallbackData.remove('note');
+          handled = true;
+        }
+        if (errStr.contains('category') && fallbackData.containsKey('category')) {
+          fallbackData.remove('category');
+          handled = true;
+        }
+        if (handled) {
           await _db.from('split_expenses').update(fallbackData).eq('id', expenseId);
         } else {
           rethrow;

@@ -512,21 +512,21 @@ class DatabaseService {
         }
 
         // Merge local & cloud: Never drop local entries that aren't synced to cloud yet!
-        // We match by unique timestamp/attribute keys and prefer the newer version if updated locally.
+        // We match by immutable createdAt key and prefer the newer version (by updatedAt).
         final Map<String, Expense> mergedMap = {};
         for (final exp in cloudList) {
-          final key = '${exp.createdAt}_${exp.expenseDate}';
+          final key = '${exp.createdAt}';
           mergedMap[key] = exp;
         }
         for (final exp in localList) {
-          final key = '${exp.createdAt}_${exp.expenseDate}';
+          final key = '${exp.createdAt}';
           final existing = mergedMap[key];
           if (existing == null) {
             // New local-only expense (from SMS, QuickAdd notification, or offline)
             mergedMap[key] = exp;
           } else if (exp.updatedAt > existing.updatedAt) {
-            // Local has a newer modification (e.g. edited from notification)
-            mergedMap[key] = exp;
+            // Local has a newer modification: keep local edited fields while retaining cloud id
+            mergedMap[key] = exp.copyWith(id: existing.id ?? exp.id);
           }
         }
 
@@ -535,7 +535,7 @@ class DatabaseService {
 
         // Two-way background reconciliation:
         // 1) Mirror fresh cloud entries into local SQLite
-        // 2) Push any unsynced local entries to cloud
+        // 2) Push any unsynced local entries or newer edits to cloud
         if (!kIsWeb) {
           _syncLocalAndCloudInBackground(currentUser.id, cloudList);
         }
@@ -555,41 +555,78 @@ class DatabaseService {
     Future.microtask(() async {
       try {
         final db = await instance.database;
+        final client = _supabaseClient;
+        if (client == null) return;
 
         // 1. Get current local entries
         final localRes = await db.query('expenses');
         final currentLocal = localRes.map((m) => Expense.fromMap(m)).toList();
-        final localKeys = currentLocal.map((r) =>
-          '${r.createdAt}_${r.expenseDate}').toSet();
+        final localMap = {for (final l in currentLocal) '${l.createdAt}': l};
+        final cloudMap = {for (final c in cloudList) '${c.createdAt}': c};
 
-        // 2. Only insert cloud entries that do NOT exist in local SQLite yet
-        // Do NOT overwrite existing local rows with replace! Use safe insertion without 'id'
-        final batch = db.batch();
+        // 2. Mirror cloud entries into local SQLite
         for (final exp in cloudList) {
-          final key = '${exp.createdAt}_${exp.expenseDate}';
-          if (!localKeys.contains(key)) {
-            final map = exp.toMap();
-            map.remove('id'); // Allow local SQLite autoincrement to assign unique safe ID
-            batch.insert('expenses', map);
-            localKeys.add(key);
+          final key = '${exp.createdAt}';
+          final localItem = localMap[key];
+          if (localItem == null) {
+            // New cloud entry: insert into local SQLite
+            await db.insert(
+              'expenses',
+              exp.toMap(),
+              conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+            );
+          } else if (exp.updatedAt > localItem.updatedAt || localItem.id != exp.id) {
+            // Cloud has newer edit OR local SQLite had mismatched ID: update local
+            await db.update(
+              'expenses',
+              exp.toMap(),
+              where: 'created_at = ?',
+              whereArgs: [exp.createdAt],
+            );
           }
         }
-        await batch.commit(noResult: true);
 
-        // 3. Mirror any offline/locally-created entries to cloud
-        final cloudKeys = cloudList.map((r) =>
-          '${r.createdAt}_${r.expenseDate}').toSet();
-
-        final client = _supabaseClient;
-        if (client == null) return;
+        // 3. Mirror local entries or newer local edits to cloud
         for (final exp in currentLocal) {
-          final key = '${exp.createdAt}_${exp.expenseDate}';
-          if (!cloudKeys.contains(key)) {
+          final key = '${exp.createdAt}';
+          final cloudItem = cloudMap[key];
+          if (cloudItem == null) {
+            // Offline/locally-created entry not yet in cloud: insert it
             final map = exp.toMap();
             map.remove('id');
             map['user_id'] = userId;
-            await client.from('user_expenses').insert(map);
-            cloudKeys.add(key);
+            try {
+              final insertRes = await client.from('user_expenses').insert(map).select('id');
+              if (insertRes.isNotEmpty) {
+                final rawId = insertRes.first['id'];
+                final cloudId = rawId is num ? rawId.toInt() : int.tryParse(rawId.toString());
+                if (cloudId != null && cloudId != exp.id) {
+                  await db.update(
+                    'expenses',
+                    {'id': cloudId},
+                    where: 'created_at = ?',
+                    whereArgs: [exp.createdAt],
+                  );
+                }
+              }
+            } catch (e) {
+              debugPrint('Background cloud insert error: $e');
+            }
+          } else if (exp.updatedAt > cloudItem.updatedAt) {
+            // Local has newer edit (e.g. description edited on phone): push update to cloud!
+            final map = exp.toMap();
+            map.remove('id');
+            map['user_id'] = userId;
+            try {
+              await client
+                  .from('user_expenses')
+                  .update(map)
+                  .eq('created_at', exp.createdAt)
+                  .or('user_id.eq.$userId,user_id.is.null');
+              debugPrint('Background synced local edit to cloud for expense created_at: ${exp.createdAt}');
+            } catch (e) {
+              debugPrint('Background cloud update error: $e');
+            }
           }
         }
       } catch (e) {
@@ -602,37 +639,102 @@ class DatabaseService {
     final isCloud = await StoragePreferenceService.isCloud();
     final client = _supabaseClient;
     final currentUser = client?.auth.currentUser;
-    if (isCloud && currentUser != null && client != null && expense.id != null) {
+    if (isCloud && currentUser != null && client != null) {
       try {
         final map = expense.toMap();
         map.remove('id');
         map['user_id'] = currentUser.id;
-        try {
-          await client
-              .from('user_expenses')
-              .update(map)
-              .eq('id', expense.id!)
-              .eq('user_id', currentUser.id);
-        } catch (updateErr) {
-          final errStr = updateErr.toString().toLowerCase();
-          if (errStr.contains('type') && map.containsKey('type')) {
-            debugPrint('type column missing on user_expenses table, updating without type');
-            final fallbackMap = Map<String, dynamic>.from(map)..remove('type');
-            await client
+
+        Future<List<dynamic>> tryUpdate(Map<String, dynamic> updatePayload, {required bool byId}) async {
+          if (byId && expense.id != null) {
+            return await client
                 .from('user_expenses')
-                .update(fallbackMap)
+                .update(updatePayload)
                 .eq('id', expense.id!)
-                .eq('user_id', currentUser.id);
-          } else if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
-            debugPrint('receipt_url column missing on user_expenses table, updating without receipt_url');
-            final fallbackMap = Map<String, dynamic>.from(map)..remove('receipt_url');
-            await client
-                .from('user_expenses')
-                .update(fallbackMap)
-                .eq('id', expense.id!)
-                .eq('user_id', currentUser.id);
+                .or('user_id.eq.${currentUser.id},user_id.is.null')
+                .select('id');
           } else {
-            rethrow;
+            return await client
+                .from('user_expenses')
+                .update(updatePayload)
+                .eq('created_at', expense.createdAt)
+                .or('user_id.eq.${currentUser.id},user_id.is.null')
+                .select('id');
+          }
+        }
+
+        Future<List<dynamic>> updateWithFallback(Map<String, dynamic> updatePayload, {required bool byId}) async {
+          try {
+            return await tryUpdate(updatePayload, byId: byId);
+          } catch (updateErr) {
+            final errStr = updateErr.toString().toLowerCase();
+            if (errStr.contains('type') && updatePayload.containsKey('type')) {
+              debugPrint('type column missing on user_expenses table, updating without type');
+              final fallbackMap = Map<String, dynamic>.from(updatePayload)..remove('type');
+              return await tryUpdate(fallbackMap, byId: byId);
+            } else if (errStr.contains('receipt_url') && updatePayload.containsKey('receipt_url')) {
+              debugPrint('receipt_url column missing on user_expenses table, updating without receipt_url');
+              final fallbackMap = Map<String, dynamic>.from(updatePayload)..remove('receipt_url');
+              return await tryUpdate(fallbackMap, byId: byId);
+            } else {
+              rethrow;
+            }
+          }
+        }
+
+        List<dynamic> updatedRows = [];
+        // 1. Try updating by ID first if ID is present
+        if (expense.id != null) {
+          try {
+            updatedRows = await updateWithFallback(map, byId: true);
+          } catch (e) {
+            debugPrint('Cloud update by id error: $e');
+          }
+        }
+
+        // 2. If 0 rows updated (e.g. ID mismatch between local SQLite and Supabase), match by immutable created_at
+        if (updatedRows.isEmpty) {
+          debugPrint('Cloud updateExpense: 0 rows matched by id ${expense.id}, falling back to match by created_at: ${expense.createdAt}');
+          try {
+            updatedRows = await updateWithFallback(map, byId: false);
+          } catch (e) {
+            debugPrint('Cloud update by created_at error: $e');
+          }
+        }
+
+        // 3. If still 0 rows matched, the record was created offline or missed initial sync: insert as new row in cloud
+        if (updatedRows.isEmpty) {
+          debugPrint('Cloud updateExpense: record not found in cloud, inserting as new cloud record');
+          try {
+            try {
+              updatedRows = await client.from('user_expenses').insert(map).select('id');
+            } catch (insertErr) {
+              final errStr = insertErr.toString().toLowerCase();
+              if (errStr.contains('type') && map.containsKey('type')) {
+                final fallbackMap = Map<String, dynamic>.from(map)..remove('type');
+                updatedRows = await client.from('user_expenses').insert(fallbackMap).select('id');
+              } else if (errStr.contains('receipt_url') && map.containsKey('receipt_url')) {
+                final fallbackMap = Map<String, dynamic>.from(map)..remove('receipt_url');
+                updatedRows = await client.from('user_expenses').insert(fallbackMap).select('id');
+              }
+            }
+          } catch (e) {
+            debugPrint('Cloud insert fallback error: $e');
+          }
+        }
+
+        // 4. Update local SQLite row with real cloud ID if returned
+        if (!kIsWeb && updatedRows.isNotEmpty) {
+          final rawId = updatedRows.first['id'];
+          final cloudId = rawId is num ? rawId.toInt() : int.tryParse(rawId.toString());
+          if (cloudId != null && cloudId != expense.id) {
+            final db = await instance.database;
+            await db.update(
+              'expenses',
+              {'id': cloudId},
+              where: 'created_at = ?',
+              whereArgs: [expense.createdAt],
+            );
           }
         }
       } catch (e) {
@@ -641,49 +743,58 @@ class DatabaseService {
     }
 
     if (kIsWeb) {
-      final idx = _webExpenses.indexWhere((e) => e.id == expense.id);
+      final idx = _webExpenses.indexWhere((e) => e.id == expense.id || e.createdAt == expense.createdAt);
       if (idx != -1) {
         _webExpenses[idx] = expense;
         return 1;
       }
-      return 0;
+      _webExpenses.add(expense);
+      return 1;
     }
 
     final db = await instance.database;
-    return db.update(
+    return await db.update(
       'expenses',
       expense.toMap(),
-      where: 'id = ?',
-      whereArgs: [expense.id],
+      where: 'id = ? OR created_at = ?',
+      whereArgs: [expense.id ?? -1, expense.createdAt],
     );
   }
 
-  Future<int> deleteExpense(int id) async {
+  Future<int> deleteExpense(int id, {int? createdAt}) async {
     final isCloud = await StoragePreferenceService.isCloud();
     final client = _supabaseClient;
     final currentUser = client?.auth.currentUser;
     if (isCloud && currentUser != null && client != null) {
       try {
-        await client
+        final res = await client
             .from('user_expenses')
             .delete()
             .eq('id', id)
-            .eq('user_id', currentUser.id);
+            .or('user_id.eq.${currentUser.id},user_id.is.null')
+            .select('id');
+        if (res.isEmpty && createdAt != null) {
+          await client
+              .from('user_expenses')
+              .delete()
+              .eq('created_at', createdAt)
+              .or('user_id.eq.${currentUser.id},user_id.is.null');
+        }
       } catch (e) {
         debugPrint('Cloud deleteExpense error: $e');
       }
     }
 
     if (kIsWeb) {
-      _webExpenses.removeWhere((e) => e.id == id);
+      _webExpenses.removeWhere((e) => e.id == id || (createdAt != null && e.createdAt == createdAt));
       return 1;
     }
 
     final db = await instance.database;
     return await db.delete(
       'expenses',
-      where: 'id = ?',
-      whereArgs: [id],
+      where: 'id = ? OR created_at = ?',
+      whereArgs: [id, createdAt ?? -1],
     );
   }
 
@@ -709,21 +820,35 @@ class DatabaseService {
     try {
       final existingRes = await client
           .from('user_expenses')
-          .select('created_at, expense_date, amount, category')
+          .select('id, created_at, updated_at')
           .eq('user_id', currentUser.id);
-      final existingSet = (existingRes as List).map((r) =>
-        '${r['created_at']}_${r['expense_date']}_${(r['amount'] as num).toDouble()}_${r['category']}').toSet();
+      final existingMap = {for (final r in (existingRes as List)) '${r['created_at']}': r};
 
       for (final exp in localList) {
-        final key = '${exp.createdAt}_${exp.expenseDate}_${exp.amount}_${exp.category}';
-        if (existingSet.contains(key)) continue;
-
+        final key = '${exp.createdAt}';
+        final cloudRecord = existingMap[key];
         final map = exp.toMap();
         map.remove('id');
         map['user_id'] = currentUser.id;
-        await client.from('user_expenses').insert(map);
-        existingSet.add(key);
-        count++;
+
+        if (cloudRecord == null) {
+          final insertRes = await client.from('user_expenses').insert(map).select('id');
+          if (insertRes.isNotEmpty && !kIsWeb) {
+            final rawId = insertRes.first['id'];
+            final cloudId = rawId is num ? rawId.toInt() : int.tryParse(rawId.toString());
+            if (cloudId != null && cloudId != exp.id) {
+              final db = await instance.database;
+              await db.update('expenses', {'id': cloudId}, where: 'created_at = ?', whereArgs: [exp.createdAt]);
+            }
+          }
+          count++;
+        } else {
+          final cloudUpdatedAt = (cloudRecord['updated_at'] as num?)?.toInt() ?? 0;
+          if (exp.updatedAt > cloudUpdatedAt) {
+            await client.from('user_expenses').update(map).eq('created_at', exp.createdAt).eq('user_id', currentUser.id);
+            count++;
+          }
+        }
       }
     } catch (e) {
       debugPrint('syncLocalToCloud error: $e');
@@ -749,10 +874,12 @@ class DatabaseService {
     int imported = 0;
     if (kIsWeb) {
       for (final exp in cloudList) {
-        final exists = _webExpenses.any((e) =>
-          e.createdAt == exp.createdAt && e.amount == exp.amount && e.category == exp.category);
-        if (!exists) {
+        final idx = _webExpenses.indexWhere((e) => e.createdAt == exp.createdAt);
+        if (idx == -1) {
           _webExpenses.add(exp);
+          imported++;
+        } else if (exp.updatedAt > _webExpenses[idx].updatedAt) {
+          _webExpenses[idx] = exp;
           imported++;
         }
       }
@@ -760,14 +887,16 @@ class DatabaseService {
       final db = await instance.database;
       final localRes = await db.query('expenses');
       final localList = localRes.map((m) => Expense.fromMap(m)).toList();
+      final localMap = {for (final l in localList) '${l.createdAt}': l};
 
       for (final exp in cloudList) {
-        final exists = localList.any((e) =>
-          e.createdAt == exp.createdAt && e.amount == exp.amount && e.category == exp.category);
-        if (!exists) {
-          final map = exp.toMap();
-          map.remove('id');
-          await db.insert('expenses', map);
+        final key = '${exp.createdAt}';
+        final localItem = localMap[key];
+        if (localItem == null) {
+          await db.insert('expenses', exp.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
+          imported++;
+        } else if (exp.updatedAt > localItem.updatedAt || localItem.id != exp.id) {
+          await db.update('expenses', exp.toMap(), where: 'created_at = ?', whereArgs: [exp.createdAt]);
           imported++;
         }
       }

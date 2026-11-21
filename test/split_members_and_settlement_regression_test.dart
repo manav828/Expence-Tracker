@@ -147,6 +147,16 @@ void main() {
         addedByMemberId: 'm_alex',
         createdAt: now,
       );
+      final exp2 = SplitExpense(
+        id: 'e2',
+        groupId: 'grp_goa_123',
+        title: 'Snacks',
+        totalAmount: 100.0,
+        paidByMemberId: 'm_bob',
+        splitType: SplitType.equal,
+        addedByMemberId: 'm_bob',
+        createdAt: now,
+      );
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
@@ -155,8 +165,8 @@ void main() {
         groupId: 'grp_goa_123',
         members: [me, bob, charlie, david, eve],
         settlementGroups: [sg1, sg2],
-        expenses: [exp],
-        balances: {'m_alex': 400.0, 'm_bob': -100.0, 'm_charlie': -100.0, 'm_david': -100.0, 'm_eve': -100.0},
+        expenses: [exp, exp2],
+        balances: {'m_alex': 100.0, 'm_bob': 200.0, 'm_charlie': 0.0, 'm_david': -150.0, 'm_eve': -150.0},
       );
       await tester.pumpAndSettle();
 

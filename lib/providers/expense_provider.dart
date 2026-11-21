@@ -17,8 +17,35 @@ class ExpenseProvider with ChangeNotifier {
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  List<String> get categories => _categories;
-  List<String> get incomeCategories => _incomeCategories.isNotEmpty ? _incomeCategories : DatabaseService.defaultIncomeCategories;
+  List<String> get categories {
+    final list = _categories.isNotEmpty
+        ? List<String>.from(_categories)
+        : ['Food & Dining', 'Shopping', 'Transport', 'Bills & Utilities', 'Entertainment', 'Health & Wellness', 'Investment', 'General'];
+    for (final e in _expenses) {
+      if (e.isExpense && e.category.trim().isNotEmpty) {
+        final cat = e.category.trim();
+        if (!list.any((c) => c.toLowerCase() == cat.toLowerCase())) {
+          list.add(cat);
+        }
+      }
+    }
+    return list;
+  }
+
+  List<String> get incomeCategories {
+    final list = _incomeCategories.isNotEmpty
+        ? List<String>.from(_incomeCategories)
+        : List<String>.from(DatabaseService.defaultIncomeCategories);
+    for (final e in _expenses) {
+      if (e.isIncome && e.category.trim().isNotEmpty) {
+        final cat = e.category.trim();
+        if (!list.any((c) => c.toLowerCase() == cat.toLowerCase())) {
+          list.add(cat);
+        }
+      }
+    }
+    return list;
+  }
   List<String> get paymentMethods => _paymentMethods;
 
   void clearError() {
@@ -83,6 +110,17 @@ class ExpenseProvider with ChangeNotifier {
       final allCats = await DatabaseService.instance.getCategories();
       final allIncCats = await DatabaseService.instance.getIncomeCategories();
       final allPms = await DatabaseService.instance.getPaymentMethods();
+
+      for (final e in allExpenses) {
+        final cat = e.category.trim();
+        if (cat.isNotEmpty) {
+          if (e.isIncome && !allIncCats.any((c) => c.toLowerCase() == cat.toLowerCase())) {
+            allIncCats.add(cat);
+          } else if (e.isExpense && !allCats.any((c) => c.toLowerCase() == cat.toLowerCase())) {
+            allCats.add(cat);
+          }
+        }
+      }
 
       _expenses = allExpenses;
       _categories = allCats;
@@ -342,7 +380,7 @@ class ExpenseProvider with ChangeNotifier {
 
   Future<void> updateExpense(Expense expense) async {
     await DatabaseService.instance.updateExpense(expense);
-    final index = _expenses.indexWhere((e) => e.id == expense.id);
+    final index = _expenses.indexWhere((e) => e.id == expense.id || e.createdAt == expense.createdAt);
     if (index != -1) {
       _expenses[index] = expense;
       _expenses.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
@@ -351,9 +389,9 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  Future<void> deleteExpense(int id) async {
-    await DatabaseService.instance.deleteExpense(id);
-    _expenses.removeWhere((e) => e.id == id);
+  Future<void> deleteExpense(int id, {int? createdAt}) async {
+    await DatabaseService.instance.deleteExpense(id, createdAt: createdAt);
+    _expenses.removeWhere((e) => e.id == id || (createdAt != null && e.createdAt == createdAt));
     notifyListeners();
     _notifyWidgetUpdate();
   }

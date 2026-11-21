@@ -605,7 +605,7 @@ class SplitProvider with ChangeNotifier {
     String? fromSettlementGroupId,
     String? toSettlementGroupId,
   }) async {
-    await SplitService.instance.recordSettlement(
+    final s = await SplitService.instance.recordSettlement(
       groupId: groupId,
       fromMemberId: fromMemberId,
       toMemberId: toMemberId,
@@ -614,6 +614,24 @@ class SplitProvider with ChangeNotifier {
       fromSettlementGroupId: fromSettlementGroupId,
       toSettlementGroupId: toSettlementGroupId,
     );
+
+    // Optimistically update settlements and balances immediately so the slider card clears at once!
+    final currentSetts = List<Settlement>.from(_settlements[groupId] ?? []);
+    currentSetts.removeWhere((existing) => existing.id == s.id);
+    currentSetts.insert(0, s);
+    _settlements[groupId] = currentSetts;
+
+    final members = _members[groupId] ?? [];
+    final exps = _expenses[groupId] ?? [];
+    final shares = _shares[groupId] ?? [];
+    _balances[groupId] = SplitService.instance.computeBalancesFromData(
+      members: members,
+      expenses: exps,
+      settlements: currentSetts,
+      shares: shares,
+    );
+    notifyListeners();
+
     await loadGroupDetail(groupId);
     _checkPendingSync();
   }

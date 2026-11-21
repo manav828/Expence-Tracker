@@ -398,11 +398,11 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                           const SizedBox(height: 16),
                         ],
 
-                        // SECTION C: "Group Settlements (Other Members)"
-                        if (otherDebts.isNotEmpty || debts.isNotEmpty) ...[
+                        // SECTION C: "Group Settlements" (Only debts between OTHER members, never duplicate "You")
+                        if (otherDebts.isNotEmpty) ...[
                           _buildGroupSettlementsSection(
                             context,
-                            debts: otherDebts.isNotEmpty ? otherDebts : debts,
+                            debts: otherDebts,
                             memberMap: memberMap,
                             isSimplified: isSimplified,
                             sp: sp,
