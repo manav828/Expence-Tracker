@@ -134,22 +134,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
-  int _calculateDaysPassed(DateTimeRange range) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final rangeStart = DateTime(range.start.year, range.start.month, range.start.day);
-    final rangeEnd = DateTime(range.end.year, range.end.month, range.end.day);
-
-    if (rangeStart.isAfter(today)) {
-      return 1;
-    }
-
-    // Effective end date is capped at today if the range extends into the future (e.g. current month)
-    final effectiveEnd = rangeEnd.isAfter(today) ? today : rangeEnd;
-    final days = effectiveEnd.difference(rangeStart).inDays + 1;
-    return days.clamp(1, 10000);
-  }
-
   Future<void> _showMonthYearPicker(BuildContext context) async {
     final now = DateTime.now();
     final selected = await showDatePicker(
@@ -512,40 +496,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         final totalIncome = rangeIncomes.fold(0.0, (sum, e) => sum + e.amount);
         final filteredSpent = ledgerExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
-        // Daily average formula: expense total / total days passed so far (not full month)
-        final daysPassed = _selectedSpecificDate != null ? 1 : _calculateDaysPassed(_dateRange);
-        final dailyAvg = daysPassed > 0 ? (totalSpent / daysPassed) : 0.0;
-
-
         final hasActiveFilters = _selectedCategoryFilter != null ||
             _selectedPaymentFilter != null ||
             _selectedSpecificDate != null ||
             _searchQuery.isNotEmpty ||
             _sortBy != 'date_desc';
 
-        // Group EXPENSE spend by day for stats and sparkline (Strictly expenses only!)
+        // Group EXPENSE spend by day for sparkline (Strictly expenses only!)
         final Map<DateTime, double> dayTotals = {};
         for (var e in (hasActiveFilters ? ledgerExpenses : rangeExpenses)) {
           final dayKey = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
           dayTotals[dayKey] = (dayTotals[dayKey] ?? 0.0) + e.amount;
-        }
-
-        double highestDayAmount = 0.0;
-        DateTime? highestDayDate;
-        double lowestDayAmount = 0.0;
-        DateTime? lowestDayDate;
-
-        if (dayTotals.isNotEmpty) {
-          for (var entry in dayTotals.entries) {
-            if (entry.value > highestDayAmount) {
-              highestDayAmount = entry.value;
-              highestDayDate = entry.key;
-            }
-            if (lowestDayAmount == 0.0 || (entry.value > 0 && entry.value < lowestDayAmount)) {
-              lowestDayAmount = entry.value;
-              lowestDayDate = entry.key;
-            }
-          }
         }
 
         // Compare with previous month EXPENSES (strictly e.isExpense)
@@ -592,18 +553,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                   children: [
-                    // Hero Summary Card (Total Expenses, sparkline, 3 stat boxes)
+                    // Hero Summary Card (Total Expenses, trend, sparkline)
                     _buildSummaryCard(
                       totalSpent: totalSpent,
                       filteredSpent: filteredSpent,
                       totalCount: rangeExpenses.length,
                       filteredCount: ledgerExpenses.length,
-                      dailyAvg: dailyAvg,
-                      daysPassed: daysPassed,
-                      highestDayAmount: highestDayAmount,
-                      highestDayDate: highestDayDate,
-                      lowestDayAmount: lowestDayAmount,
-                      lowestDayDate: lowestDayDate,
                       vsLastMonthPercent: vsLastMonthPercent,
                       hasPrevComparison: hasPrevComparison,
                       dayTotals: dayTotals,
@@ -798,18 +753,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // --- 2. Hero Summary Card (Matching Mockup with Sparkline & 3 Stat Cards) ---
+  // --- 2. Hero Summary Card (Clean Gradient Card without dense stat boxes) ---
   Widget _buildSummaryCard({
     required double totalSpent,
     required double filteredSpent,
     required int totalCount,
     required int filteredCount,
-    required double dailyAvg,
-    required int daysPassed,
-    required double highestDayAmount,
-    required DateTime? highestDayDate,
-    required double lowestDayAmount,
-    required DateTime? lowestDayDate,
     required double vsLastMonthPercent,
     required bool hasPrevComparison,
     required Map<DateTime, double> dayTotals,
@@ -819,228 +768,182 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final displayAmount = isShowingFiltered ? filteredSpent : totalSpent;
 
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
+        gradient: const LinearGradient(
+          colors: [AppColors.primaryDeep, AppColors.primaryDark, AppColors.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x060F172A),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+            color: AppColors.primary.withValues(alpha: 0.24),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row: Total Expenses title + transaction count badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                isShowingFiltered ? 'FILTERED EXPENSES' : 'TOTAL EXPENSES',
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -32,
+              right: -24,
+              child: Container(
+                width: 112,
+                height: 112,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.receipt_long, size: 13, color: AppColors.primaryDark),
-                    const SizedBox(width: 4),
-                    Text(
-                      isShowingFiltered
-                          ? '$filteredCount of $totalCount items'
-                          : '$totalCount transactions',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDark,
-                      ),
-                    ),
-                  ],
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.07),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Main Row: Big Amount + Trend Badge on left, Mini Sparkline on right
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '₹\u00A0${NumberFormat('#,##,##0.00', 'en_IN').format(displayAmount)}',
-                        maxLines: 1,
-                        softWrap: false,
+            ),
+            Positioned(
+              bottom: -44,
+              left: -18,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.accentMint.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Row: Total Expenses title + transaction count badge
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isShowingFiltered ? 'FILTERED EXPENSES' : 'TOTAL EXPENSES',
                         style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF131B2E),
-                          letterSpacing: -0.5,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.9,
+                          color: Color(0xFFD1FAE5),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    if (hasPrevComparison)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: vsLastMonthPercent > 0 ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              vsLastMonthPercent > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                              size: 13,
-                              color: vsLastMonthPercent > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
-                            ),
+                            const Icon(Icons.receipt_long, size: 13, color: Colors.white),
                             const SizedBox(width: 4),
                             Text(
-                              '${vsLastMonthPercent.abs().toStringAsFixed(0)}% vs last month',
-                              style: TextStyle(
+                              isShowingFiltered
+                                  ? '$filteredCount of $totalCount items'
+                                  : '$totalCount transactions',
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: vsLastMonthPercent > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                                color: Colors.white,
                               ),
                             ),
                           ],
                         ),
-                      )
-                    else
-                      Text(
-                        isShowingFiltered ? 'Filtered by active criteria' : 'Recorded in active period',
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Mini vertical bar sparkline
-              _buildMiniBarSparkline(dayTotals, _dateRange),
-            ],
-          ),
-          const SizedBox(height: 18),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-          // 3 Stat Cards: Avg. per day, Highest day, Lowest day
-          Row(
-            children: [
-              // 1. Avg. per day (amount / total days passed)
-              Expanded(
-                child: _buildHeroStatItem(
-                  label: 'Avg. per day',
-                  value: NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(dailyAvg),
-                  subtext: '$daysPassed days passed',
-                ),
-              ),
-              const SizedBox(width: 8),
-              // 2. Highest day
-              Expanded(
-                child: _buildHeroStatItem(
-                  label: 'Highest day',
-                  value: highestDayAmount > 0
-                      ? NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(highestDayAmount)
-                      : '₹ 0',
-                  subtext: highestDayDate != null ? DateFormat('d MMM').format(highestDayDate) : '-',
-                  isHighlight: true,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // 3. Lowest day
-              Expanded(
-                child: _buildHeroStatItem(
-                  label: 'Lowest day',
-                  value: lowestDayAmount > 0
-                      ? NumberFormat.currency(locale: 'en_IN', symbol: '₹\u00A0', decimalDigits: 0).format(lowestDayAmount)
-                      : '₹ 0',
-                  subtext: lowestDayDate != null ? DateFormat('d MMM').format(lowestDayDate) : '-',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Hero Stat Item Box ---
-  Widget _buildHeroStatItem({
-    required String label,
-    required String value,
-    required String subtext,
-    bool isHighlight = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 3),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF131B2E),
+                  // Main Row: Big Amount + Trend Badge on left, Mini Sparkline on right
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '₹\u00A0${NumberFormat('#,##,##0.00', 'en_IN').format(displayAmount)}',
+                                maxLines: 1,
+                                softWrap: false,
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: -0.6,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (hasPrevComparison)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: vsLastMonthPercent > 0
+                                      ? const Color(0xFFFCA5A5).withValues(alpha: 0.18)
+                                      : AppColors.accentMint.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: vsLastMonthPercent > 0
+                                        ? const Color(0xFFFCA5A5).withValues(alpha: 0.35)
+                                        : AppColors.accentMint.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      vsLastMonthPercent > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                                      size: 13,
+                                      color: vsLastMonthPercent > 0 ? const Color(0xFFFEE2E2) : AppColors.accentMint,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${vsLastMonthPercent.abs().toStringAsFixed(0)}% vs last month',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: vsLastMonthPercent > 0 ? const Color(0xFFFEE2E2) : AppColors.accentMint,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Text(
+                                isShowingFiltered ? 'Filtered by active criteria' : 'Recorded in active period',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withValues(alpha: 0.78),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Mini vertical bar sparkline
+                      _buildMiniBarSparkline(dayTotals, _dateRange, onDarkBg: true),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtext,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: isHighlight ? AppColors.primaryDark : const Color(0xFF94A3B8),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   // --- Mini Bar Sparkline ---
-  Widget _buildMiniBarSparkline(Map<DateTime, double> dayTotals, DateTimeRange range) {
+  Widget _buildMiniBarSparkline(Map<DateTime, double> dayTotals, DateTimeRange range, {bool onDarkBg = false}) {
     const numBars = 12;
     final start = range.start;
     final totalDurationMs = (range.end.millisecondsSinceEpoch - start.millisecondsSinceEpoch).clamp(1, 999999999999);
@@ -1069,12 +972,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           final barHeight = val > 0 ? (fraction * 40).clamp(8.0, 44.0) : 6.0;
           final hasSpend = val > 0;
 
+          final Color barColor;
+          if (onDarkBg) {
+            barColor = hasSpend ? AppColors.accentMint : Colors.white.withValues(alpha: 0.22);
+          } else {
+            barColor = hasSpend ? AppColors.primary : const Color(0xFFE2E8F0);
+          }
+
           return Container(
             width: 4.5,
             height: barHeight,
             margin: const EdgeInsets.symmetric(horizontal: 1.5),
             decoration: BoxDecoration(
-              color: hasSpend ? AppColors.primary : const Color(0xFFE2E8F0),
+              color: barColor,
               borderRadius: BorderRadius.circular(3),
             ),
           );

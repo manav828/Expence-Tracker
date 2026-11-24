@@ -173,18 +173,16 @@ void main() {
     expect(find.textContaining('47,000'), findsNothing);
     expect(find.textContaining('2 transactions'), findsOneWidget);
 
-    // 2. Verify Highest day card shows 2,000, NOT 47,000 or 45,000!
-    expect(find.text('Highest day'), findsOneWidget);
-    final highestDayFinder = find.ancestor(
-      of: find.text('Highest day'),
+    // 2. Verify Avg/Highest/Lowest small cards are removed and Hero card never leaks income (45,000)
+    expect(find.text('Avg. per day'), findsNothing);
+    expect(find.text('Highest day'), findsNothing);
+    expect(find.text('Lowest day'), findsNothing);
+    final heroCardFinder = find.ancestor(
+      of: find.text('TOTAL EXPENSES'),
       matching: find.byType(Container),
     ).first;
     expect(
-      find.descendant(of: highestDayFinder, matching: find.textContaining('2,000')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: highestDayFinder, matching: find.textContaining('45,000')),
+      find.descendant(of: heroCardFinder, matching: find.textContaining('45,000')),
       findsNothing,
     );
 
