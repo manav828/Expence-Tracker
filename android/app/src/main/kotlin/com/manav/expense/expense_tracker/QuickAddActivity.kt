@@ -110,15 +110,36 @@ class QuickAddActivity : Activity() {
         incomeCategories.clear()
         incomeCategories.addAll(dbHelper.getIncomeCategories())
 
-        val activeCategories = currentCategories
-        if (activeCategories.isNotEmpty()) {
-            selectedCategory = incomingCategory?.takeIf { activeCategories.contains(it) } ?: activeCategories[0]
+        if (!incomingCategory.isNullOrBlank()) {
+            val trimmedCat = incomingCategory!!.trim()
+            if (selectedType == "income") {
+                if (!incomeCategories.any { it.equals(trimmedCat, ignoreCase = true) }) {
+                    incomeCategories.add(trimmedCat)
+                    dbHelper.addIncomeCategory(trimmedCat)
+                }
+                selectedCategory = incomeCategories.firstOrNull { it.equals(trimmedCat, ignoreCase = true) } ?: trimmedCat
+            } else {
+                if (!expenseCategories.any { it.equals(trimmedCat, ignoreCase = true) }) {
+                    expenseCategories.add(trimmedCat)
+                    dbHelper.addCategory(trimmedCat)
+                }
+                selectedCategory = expenseCategories.firstOrNull { it.equals(trimmedCat, ignoreCase = true) } ?: trimmedCat
+            }
+        } else {
+            val activeCategories = currentCategories
+            if (activeCategories.isNotEmpty()) {
+                selectedCategory = activeCategories[0]
+            }
         }
 
         paymentMethods.clear()
         paymentMethods.addAll(dbHelper.getPaymentMethods())
         if (paymentMethods.isNotEmpty()) {
-            selectedPaymentMethod = incomingPaymentMethod?.takeIf { paymentMethods.contains(it) } ?: paymentMethods[0]
+            selectedPaymentMethod = incomingPaymentMethod?.takeIf { method ->
+                paymentMethods.any { it.equals(method, ignoreCase = true) }
+            }?.let { method ->
+                paymentMethods.first { it.equals(method, ignoreCase = true) }
+            } ?: paymentMethods[0]
         }
 
         textTitle = findViewById(R.id.textTitle)
@@ -127,8 +148,6 @@ class QuickAddActivity : Activity() {
         btnSave = findViewById(R.id.btnSave)
         val btnCancel = findViewById<Button>(R.id.btnCancel)
         val btnClose = findViewById<ImageButton>(R.id.btnClose)
-        val layoutAutoDetectNotice = findViewById<LinearLayout>(R.id.layoutAutoDetectNotice)
-        val textAutoDetectNotice = findViewById<TextView>(R.id.textAutoDetectNotice)
         categoryContainer = findViewById(R.id.categoryChipsContainer)
         paymentContainer = findViewById(R.id.paymentMethodContainer)
         btnTypeExpense = findViewById(R.id.btnTypeExpense)
@@ -139,9 +158,8 @@ class QuickAddActivity : Activity() {
         btnTypeExpense.setOnClickListener {
             if (selectedType != "expense") {
                 selectedType = "expense"
-                if (!expenseCategories.contains(selectedCategory)) {
-                    selectedCategory = expenseCategories.firstOrNull() ?: "Food & Dining"
-                }
+                val match = expenseCategories.firstOrNull { it.equals(selectedCategory, ignoreCase = true) }
+                selectedCategory = match ?: expenseCategories.firstOrNull() ?: "Food & Dining"
                 setupCategoryChips(categoryContainer)
                 updateTypeUI()
             }
@@ -150,9 +168,8 @@ class QuickAddActivity : Activity() {
         btnTypeIncome.setOnClickListener {
             if (selectedType != "income") {
                 selectedType = "income"
-                if (!incomeCategories.contains(selectedCategory)) {
-                    selectedCategory = incomeCategories.firstOrNull() ?: "Salary"
-                }
+                val match = incomeCategories.firstOrNull { it.equals(selectedCategory, ignoreCase = true) }
+                selectedCategory = match ?: incomeCategories.firstOrNull() ?: "Salary"
                 setupCategoryChips(categoryContainer)
                 updateTypeUI()
             }
@@ -162,15 +179,8 @@ class QuickAddActivity : Activity() {
         updateTypeUI()
 
         if (isEditMode) {
-            layoutAutoDetectNotice?.visibility = View.VISIBLE
-            textAutoDetectNotice?.text = "⚡ Transaction Auto-Logged: Modify details or tap DISCARD to remove"
             btnCancel.text = "DISCARD"
-        } else if (isAutoDetected && incomingAmount > 0) {
-            layoutAutoDetectNotice?.visibility = View.VISIBLE
-            textAutoDetectNotice?.text = "⚡ Transaction Detected: Select category & tap SAVE, or CANCEL to discard"
-            btnCancel.text = "CANCEL"
         } else {
-            layoutAutoDetectNotice?.visibility = View.GONE
             btnCancel.text = "CANCEL"
         }
 
@@ -469,7 +479,7 @@ class QuickAddActivity : Activity() {
 
     private fun updateCategorySelection() {
         for (chip in categoryViews) {
-            val isSelected = chip.text.toString() == selectedCategory
+            val isSelected = chip.text.toString().equals(selectedCategory, ignoreCase = true)
             if (isSelected) {
                 chip.setBackgroundResource(R.drawable.chip_selected)
                 chip.setTextColor(Color.WHITE)
@@ -538,7 +548,7 @@ class QuickAddActivity : Activity() {
 
     private fun updatePaymentSelection() {
         for (chip in paymentViews) {
-            val isSelected = chip.text.toString() == selectedPaymentMethod
+            val isSelected = chip.text.toString().equals(selectedPaymentMethod, ignoreCase = true)
             if (isSelected) {
                 chip.setBackgroundResource(R.drawable.chip_selected)
                 chip.setTextColor(Color.WHITE)

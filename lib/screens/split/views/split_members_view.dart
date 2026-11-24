@@ -137,13 +137,15 @@ class _SplitMembersViewState extends State<SplitMembersView> {
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryGreen,
+              foregroundColor: Colors.white,
+              iconColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
               Navigator.pop(ctx);
               widget.onShareInviteTap();
             },
-            icon: const Icon(Icons.share_rounded, size: 16, color: Colors.white),
+            icon: const Icon(Icons.share, size: 16, color: Colors.white),
             label: const Text('Share Link', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -254,8 +256,19 @@ class _SplitMembersViewState extends State<SplitMembersView> {
         }
 
         for (final eg in expenseGroups) {
-          final alreadyCombined = displayGroups.any((g) => g.name.toLowerCase() == eg.name.toLowerCase());
-          if (!alreadyCombined && processedGroupIds.add(eg.id)) {
+          final existingGroupIdx = displayGroups.indexWhere((g) => g.name.toLowerCase().trim() == eg.name.toLowerCase().trim());
+          if (existingGroupIdx != -1) {
+            final existing = displayGroups[existingGroupIdx];
+            final mergedMemberIds = {...existing.memberIds, ...eg.memberIds}.toList();
+            displayGroups[existingGroupIdx] = _MemberDisplayGroup(
+              id: existing.id,
+              name: existing.name,
+              memberIds: mergedMemberIds,
+              isSettlement: existing.isSettlement,
+              settlementGroup: existing.settlementGroup,
+              expenseGroup: eg,
+            );
+          } else if (processedGroupIds.add(eg.id)) {
             displayGroups.add(_MemberDisplayGroup(
               id: eg.id,
               name: eg.name,
@@ -266,12 +279,54 @@ class _SplitMembersViewState extends State<SplitMembersView> {
           }
         }
 
-        final Set<String> groupedMemberIds = {};
-        for (final g in displayGroups) {
-          groupedMemberIds.addAll(g.memberIds);
+        // Collect ALL grouped member IDs and names across all groups (settlement + expense)
+        final Set<String> allGroupedMemberIds = {};
+        final Set<String> allGroupedMemberNames = {};
+
+        void registerGroupedMember(String identifier) {
+          final trimmed = identifier.trim().toLowerCase();
+          if (trimmed.isEmpty) return;
+          allGroupedMemberIds.add(identifier);
+          allGroupedMemberNames.add(trimmed);
+          final mById = memberMap[identifier];
+          if (mById != null) {
+            allGroupedMemberIds.add(mById.id);
+            allGroupedMemberNames.add(mById.name.trim().toLowerCase());
+            if (mById.userId != null) allGroupedMemberIds.add(mById.userId!);
+          }
+          final mByName = members.cast<SplitMember?>().firstWhere(
+            (m) => m?.name.trim().toLowerCase() == trimmed,
+            orElse: () => null,
+          );
+          if (mByName != null) {
+            allGroupedMemberIds.add(mByName.id);
+            allGroupedMemberNames.add(mByName.name.trim().toLowerCase());
+            if (mByName.userId != null) allGroupedMemberIds.add(mByName.userId!);
+          }
         }
 
-        final ungroupedMembers = members.where((m) => !groupedMemberIds.contains(m.id)).toList();
+        for (final g in displayGroups) {
+          for (final mid in g.memberIds) {
+            registerGroupedMember(mid);
+          }
+        }
+        for (final sg in settlementGroups) {
+          for (final mid in sg.memberIds) {
+            registerGroupedMember(mid);
+          }
+        }
+        for (final eg in expenseGroups) {
+          for (final mid in eg.memberIds) {
+            registerGroupedMember(mid);
+          }
+        }
+
+        final ungroupedMembers = members.where((m) {
+          final idMatch = allGroupedMemberIds.contains(m.id) ||
+              (m.userId != null && allGroupedMemberIds.contains(m.userId));
+          final nameMatch = allGroupedMemberNames.contains(m.name.trim().toLowerCase());
+          return !idMatch && !nameMatch;
+        }).toList();
 
         // Filtering by query
         final filteredUngrouped = _searchQuery.isEmpty
@@ -439,13 +494,14 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
+                    iconColor: Colors.white,
                     elevation: 6,
                     shadowColor: _primaryGreen.withValues(alpha: 0.4),
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
                   onPressed: widget.onAddMemberTap,
-                  icon: const Icon(Icons.person_add_rounded, size: 18),
+                  icon: const Icon(Icons.person_add, size: 18, color: Colors.white),
                   label: const Text(
                     'Add Member',
                     style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, letterSpacing: -0.2),
@@ -591,12 +647,13 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
+                    iconColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: widget.onShareInviteTap,
-                  icon: const Icon(Icons.share_rounded, size: 15),
+                  icon: const Icon(Icons.share, size: 15, color: Colors.white),
                   label: const Text(
                     'Share Link',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),

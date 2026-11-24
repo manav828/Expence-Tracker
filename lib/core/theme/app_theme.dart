@@ -36,6 +36,12 @@ class AppTheme {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          iconColor: Colors.white,
+        ),
+      ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,
         linearTrackColor: AppColors.primaryLight,

@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // --- Primary Brand: Emerald Green (matching Split Group theme) ---
-  static const Color primary = Color(0xFF00B865);
-  static const Color primaryDark = Color(0xFF008A4B);
-  static const Color primaryDeep = Color(0xFF065F46);
-  static const Color primaryContainer = Color(0xFF008A4B);
+  // --- Primary Brand: Imperial Pine Green (Darker Green) ---
+  static const Color primary = Color(0xFF006948);
+  static const Color primaryDark = Color(0xFF004D34);
+  static const Color primaryDeep = Color(0xFF003825);
+  static const Color primaryContainer = Color(0xFF00855D);
   static const Color onPrimary = Colors.white;
-  static const Color onPrimaryContainer = Color(0xFFE8FBF3);
-  static const Color primaryLight = Color(0xFFE8FBF3);
+  static const Color onPrimaryContainer = Color(0xFFF5FFF7);
+  static const Color primaryLight = Color(0xFFE8F5E9);
   static const Color primaryFill = Color(0xFFF0FDF4);
   static const Color primaryBorder = Color(0xFFA7F3D0);
   static const Color primaryBorderMedium = Color(0xFF6EE7B7);
@@ -41,17 +41,17 @@ class AppColors {
   static const Color outlineVariant = Color(0xFFBCCAC0);
   static const Color borderSubtle = Color(0x0A000000);
 
-  // --- Status & Accents (Unified with Brand Emerald) ---
-  static const Color success = Color(0xFF00B865);
-  static const Color successDark = Color(0xFF008A4B);
-  static const Color successLight = Color(0xFFE8FBF3);
+  // --- Status & Accents ---
+  static const Color success = Color(0xFF006948);
+  static const Color successDark = Color(0xFF004D34);
+  static const Color successLight = Color(0xFFE8F5E9);
   static const Color successFill = Color(0xFFF0FDF4);
   static const Color successBorder = Color(0xFFA7F3D0);
   static const Color onSuccess = Colors.white;
 
   // Accents & Badges
-  static const Color accentMint = Color(0xFFE8FBF3);
-  static const Color onAccentMint = Color(0xFF008A4B);
+  static const Color accentMint = Color(0xFF85F8C4);
+  static const Color onAccentMint = Color(0xFF002114);
   static const Color warning = Color(0xFFD97706);
   static const Color warningLight = Color(0xFFFEF3C7);
   static const Color warningBorder = Color(0xFFFDE68A);

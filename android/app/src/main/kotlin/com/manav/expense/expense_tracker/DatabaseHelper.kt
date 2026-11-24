@@ -137,6 +137,23 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 db.insertWithOnConflict(TABLE_PAYMENT_METHODS, null, cv, SQLiteDatabase.CONFLICT_IGNORE)
             }
         }
+
+        // Backfill any custom categories from existing expenses into meta tables
+        try {
+            db.execSQL(
+                "INSERT OR IGNORE INTO $TABLE_INCOME_CATEGORIES ($COLUMN_NAME) " +
+                "SELECT DISTINCT TRIM($COLUMN_CATEGORY) FROM $TABLE_EXPENSES " +
+                "WHERE $COLUMN_TYPE = 'income' AND $COLUMN_CATEGORY IS NOT NULL AND TRIM($COLUMN_CATEGORY) != ''"
+            )
+        } catch (_: Exception) {}
+
+        try {
+            db.execSQL(
+                "INSERT OR IGNORE INTO $TABLE_CATEGORIES ($COLUMN_NAME) " +
+                "SELECT DISTINCT TRIM($COLUMN_CATEGORY) FROM $TABLE_EXPENSES " +
+                "WHERE ($COLUMN_TYPE IS NULL OR $COLUMN_TYPE != 'income') AND $COLUMN_CATEGORY IS NOT NULL AND TRIM($COLUMN_CATEGORY) != ''"
+            )
+        } catch (_: Exception) {}
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -227,25 +244,71 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     fun getCategories(): List<String> {
         val list = mutableListOf<String>()
-        val db = this.readableDatabase
-        val cursor = db.query(TABLE_CATEGORIES, arrayOf(COLUMN_NAME), null, null, null, null, "$COLUMN_ID ASC")
-        while (cursor.moveToNext()) {
-            list.add(cursor.getString(0))
+        val db = this.writableDatabase
+        try {
+            val cursor = db.query(TABLE_CATEGORIES, arrayOf(COLUMN_NAME), null, null, null, null, "$COLUMN_ID ASC")
+            while (cursor.moveToNext()) {
+                val cat = cursor.getString(0)?.trim()
+                if (!cat.isNullOrEmpty() && !list.any { it.equals(cat, ignoreCase = true) }) {
+                    list.add(cat)
+                }
+            }
+            cursor.close()
+
+            // Also dynamically query any custom categories present in the expenses table
+            val expCursor = db.rawQuery(
+                "SELECT DISTINCT TRIM($COLUMN_CATEGORY) FROM $TABLE_EXPENSES WHERE ($COLUMN_TYPE IS NULL OR $COLUMN_TYPE != 'income') AND $COLUMN_CATEGORY IS NOT NULL AND TRIM($COLUMN_CATEGORY) != ''",
+                null
+            )
+            while (expCursor.moveToNext()) {
+                val cat = expCursor.getString(0)?.trim()
+                if (!cat.isNullOrEmpty() && !list.any { it.equals(cat, ignoreCase = true) }) {
+                    list.add(cat)
+                    val cv = ContentValues().apply { put(COLUMN_NAME, cat) }
+                    db.insertWithOnConflict(TABLE_CATEGORIES, null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+                }
+            }
+            expCursor.close()
+        } catch (e: Exception) {
+            Log.e("DatabaseHelper", "Error getting categories: ${e.message}")
+        } finally {
+            db.close()
         }
-        cursor.close()
-        db.close()
         return if (list.isEmpty()) DEFAULT_CATEGORIES.toMutableList() else list
     }
 
     fun getIncomeCategories(): List<String> {
         val list = mutableListOf<String>()
-        val db = this.readableDatabase
-        val cursor = db.query(TABLE_INCOME_CATEGORIES, arrayOf(COLUMN_NAME), null, null, null, null, "$COLUMN_ID ASC")
-        while (cursor.moveToNext()) {
-            list.add(cursor.getString(0))
+        val db = this.writableDatabase
+        try {
+            val cursor = db.query(TABLE_INCOME_CATEGORIES, arrayOf(COLUMN_NAME), null, null, null, null, "$COLUMN_ID ASC")
+            while (cursor.moveToNext()) {
+                val cat = cursor.getString(0)?.trim()
+                if (!cat.isNullOrEmpty() && !list.any { it.equals(cat, ignoreCase = true) }) {
+                    list.add(cat)
+                }
+            }
+            cursor.close()
+
+            // Also dynamically query any custom income categories present in the expenses table
+            val expCursor = db.rawQuery(
+                "SELECT DISTINCT TRIM($COLUMN_CATEGORY) FROM $TABLE_EXPENSES WHERE $COLUMN_TYPE = 'income' AND $COLUMN_CATEGORY IS NOT NULL AND TRIM($COLUMN_CATEGORY) != ''",
+                null
+            )
+            while (expCursor.moveToNext()) {
+                val cat = expCursor.getString(0)?.trim()
+                if (!cat.isNullOrEmpty() && !list.any { it.equals(cat, ignoreCase = true) }) {
+                    list.add(cat)
+                    val cv = ContentValues().apply { put(COLUMN_NAME, cat) }
+                    db.insertWithOnConflict(TABLE_INCOME_CATEGORIES, null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+                }
+            }
+            expCursor.close()
+        } catch (e: Exception) {
+            Log.e("DatabaseHelper", "Error getting income categories: ${e.message}")
+        } finally {
+            db.close()
         }
-        cursor.close()
-        db.close()
         return if (list.isEmpty()) DEFAULT_INCOME_CATEGORIES.toMutableList() else list
     }
 

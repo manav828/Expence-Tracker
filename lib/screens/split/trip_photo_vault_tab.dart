@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/split_models.dart';
+import '../../models/trip_photo.dart';
 import '../../providers/trip_photo_provider.dart';
 import '../../services/trip_photo_service.dart';
 import '../../services/file_picker_service.dart';
 import '../../services/app_permission_service.dart';
+import '../../services/photo_download_helper.dart';
 import '../../widgets/shimmer_box.dart';
 import 'trip_photo_viewer_screen.dart';
 import 'upload_photos_sheet.dart';
@@ -33,6 +35,11 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
   // Samsung Gallery zoom levels: 3 (zoomed in), 4 (default), 7 (zoomed out)
   int _crossAxisCount = 4;
   DateTime? _lastScaleTime;
+
+  // Multi-selection state
+  final Set<String> _selectedPhotoIds = {};
+  bool get _isSelectionMode => _selectedPhotoIds.isNotEmpty;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
@@ -145,6 +152,132 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
     }
   }
 
+  void _toggleSelectPhoto(String photoId) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedPhotoIds.contains(photoId)) {
+        _selectedPhotoIds.remove(photoId);
+      } else {
+        _selectedPhotoIds.add(photoId);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    if (_selectedPhotoIds.isNotEmpty) {
+      setState(() => _selectedPhotoIds.clear());
+    }
+  }
+
+  void _selectAll(List<TripPhoto> photos) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedPhotoIds.length == photos.length) {
+        _selectedPhotoIds.clear();
+      } else {
+        _selectedPhotoIds.addAll(photos.map((p) => p.id));
+      }
+    });
+  }
+
+  Future<void> _handleDownloadSelected(List<TripPhoto> photos) async {
+    final selectedPhotos = photos.where((p) => _selectedPhotoIds.contains(p.id)).toList();
+    if (selectedPhotos.isEmpty || _isProcessingAction) return;
+
+    setState(() => _isProcessingAction = true);
+    int successCount = 0;
+    try {
+      for (int i = 0; i < selectedPhotos.length; i++) {
+        final p = selectedPhotos[i];
+        final ext = p.photoUrl.contains('.')
+            ? p.photoUrl.split('.').last.split('?').first
+            : 'jpg';
+        final fileName = '${widget.group.name}_photo_${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+        final ok = await saveOrSharePhoto(url: p.photoUrl, fileName: fileName);
+        if (ok) successCount++;
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+          _selectedPhotoIds.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              successCount > 0
+                  ? 'Saved $successCount photo${successCount > 1 ? "s" : ""} to your device!'
+                  : 'Failed to download selected photos.',
+            ),
+            backgroundColor: successCount > 0 ? _primaryColor : Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteSelected(List<TripPhoto> photos) async {
+    final selectedPhotos = photos.where((p) => _selectedPhotoIds.contains(p.id)).toList();
+    if (selectedPhotos.isEmpty || _isProcessingAction) return;
+
+    final count = selectedPhotos.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete $count photo${count > 1 ? "s" : ""}?', style: const TextStyle(fontWeight: FontWeight.w800)),
+        content: Text(
+          'Are you sure you want to permanently delete the selected $count photo${count > 1 ? "s" : ""} you uploaded? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE11D48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isProcessingAction = true);
+    final provider = context.read<TripPhotoProvider>();
+    int deletedCount = 0;
+    try {
+      for (final p in selectedPhotos) {
+        final ok = await provider.deletePhoto(p);
+        if (ok) deletedCount++;
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+          _selectedPhotoIds.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              deletedCount > 0
+                  ? 'Deleted $deletedCount photo${deletedCount > 1 ? "s" : ""}.'
+                  : 'Failed to delete selected photos.',
+            ),
+            backgroundColor: deletedCount > 0 ? const Color(0xFF1E293B) : Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TripPhotoProvider>(
@@ -159,6 +292,14 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
         final contributorCounts = provider.contributorCounts;
         final contributorNames = provider.contributorNames;
         final currentUid = TripPhotoService.instance.currentUserId;
+        final selectedPhotos = photos.where((p) => _selectedPhotoIds.contains(p.id)).toList();
+        final myName = widget.currentMemberName.trim().toLowerCase();
+        // Strict ownership rule: If ANY selected photo was uploaded by another user, delete icon hides!
+        final bool canDeleteSelected = selectedPhotos.isNotEmpty && selectedPhotos.every((photo) {
+          final isMeUid = currentUid.isNotEmpty && currentUid != 'anonymous' && photo.uploaderId == currentUid;
+          final isMeName = myName.isNotEmpty && photo.uploaderName.trim().toLowerCase() == myName;
+          return isMeUid || isMeName;
+        });
 
         // Earliest expiration calculation
         final earliestExp = provider.earliestExpiration;
@@ -174,9 +315,17 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
         final double radius = _crossAxisCount == 7 ? 3.0 : (_crossAxisCount == 4 ? 6.0 : 10.0);
         final double horizontalPadding = _crossAxisCount == 7 ? 8.0 : 14.0;
 
-        return ShimmerLoading(
-          child: Stack(
-            children: [
+        return PopScope(
+          canPop: !_isSelectionMode,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_isSelectionMode) {
+              _clearSelection();
+            }
+          },
+          child: ShimmerLoading(
+            child: Stack(
+              children: [
               GestureDetector(
                 onScaleUpdate: _handleScaleUpdate,
                 child: RefreshIndicator(
@@ -449,85 +598,134 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                             (context, index) {
                               final photo = photos[index];
                               final isLiked = provider.isPhotoLiked(photo.id);
+                              final isSelected = _selectedPhotoIds.contains(photo.id);
 
                               return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => TripPhotoViewerScreen(
-                                        photos: photos,
-                                        initialIndex: index,
-                                        groupId: widget.group.id,
-                                        groupName: widget.group.name,
-                                      ),
-                                    ),
-                                  );
+                                onLongPress: () {
+                                  HapticFeedback.mediumImpact();
+                                  _toggleSelectPhoto(photo.id);
                                 },
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(radius),
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.network(
-                                        photo.photoUrl,
-                                        fit: BoxFit.cover,
-                                        cacheWidth: _crossAxisCount == 7
-                                            ? 220
-                                            : (_crossAxisCount == 4 ? 380 : 560),
-                                        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                          if (wasSynchronouslyLoaded) return child;
-                                          final isLoaded = frame != null;
-                                          return Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              if (!isLoaded)
-                                                PhotoShimmerPlaceholder(
-                                                  borderRadius: radius,
-                                                  showIcon: _crossAxisCount != 7,
+                                onTap: () {
+                                  if (_isSelectionMode) {
+                                    _toggleSelectPhoto(photo.id);
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => TripPhotoViewerScreen(
+                                          photos: photos,
+                                          initialIndex: index,
+                                          groupId: widget.group.id,
+                                          groupName: widget.group.name,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(radius),
+                                    border: isSelected
+                                        ? Border.all(color: _primaryColor, width: 2.5)
+                                        : null,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(radius - (isSelected ? 1.0 : 0.0)),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(
+                                          photo.photoUrl,
+                                          fit: BoxFit.cover,
+                                          cacheWidth: _crossAxisCount == 7
+                                              ? 220
+                                              : (_crossAxisCount == 4 ? 380 : 560),
+                                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                            if (wasSynchronouslyLoaded) return child;
+                                            final isLoaded = frame != null;
+                                            return Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                if (!isLoaded)
+                                                  PhotoShimmerPlaceholder(
+                                                    borderRadius: radius,
+                                                    showIcon: _crossAxisCount != 7,
+                                                  ),
+                                                AnimatedOpacity(
+                                                  opacity: isLoaded ? 1.0 : 0.0,
+                                                  duration: const Duration(milliseconds: 250),
+                                                  curve: Curves.easeOut,
+                                                  child: child,
                                                 ),
-                                              AnimatedOpacity(
-                                                opacity: isLoaded ? 1.0 : 0.0,
-                                                duration: const Duration(milliseconds: 250),
-                                                curve: Curves.easeOut,
-                                                child: child,
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: const Color(0xFFE2E8F0),
-                                          child: const Center(
-                                            child: Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8), size: 16),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Heart icon in bottom-right corner for ALL photos (both liked and unliked in all zoom levels)
-                                      Positioned(
-                                        right: _crossAxisCount == 7 ? 2 : 4,
-                                        bottom: _crossAxisCount == 7 ? 2 : 4,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            provider.toggleLike(widget.group.id, photo.id);
+                                              ],
+                                            );
                                           },
-                                          child: Container(
-                                            padding: EdgeInsets.all(_crossAxisCount == 7 ? 2.5 : 3.5),
-                                            decoration: BoxDecoration(
-                                              color: isLiked
-                                                  ? Colors.black.withValues(alpha: 0.5)
-                                                  : Colors.black.withValues(alpha: 0.35),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                              size: _crossAxisCount == 7 ? 11 : 13,
-                                              color: isLiked ? _likedHeartColor : Colors.white,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            color: const Color(0xFFE2E8F0),
+                                            child: const Center(
+                                              child: Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8), size: 16),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+
+                                        // Subtle tint overlay when selected
+                                        if (isSelected)
+                                          Container(color: Colors.black.withValues(alpha: 0.18)),
+
+                                        // Checkmark indicator in top-left when in selection mode
+                                        if (_isSelectionMode)
+                                          Positioned(
+                                            left: _crossAxisCount == 7 ? 2 : 4,
+                                            top: _crossAxisCount == 7 ? 2 : 4,
+                                            child: Container(
+                                              width: _crossAxisCount == 7 ? 16 : 22,
+                                              height: _crossAxisCount == 7 ? 16 : 22,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: isSelected ? _primaryColor : Colors.black.withValues(alpha: 0.4),
+                                                border: Border.all(
+                                                  color: isSelected ? Colors.white : Colors.white70,
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              child: isSelected
+                                                  ? Icon(
+                                                      Icons.check_rounded,
+                                                      size: _crossAxisCount == 7 ? 10 : 14,
+                                                      color: Colors.white,
+                                                    )
+                                                  : null,
+                                            ),
+                                          ),
+
+                                        // Heart icon in bottom-right corner (hidden while in selection mode)
+                                        if (!_isSelectionMode)
+                                          Positioned(
+                                            right: _crossAxisCount == 7 ? 2 : 4,
+                                            bottom: _crossAxisCount == 7 ? 2 : 4,
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                provider.toggleLike(widget.group.id, photo.id);
+                                              },
+                                              child: Container(
+                                                padding: EdgeInsets.all(_crossAxisCount == 7 ? 2.5 : 3.5),
+                                                decoration: BoxDecoration(
+                                                  color: isLiked
+                                                      ? Colors.black.withValues(alpha: 0.5)
+                                                      : Colors.black.withValues(alpha: 0.35),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                                  size: _crossAxisCount == 7 ? 11 : 13,
+                                                  color: isLiked ? _likedHeartColor : Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               );
@@ -541,26 +739,122 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
               ),
             ),
 
-            // Floating "+ Upload Photos" Button
-            Positioned(
-              right: 18,
-              bottom: 18,
-              child: FloatingActionButton.extended(
-                backgroundColor: _primaryColor,
-                elevation: 3,
-                icon: const Icon(Icons.add_a_photo_rounded, color: Colors.white, size: 18),
-                label: const Text(
-                  'Upload Photos',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+            // Floating "+ Upload Photos" Button (shown only when NOT selecting)
+            if (!_isSelectionMode)
+              Positioned(
+                right: 18,
+                bottom: 18,
+                child: FloatingActionButton.extended(
+                  backgroundColor: _primaryColor,
+                  elevation: 3,
+                  icon: const Icon(Icons.add_a_photo_rounded, color: Colors.white, size: 18),
+                  label: const Text(
+                    'Upload Photos',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  onPressed: _handlePickAndUpload,
                 ),
-                onPressed: _handlePickAndUpload,
               ),
-            ),
-          ],
+
+            // Floating Multi-Selection Action Bar (shown when photos are selected)
+            if (_isSelectionMode)
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131B2E),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Close / Cancel selection
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Cancel',
+                        onPressed: _clearSelection,
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Selected Count
+                      Text(
+                        '${_selectedPhotoIds.length} selected',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                      const Spacer(),
+
+                      // Select All / Deselect All
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _selectAll(photos),
+                        child: Text(
+                          _selectedPhotoIds.length == photos.length ? 'Deselect' : 'All',
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Download Button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.download_rounded, color: Colors.white, size: 19),
+                          tooltip: 'Download selected',
+                          onPressed: _isProcessingAction ? null : () => _handleDownloadSelected(photos),
+                        ),
+                      ),
+
+                      // Delete Button (ONLY visible when every selected photo belongs to the current user!)
+                      if (canDeleteSelected) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE11D48).withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFB7185), size: 19),
+                            tooltip: 'Delete selected',
+                            onPressed: _isProcessingAction ? null : () => _handleDeleteSelected(photos),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
-      },
-    );
+    },
+  );
   }
 
   Widget _buildZoomIconButton(int count, IconData icon, String tooltip) {

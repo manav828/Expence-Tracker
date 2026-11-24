@@ -394,6 +394,23 @@ class DatabaseService {
         );
       }
     }
+
+    // Backfill any custom categories from existing expenses into meta tables so Native Android sees them
+    try {
+      await db.execute('''
+        INSERT OR IGNORE INTO income_categories (name)
+        SELECT DISTINCT TRIM(category) FROM expenses
+        WHERE type = 'income' AND category IS NOT NULL AND TRIM(category) != ''
+      ''');
+    } catch (_) {}
+
+    try {
+      await db.execute('''
+        INSERT OR IGNORE INTO categories (name)
+        SELECT DISTINCT TRIM(category) FROM expenses
+        WHERE (type IS NULL OR type != 'income') AND category IS NOT NULL AND TRIM(category) != ''
+      ''');
+    } catch (_) {}
   }
 
   Future<Expense> insertExpense(Expense expense) async {
@@ -931,6 +948,24 @@ class DatabaseService {
       final db = await instance.database;
       final res = await db.query('categories', orderBy: 'id ASC');
       rawList = res.map((e) => e['name'] as String).toList();
+
+      // Ensure custom categories from expenses are captured & synced into categories table
+      try {
+        final expRes = await db.rawQuery(
+          "SELECT DISTINCT TRIM(category) as name FROM expenses WHERE (type IS NULL OR type != 'income') AND category IS NOT NULL AND TRIM(category) != ''",
+        );
+        for (final row in expRes) {
+          final catName = (row['name'] as String?)?.trim();
+          if (catName != null && catName.isNotEmpty && !rawList.any((c) => c.toLowerCase() == catName.toLowerCase())) {
+            rawList.add(catName);
+            await db.insert(
+              'categories',
+              {'name': catName},
+              conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
+            );
+          }
+        }
+      } catch (_) {}
     } catch (_) {
       rawList = List<String>.from(_webCategories);
     }
@@ -1092,6 +1127,24 @@ class DatabaseService {
       final db = await instance.database;
       final res = await db.query('income_categories', orderBy: 'id ASC');
       rawList = res.map((e) => e['name'] as String).toList();
+
+      // Ensure custom income categories from expenses are captured & synced into income_categories table
+      try {
+        final expRes = await db.rawQuery(
+          "SELECT DISTINCT TRIM(category) as name FROM expenses WHERE type = 'income' AND category IS NOT NULL AND TRIM(category) != ''",
+        );
+        for (final row in expRes) {
+          final catName = (row['name'] as String?)?.trim();
+          if (catName != null && catName.isNotEmpty && !rawList.any((c) => c.toLowerCase() == catName.toLowerCase())) {
+            rawList.add(catName);
+            await db.insert(
+              'income_categories',
+              {'name': catName},
+              conflictAlgorithm: sqflite.ConflictAlgorithm.ignore,
+            );
+          }
+        }
+      } catch (_) {}
     } catch (_) {
       rawList = List<String>.from(_webIncomeCategories);
     }

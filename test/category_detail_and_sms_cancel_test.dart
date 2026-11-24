@@ -231,7 +231,7 @@ void main() {
       // Verify Cancel and Save Spend buttons exist
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Save Spend'), findsOneWidget);
-      expect(find.text('Transaction Auto-Detected'), findsOneWidget);
+      expect(find.text('Transaction Auto-Detected'), findsNothing);
 
       // Tap Cancel
       await tester.tap(find.text('Cancel'));
@@ -288,7 +288,7 @@ void main() {
       await tester.tap(find.text('Open Sheet'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Transaction Auto-Detected'), findsOneWidget);
+      expect(find.text('Transaction Auto-Detected'), findsNothing);
       expect(find.text('Cancel'), findsOneWidget);
 
       // Tap Cancel to dismiss

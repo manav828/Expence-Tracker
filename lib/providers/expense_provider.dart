@@ -116,8 +116,10 @@ class ExpenseProvider with ChangeNotifier {
         if (cat.isNotEmpty) {
           if (e.isIncome && !allIncCats.any((c) => c.toLowerCase() == cat.toLowerCase())) {
             allIncCats.add(cat);
+            DatabaseService.instance.addIncomeCategory(cat);
           } else if (e.isExpense && !allCats.any((c) => c.toLowerCase() == cat.toLowerCase())) {
             allCats.add(cat);
+            DatabaseService.instance.addCategory(cat);
           }
         }
       }

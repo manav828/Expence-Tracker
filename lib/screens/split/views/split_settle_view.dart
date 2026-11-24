@@ -189,9 +189,6 @@ class _SplitSettleViewState extends State<SplitSettleView> {
         final hasUnsettled = debts.isNotEmpty || balances.values.any((b) => b.abs() >= 0.01);
         final settlementGroups = sp.getSettlementGroupsForGroup(widget.group.id);
         final combinedResult = sp.getCombinedBalancesResult(widget.group.id);
-        final activeSettlementGroups = settlementGroups.where((sg) {
-          return combinedResult.getGroupBalance(sg.id).abs() >= 0.01;
-        }).toList();
 
         final currentMemberName = sp.currentMemberName ?? '';
         final currentMember = members.firstWhere(
@@ -419,7 +416,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                           members: members,
                           balances: balances,
                           currentMember: currentMember,
-                          activeSettlementGroups: activeSettlementGroups,
+                          settlementGroups: settlementGroups,
                           combinedResult: combinedResult,
                           fmt: fmt,
                         ),
@@ -1002,12 +999,13 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
+                    iconColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () => _requestViaUpi(context, fromName, debt.amount),
-                  icon: const Icon(Icons.bolt_rounded, size: 15),
+                  icon: const Icon(Icons.bolt, size: 16, color: Colors.white),
                   label: const Text(
                     'Request via UPI',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
@@ -1493,6 +1491,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _primaryGreen,
                           foregroundColor: Colors.white,
+                          iconColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1509,7 +1508,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.check_rounded, size: 14),
+                        icon: const Icon(Icons.check, size: 14, color: Colors.white),
                         label: const Text(
                           'Settle',
                           style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
@@ -1534,26 +1533,47 @@ class _SplitSettleViewState extends State<SplitSettleView> {
     required List<SplitMember> members,
     required Map<String, double> balances,
     required SplitMember currentMember,
-    required List<SplitSettlementGroup> activeSettlementGroups,
+    required List<SplitSettlementGroup> settlementGroups,
     required CombinedBalancesResult combinedResult,
     required NumberFormat fmt,
   }) {
-    // Determine members claimed by any active combined settlement group
+    // Determine members claimed by ANY combined settlement group
     final claimedMemberIds = <String>{};
-    for (final sg in activeSettlementGroups) {
-      claimedMemberIds.addAll(sg.memberIds);
+    final claimedMemberNames = <String>{};
+    for (final sg in settlementGroups) {
+      for (final mid in sg.memberIds) {
+        final trimmed = mid.trim().toLowerCase();
+        if (trimmed.isEmpty) continue;
+        claimedMemberIds.add(mid);
+        claimedMemberNames.add(trimmed);
+        final m = members.cast<SplitMember?>().firstWhere(
+          (x) => x?.id == mid || x?.name.trim().toLowerCase() == trimmed,
+          orElse: () => null,
+        );
+        if (m != null) {
+          claimedMemberIds.add(m.id);
+          claimedMemberNames.add(m.name.trim().toLowerCase());
+          if (m.userId != null) claimedMemberIds.add(m.userId!);
+        }
+      }
     }
 
-    final isUserInGroup = claimedMemberIds.contains(currentMember.id);
+    final isUserInGroup = claimedMemberIds.contains(currentMember.id) ||
+        (currentMember.userId != null && claimedMemberIds.contains(currentMember.userId)) ||
+        claimedMemberNames.contains(currentMember.name.trim().toLowerCase());
     final userBal = balances[currentMember.id] ?? 0.0;
     final isUserPositive = userBal >= 0.01;
     final isUserNegative = userBal <= -0.01;
     final userSign = isUserPositive ? '+' : (isUserNegative ? '-' : '');
 
-    // Other ungrouped members
-    final ungroupedMembers = members
-        .where((m) => m.id != currentMember.id && !claimedMemberIds.contains(m.id))
-        .toList();
+    // Truly ungrouped members (never include anyone who belongs to a settlement group)
+    final ungroupedMembers = members.where((m) {
+      if (m.id == currentMember.id) return false;
+      if (claimedMemberIds.contains(m.id)) return false;
+      if (m.userId != null && claimedMemberIds.contains(m.userId)) return false;
+      if (claimedMemberNames.contains(m.name.trim().toLowerCase())) return false;
+      return true;
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1673,20 +1693,23 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                     ],
                   ),
                 ),
-                if (activeSettlementGroups.isNotEmpty || ungroupedMembers.isNotEmpty)
+                if (settlementGroups.isNotEmpty || ungroupedMembers.isNotEmpty)
                   const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
               ],
 
               // 2. Combined Settlement Groups (e.g. Dinesh sir Family • 4 members)
-              for (int gi = 0; gi < activeSettlementGroups.length; gi++) ...[
+              for (int gi = 0; gi < settlementGroups.length; gi++) ...[
                 Builder(builder: (ctx) {
-                  final sg = activeSettlementGroups[gi];
+                  final sg = settlementGroups[gi];
                   final isExpanded = _expandedGroupIds.contains(sg.id);
                   final groupBal = combinedResult.getGroupBalance(sg.id);
                   final isPositive = groupBal >= 0.01;
                   final isNegative = groupBal <= -0.01;
                   final sign = isPositive ? '+' : (isNegative ? '-' : '');
-                  final groupMembers = members.where((m) => sg.memberIds.contains(m.id)).toList();
+                  final groupMembers = members.where((m) =>
+                      sg.memberIds.contains(m.id) ||
+                      sg.memberIds.map((x) => x.trim().toLowerCase()).contains(m.name.trim().toLowerCase()) ||
+                      (m.userId != null && sg.memberIds.contains(m.userId))).toList();
                   final groupInitial = sg.name.trim().isNotEmpty ? sg.name.trim()[0].toUpperCase() : 'G';
                   final isFamily = sg.name.toLowerCase().contains('family') ||
                       sg.name.toLowerCase().contains('sir') ||
@@ -1929,7 +1952,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                     ],
                   );
                 }),
-                if (gi < activeSettlementGroups.length - 1 || ungroupedMembers.isNotEmpty)
+                if (gi < settlementGroups.length - 1 || ungroupedMembers.isNotEmpty)
                   const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
               ],
 

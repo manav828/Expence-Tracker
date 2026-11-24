@@ -181,9 +181,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       ? (isInc ? 'e.g. Bonus, Consulting, Dividend' : 'e.g. Health, Coffee, Fuel')
                       : 'e.g. NetBanking, Forex',
                   filled: true,
-                  fillColor: const Color(0xFFF0FDF4),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFA7F3D0))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFA7F3D0))),
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
                 ),
               ),
               if (isCategory) ...[
@@ -202,9 +203,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
+                      color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -533,39 +534,6 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                if (widget.isAutoDetected) ...[
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8FBF3),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFA7F3D0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.flash_on, color: AppColors.primary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Transaction Auto-Detected',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
-                              ),
-                              const SizedBox(height: 1),
-                              const Text(
-                                'Tap Cancel to discard, or Save to confirm',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -730,9 +698,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8FBF3),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   children: [
@@ -859,14 +827,18 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   labelText: _type == TransactionType.income ? 'Income Amount' : 'Spend Amount',
                   labelStyle: const TextStyle(color: Color(0xFF6D7A72)),
                   filled: true,
-                  fillColor: const Color(0xFFF0FDF4),
+                  fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFA7F3D0)),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFA7F3D0)),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
                   ),
                 ),
                 validator: (val) {
@@ -885,9 +857,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -924,7 +896,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: const Row(
                           children: [
@@ -979,9 +951,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
+                          color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
@@ -1048,9 +1020,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
+                          color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
@@ -1107,14 +1079,14 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   labelText: 'Note / Payee (Optional)',
                   labelStyle: const TextStyle(color: Color(0xFF6D7A72)),
                   filled: true,
-                  fillColor: const Color(0xFFF0FDF4),
+                  fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFA7F3D0)),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFA7F3D0)),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),

@@ -81,27 +81,6 @@
                     android:contentDescription="Close" />
             </LinearLayout>
 
-            <!-- Auto-Detected Transaction Notice -->
-            <LinearLayout
-                android:id="@+id/layoutAutoDetectNotice"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/chip_unselected"
-                android:padding="10dp"
-                android:layout_marginBottom="14dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/textAutoDetectNotice"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="⚡ Transaction Detected: Select category &amp; tap SAVE, or CANCEL to discard"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:textColor="#006948" />
-            </LinearLayout>
 
             <!-- Transaction Type Toggle (Debit vs Credit) -->
             <LinearLayout
