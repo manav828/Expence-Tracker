@@ -45,6 +45,7 @@ class AuthService {
   String? _cachedPhotoUrl;
 
   final ValueNotifier<String> userNameNotifier = ValueNotifier<String>('Guest User');
+  final ValueNotifier<String?> userAvatarNotifier = ValueNotifier<String?>(null);
 
   Future<void> initUserCache() async {
     try {
@@ -52,6 +53,7 @@ class AuthService {
       _cachedDisplayName = prefs.getString(_userNameKey);
       _cachedPhotoUrl = prefs.getString(_userPhotoKey);
       userNameNotifier.value = userDisplayName;
+      userAvatarNotifier.value = userAvatarUrl;
     } catch (_) {}
   }
 
@@ -76,11 +78,40 @@ class AuthService {
     }
   }
 
+  /// Updates the cached/cloud profile photo URL (or data URI fallback) and notifies listeners.
+  Future<void> updateProfilePhoto(String? photoUrl) async {
+    final trimmed = photoUrl?.trim();
+    final normalized = (trimmed != null && trimmed.isNotEmpty) ? trimmed : null;
+    _cachedPhotoUrl = normalized;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (normalized != null) {
+        await prefs.setString(_userPhotoKey, normalized);
+      } else {
+        await prefs.remove(_userPhotoKey);
+      }
+    } catch (_) {}
+    userAvatarNotifier.value = normalized;
+
+    try {
+      if (isAuthenticated && (normalized == null || !normalized.startsWith('data:'))) {
+        await _client.auth.updateUser(
+          UserAttributes(data: {'avatar_url': normalized, 'picture': normalized}),
+        );
+      }
+    } catch (e) {
+      debugPrint('AuthService.updateProfilePhoto error updating Supabase: $e');
+    }
+  }
+
   String? get userAvatarUrl {
+    if (_cachedPhotoUrl != null && _cachedPhotoUrl!.isNotEmpty) {
+      return _cachedPhotoUrl;
+    }
     final meta = currentUser?.userMetadata;
     final url = (meta?['avatar_url'] ?? meta?['picture']) as String?;
     if (url != null && url.isNotEmpty) return url;
-    return _cachedPhotoUrl;
+    return null;
   }
 
   String get userDisplayName {
@@ -154,6 +185,7 @@ class AuthService {
     );
     await StoragePreferenceService.setMode(StorageMode.cloud);
     userNameNotifier.value = userDisplayName;
+    userAvatarNotifier.value = userAvatarUrl;
     return response;
   }
 
@@ -243,6 +275,7 @@ class AuthService {
       );
       await StoragePreferenceService.setMode(StorageMode.cloud);
       userNameNotifier.value = userDisplayName;
+      userAvatarNotifier.value = userAvatarUrl;
       return res;
     } catch (e, st) {
       ErrorHandler.log('AuthService.signInWithGoogle', e, st);
@@ -283,6 +316,7 @@ class AuthService {
     } catch (_) {}
 
     userNameNotifier.value = 'Guest User';
+    userAvatarNotifier.value = null;
 
     try {
       await DatabaseService.instance.clearLocalDatabaseOnly();

@@ -46,7 +46,8 @@ class ExpenseProvider with ChangeNotifier {
     }
     return list;
   }
-  List<String> get paymentMethods => _paymentMethods;
+  List<String> get paymentMethods =>
+      _paymentMethods.isNotEmpty ? _paymentMethods : List<String>.from(DatabaseService.defaultPaymentMethods);
 
   void clearError() {
     _errorMessage = null;
@@ -294,7 +295,7 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   List<String> getSortedCategories({bool mostUsedFirst = true}) {
-    final list = List<String>.from(_categories);
+    final list = List<String>.from(categories);
     final countMap = <String, int>{};
     for (var c in list) {
       countMap[c] = getCategoryUsageCount(c);
@@ -334,7 +335,7 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   List<String> getSortedPaymentMethods({bool mostUsedFirst = true}) {
-    final list = List<String>.from(_paymentMethods);
+    final list = List<String>.from(paymentMethods);
     final countMap = <String, int>{};
     for (var m in list) {
       countMap[m] = getPaymentMethodUsageCount(m);

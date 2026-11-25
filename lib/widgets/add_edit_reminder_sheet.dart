@@ -3,12 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../models/payment_reminder.dart';
-import '../models/split_models.dart';
 import '../providers/expense_provider.dart';
 import '../providers/reminder_provider.dart';
-import '../providers/split_provider.dart';
-import '../services/split_service.dart';
 import '../utils/category_icons.dart';
+import 'searchable_selection_sheet.dart';
 
 class AddEditReminderSheet extends StatefulWidget {
   final PaymentReminder? reminderToEdit;
@@ -32,13 +30,6 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
   late DateTime _selectedDueDate;
   int? _dueDay;
 
-  bool _isSplitEnabled = false;
-  String? _selectedSplitGroupId;
-  ReminderSplitType _selectedSplitType = ReminderSplitType.splitExpense;
-  String? _selectedTargetMemberId;
-  List<SplitMember> _groupMembers = [];
-  bool _isLoadingMembers = false;
-
   @override
   void initState() {
     super.initState();
@@ -57,15 +48,6 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
     _selectedFrequency = rem?.frequency ?? ReminderFrequency.monthly;
     _selectedDueDate = rem?.nextDueDate ?? DateTime.now().add(const Duration(days: 1));
     _dueDay = rem?.dueDay ?? _selectedDueDate.day;
-
-    _isSplitEnabled = rem?.splitGroupId != null && rem!.splitGroupId!.isNotEmpty;
-    _selectedSplitGroupId = rem?.splitGroupId;
-    _selectedSplitType = rem?.splitType ?? ReminderSplitType.splitExpense;
-    _selectedTargetMemberId = rem?.splitTargetMemberId;
-
-    if (_selectedSplitGroupId != null) {
-      _loadGroupMembers(_selectedSplitGroupId!);
-    }
   }
 
   @override
@@ -77,19 +59,120 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
     super.dispose();
   }
 
-  Future<void> _loadGroupMembers(String groupId) async {
-    setState(() => _isLoadingMembers = true);
-    try {
-      final members = await SplitService.instance.getMembers(groupId);
-      if (mounted) {
-        setState(() {
-          _groupMembers = members;
-          _isLoadingMembers = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingMembers = false);
-    }
+  Future<String?> _promptAddCustom(
+    BuildContext context,
+    bool isCategory, {
+    String? initialText,
+  }) async {
+    final controller = TextEditingController(text: initialText ?? '');
+    String selectedIconKey = isCategory ? 'category' : '';
+
+    return await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              isCategory ? 'New Category' : 'New Payment Method',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    hintText: isCategory ? 'e.g. Wi-Fi, Rent' : 'e.g. Credit Card, Wallet',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                ),
+                if (isCategory) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Icon',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 112,
+                    width: double.maxFinite,
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 6,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                      ),
+                      itemCount: CategoryIcons.availableIcons.length,
+                      itemBuilder: (context, idx) {
+                        final item = CategoryIcons.availableIcons[idx];
+                        final isSel = selectedIconKey == item.key;
+                        return InkWell(
+                          onTap: () {
+                            setDialogState(() {
+                              selectedIconKey = item.key;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSel ? AppColors.primary : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              item.icon,
+                              size: 18,
+                              color: isSel ? Colors.white : const Color(0xFF334155),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () async {
+                  final text = controller.text.trim();
+                  if (text.isNotEmpty) {
+                    final provider = ctx.read<ExpenseProvider>();
+                    if (isCategory) {
+                      await CategoryIcons.setCustomIcon(text, selectedIconKey);
+                      await provider.addCategory(text);
+                    } else {
+                      await provider.addPaymentMethod(text);
+                    }
+                    if (ctx.mounted) Navigator.pop(ctx, text);
+                  }
+                },
+                child: const Text('Add', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _pickDate() async {
@@ -122,6 +205,16 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final expenseProvider = context.read<ExpenseProvider>();
+    final categories = expenseProvider.getSortedCategories();
+    final paymentMethods = expenseProvider.getSortedPaymentMethods();
+    final effectiveCategory = categories.contains(_selectedCategory)
+        ? _selectedCategory
+        : (categories.firstOrNull ?? _selectedCategory);
+    final effectivePayment = paymentMethods.contains(_selectedPaymentMethod)
+        ? _selectedPaymentMethod
+        : (paymentMethods.firstOrNull ?? _selectedPaymentMethod);
+
     final title = _titleController.text.trim();
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
     if (amount <= 0) {
@@ -140,8 +233,8 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
       userId: widget.reminderToEdit?.userId,
       title: title,
       amount: amount,
-      category: _selectedCategory,
-      paymentMethod: _selectedPaymentMethod,
+      category: effectiveCategory,
+      paymentMethod: effectivePayment,
       frequency: _selectedFrequency,
       customIntervalDays: customDays,
       dueDay: _selectedFrequency != ReminderFrequency.oneTime ? _dueDay : null,
@@ -152,9 +245,9 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
       notifiedDueDayAt: widget.reminderToEdit?.notifiedDueDayAt,
       isActive: widget.reminderToEdit?.isActive ?? true,
       isCompleted: widget.reminderToEdit?.isCompleted ?? false,
-      splitGroupId: _isSplitEnabled ? _selectedSplitGroupId : null,
-      splitType: _isSplitEnabled ? _selectedSplitType : ReminderSplitType.personal,
-      splitTargetMemberId: _isSplitEnabled ? _selectedTargetMemberId : null,
+      splitGroupId: widget.reminderToEdit?.splitGroupId,
+      splitType: widget.reminderToEdit?.splitType ?? ReminderSplitType.personal,
+      splitTargetMemberId: widget.reminderToEdit?.splitTargetMemberId,
       notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
     );
 
@@ -181,13 +274,80 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
     }
   }
 
+  Widget _buildSearchableSelectorField({
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: AppColors.primary),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF6D7A72),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_drop_down, size: 20, color: Color(0xFF6D7A72)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final expenseProvider = context.watch<ExpenseProvider>();
-    final splitProvider = context.watch<SplitProvider>();
-    final categories = expenseProvider.categories;
-    final paymentMethods = expenseProvider.paymentMethods;
-    final groups = splitProvider.groups;
+    final categories = expenseProvider.getSortedCategories();
+    final paymentMethods = expenseProvider.getSortedPaymentMethods();
+    final effectiveCategory = categories.contains(_selectedCategory)
+        ? _selectedCategory
+        : (categories.firstOrNull ?? _selectedCategory);
+    final effectivePayment = paymentMethods.contains(_selectedPaymentMethod)
+        ? _selectedPaymentMethod
+        : (paymentMethods.firstOrNull ?? _selectedPaymentMethod);
 
     return Container(
       decoration: const BoxDecoration(
@@ -365,213 +525,68 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
                   ),
                   const SizedBox(height: 18),
 
-                  // Category & Payment Method Side-by-Side
+                  // Searchable Category & Payment Method Selectors
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Category
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: categories.contains(_selectedCategory) ? _selectedCategory : categories.firstOrNull,
-                          decoration: InputDecoration(
-                            labelText: 'Category',
-                            prefixIcon: Icon(CategoryIcons.get(_selectedCategory), size: 20),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          items: categories.map((cat) {
-                            return DropdownMenuItem(
-                              value: cat,
-                              child: Text(cat, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedCategory = val);
-                          },
-                        ),
+                      _buildSearchableSelectorField(
+                        label: 'Category',
+                        value: effectiveCategory,
+                        icon: CategoryIcons.get(effectiveCategory),
+                        onTap: () async {
+                          final selected = await SearchableSelectionSheet.show(
+                            context,
+                            title: 'Select Category',
+                            items: categories,
+                            selectedItem: effectiveCategory,
+                            isCategory: true,
+                            onAddNew: (query) async {
+                              final created = await _promptAddCustom(
+                                context,
+                                true,
+                                initialText: query,
+                              );
+                              if (created != null && mounted) {
+                                setState(() => _selectedCategory = created);
+                              }
+                            },
+                          );
+                          if (selected != null && mounted) {
+                            setState(() => _selectedCategory = selected);
+                          }
+                        },
                       ),
-                      const SizedBox(width: 12),
-                      // Payment Method
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: paymentMethods.contains(_selectedPaymentMethod) ? _selectedPaymentMethod : paymentMethods.firstOrNull,
-                          decoration: InputDecoration(
-                            labelText: 'Payment Method',
-                            prefixIcon: const Icon(Icons.payment_rounded, size: 20),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          items: paymentMethods.map((pm) {
-                            return DropdownMenuItem(
-                              value: pm,
-                              child: Text(pm, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedPaymentMethod = val);
-                          },
-                        ),
+                      const SizedBox(width: 10),
+                      _buildSearchableSelectorField(
+                        label: 'Payment Method',
+                        value: effectivePayment,
+                        icon: CategoryIcons.getPaymentMethodIcon(effectivePayment),
+                        onTap: () async {
+                          final selected = await SearchableSelectionSheet.show(
+                            context,
+                            title: 'Select Payment Method',
+                            items: paymentMethods,
+                            selectedItem: effectivePayment,
+                            isCategory: false,
+                            onAddNew: (query) async {
+                              final created = await _promptAddCustom(
+                                context,
+                                false,
+                                initialText: query,
+                              );
+                              if (created != null && mounted) {
+                                setState(() => _selectedPaymentMethod = created);
+                              }
+                            },
+                          );
+                          if (selected != null && mounted) {
+                            setState(() => _selectedPaymentMethod = selected);
+                          }
+                        },
                       ),
                     ],
                   ),
                   const SizedBox(height: 18),
-
-                  // Splitwise Group Integration Toggle
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: _isSplitEnabled
-                          ? AppColors.secondary.withValues(alpha: 0.06)
-                          : AppColors.surfaceSubtle,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _isSplitEnabled
-                            ? AppColors.secondary.withValues(alpha: 0.3)
-                            : Colors.grey.shade300,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.group_rounded,
-                              color: _isSplitEnabled ? AppColors.secondary : AppColors.textMuted,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Split with Group',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
-                                  ),
-                                  Text(
-                                    'Auto-split bill in Splitwise when paid',
-                                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch(
-                              value: _isSplitEnabled,
-                              activeColor: AppColors.secondary,
-                              onChanged: (val) {
-                                setState(() {
-                                  _isSplitEnabled = val;
-                                  if (val && groups.isNotEmpty && _selectedSplitGroupId == null) {
-                                    _selectedSplitGroupId = groups.first.id;
-                                    _loadGroupMembers(groups.first.id);
-                                  }
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-
-                        if (_isSplitEnabled) ...[
-                          const Divider(height: 20),
-                          if (groups.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 4),
-                              child: Text(
-                                'No Split groups created yet. Create a group in Split tab first.',
-                                style: TextStyle(fontSize: 12, color: AppColors.warning),
-                              ),
-                            )
-                          else ...[
-                            // Group Selector
-                            DropdownButtonFormField<String>(
-                              value: groups.any((g) => g.id == _selectedSplitGroupId)
-                                  ? _selectedSplitGroupId
-                                  : groups.first.id,
-                              decoration: InputDecoration(
-                                labelText: 'Select Split Group',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              ),
-                              items: groups.map((g) {
-                                return DropdownMenuItem(value: g.id, child: Text(g.name));
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedSplitGroupId = val);
-                                  _loadGroupMembers(val);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 12),
-
-                            // Split Type: Split Expense vs Settlement
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ChoiceChip(
-                                    label: const Text('Split Expense'),
-                                    selected: _selectedSplitType == ReminderSplitType.splitExpense,
-                                    selectedColor: AppColors.secondary,
-                                    labelStyle: TextStyle(
-                                      color: _selectedSplitType == ReminderSplitType.splitExpense
-                                          ? Colors.white
-                                          : AppColors.textPrimary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
-                                    ),
-                                    onSelected: (val) {
-                                      if (val) setState(() => _selectedSplitType = ReminderSplitType.splitExpense);
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ChoiceChip(
-                                    label: const Text('Debt Settlement'),
-                                    selected: _selectedSplitType == ReminderSplitType.settlement,
-                                    selectedColor: AppColors.secondary,
-                                    labelStyle: TextStyle(
-                                      color: _selectedSplitType == ReminderSplitType.settlement
-                                          ? Colors.white
-                                          : AppColors.textPrimary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
-                                    ),
-                                    onSelected: (val) {
-                                      if (val) setState(() => _selectedSplitType = ReminderSplitType.settlement);
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            // If Settlement: Target Member Selector
-                            if (_selectedSplitType == ReminderSplitType.settlement) ...[
-                              const SizedBox(height: 12),
-                              if (_isLoadingMembers)
-                                const Center(child: CircularProgressIndicator())
-                              else if (_groupMembers.isNotEmpty)
-                                DropdownButtonFormField<String>(
-                                  value: _groupMembers.any((m) => m.id == _selectedTargetMemberId)
-                                      ? _selectedTargetMemberId
-                                      : _groupMembers.first.id,
-                                  decoration: InputDecoration(
-                                    labelText: 'Member You Owe',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  ),
-                                  items: _groupMembers.map((m) {
-                                    return DropdownMenuItem(value: m.id, child: Text(m.name));
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) setState(() => _selectedTargetMemberId = val);
-                                  },
-                                ),
-                            ],
-                          ],
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
 
                   // Optional Notes
                   TextFormField(

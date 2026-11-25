@@ -197,8 +197,26 @@ void main() {
       expect(find.text('One-Time'), findsOneWidget);
       expect(find.text('Monthly'), findsOneWidget);
       expect(find.text('Weekly'), findsOneWidget);
-      expect(find.text('Split with Group'), findsOneWidget);
+      expect(find.text('Category'), findsOneWidget);
+      expect(find.text('Payment Method'), findsOneWidget);
+      expect(find.text('Split with Group'), findsNothing);
       expect(find.text('Set Payment Reminder'), findsOneWidget);
+
+      // Tap Category selector to verify SearchableSelectionSheet opens
+      await tester.tap(find.text('Category'));
+      await tester.pumpAndSettle();
+      expect(find.text('Search category...'), findsOneWidget);
+      await tester.tap(find.text('Food & Dining').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Food & Dining'), findsOneWidget);
+
+      // Tap Payment Method selector to verify SearchableSelectionSheet opens
+      await tester.tap(find.text('Payment Method'));
+      await tester.pumpAndSettle();
+      expect(find.text('Search payment method...'), findsOneWidget);
+      await tester.tap(find.text('Card').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Card'), findsOneWidget);
 
       // Tap One-Time frequency chip
       await tester.tap(find.text('One-Time'));

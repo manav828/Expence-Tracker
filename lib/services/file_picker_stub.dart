@@ -14,7 +14,12 @@ class PickedFileData {
   });
 }
 
-Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
+Future<PickedFileData?> pickImageFile({
+  bool useCamera = false,
+  double? maxWidth,
+  double? maxHeight,
+  int? imageQuality,
+}) async {
   try {
     if (!kIsWeb) {
       if (useCamera) {
@@ -41,6 +46,9 @@ Future<PickedFileData?> pickImageFile({bool useCamera = false}) async {
     final picker = ImagePicker();
     final XFile? file = await picker.pickImage(
       source: useCamera ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      imageQuality: imageQuality,
     );
     if (file == null) return null;
     final bytes = await file.readAsBytes();

@@ -442,7 +442,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                     ),
 
                     if (!reminder.isCompleted && reminder.isActive)
-                      ElevatedButton.icon(
+                      ElevatedButton(
                         onPressed: () async {
                           final expenseProvider = context.read<ExpenseProvider>();
                           final paid = await provider.markAsPaid(
@@ -461,16 +461,30 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                             );
                           }
                         },
-                        icon: const Icon(Icons.check_rounded, size: 16),
-                        label: const Text('Mark Paid', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
+                          iconColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check, size: 15, color: Colors.white),
+                            SizedBox(width: 5),
+                            Text(
+                              'Mark Paid',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],

@@ -1,16 +1,17 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/app_permission_service.dart';
+import '../services/cloudflare_r2_service.dart';
+import '../services/file_picker_stub.dart';
 import '../services/storage_preference_service.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/category_payment_manager_sheet.dart';
 import '../widgets/storage_choice_dialog.dart';
-import '../widgets/sms_tester_sheet.dart';
-import '../widgets/set_budget_sheet.dart';
 import '../widgets/export_data_sheet.dart';
 import '../widgets/legal_sheets.dart';
 import '../widgets/user_profile_avatar.dart';
-import 'history_screen.dart';
 import 'payment_reminders_screen.dart';
 import '../core/theme/app_colors.dart';
 
@@ -74,32 +75,8 @@ class SettingsScreen extends StatelessWidget {
                 const _StorageModeTile(),
                 const Divider(height: 1, indent: 56),
                 ListTile(
-                  leading: const Icon(Icons.security, color: AppColors.primary),
-                  title: const Text('Security & Biometrics', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Device screen lock & authentication', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showSecurityDialog(context),
-                ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
-                  leading: const Icon(Icons.sms_outlined, color: Color(0xFF4B41E1)),
-                  title: const Text('SMS Auto-Detection Rules', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Configure or test bank SMS parsing', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => const SmsTesterSheet(),
-                    );
-                  },
-                ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
                   leading: const Icon(Icons.category_outlined, color: AppColors.primary),
                   title: const Text('Categories & Payment Methods', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Manage custom categories & methods', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     showModalBottomSheet(
@@ -112,24 +89,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1, indent: 56),
                 ListTile(
-                  leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
-                  title: const Text('Category Budgets & Spending Limits', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Monthly spend caps & alerts', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => const SetBudgetSheet(),
-                    );
-                  },
-                ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
                   leading: const Icon(Icons.alarm_on_rounded, color: Color(0xFF4B41E1)),
                   title: const Text('Payment Reminders & Bills', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Recurring & one-time bill alerts with 1-tap pay', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     Navigator.of(context).push(
@@ -139,21 +100,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1, indent: 56),
                 ListTile(
-                  leading: const Icon(Icons.receipt_long_outlined, color: Color(0xFF4B41E1)),
-                  title: const Text('Transaction History Ledger', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Detailed audit log of all entries', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                    );
-                  },
-                ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
                   leading: const Icon(Icons.file_download_outlined, color: Color(0xFF4B41E1)),
                   title: const Text('Export Ledger Data', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Download CSV or JSON file', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     showModalBottomSheet(
@@ -168,7 +116,6 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.currency_exchange, color: Color(0xFF008096)),
                   title: const Text('Currency & Formatting', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('INR (₹) - Indian Rupee', style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72))),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showCurrencyDialog(context),
                 ),
@@ -176,7 +123,6 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.delete_sweep_outlined, color: Color(0xFFBA1A1A)),
                   title: const Text('Clear All Expenses', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFBA1A1A))),
-                  subtitle: const Text('Delete all local records permanently', style: TextStyle(fontSize: 12, color: Color(0xFFBA1A1A))),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
                     final confirm = await showDialog<bool>(
@@ -252,7 +198,7 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.logout_rounded, color: Color(0xFFF43F5E)),
                   title: Text(
                     AuthService.instance.isAuthenticated
-                        ? 'Sign Out (${AuthService.instance.currentUser?.email ?? "Account"})'
+                        ? 'Sign Out'
                         : 'Sign In / Exit Guest Mode',
                     style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFF43F5E)),
                   ),
@@ -282,10 +228,6 @@ class SettingsScreen extends StatelessWidget {
                     color: Color(0xFF131B2E),
                   ),
                 ),
-                const Text(
-                  'Smart Expenses for a Brighter You',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
-                ),
                 const SizedBox(height: 4),
                 const Text(
                   'Version 1.0.2',
@@ -302,7 +244,6 @@ class SettingsScreen extends StatelessWidget {
   Widget _buildUserProfileHeader(BuildContext context) {
     final auth = AuthService.instance;
     final isGuest = !auth.isAuthenticated;
-    final isGoogle = auth.isGoogleUser;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -322,19 +263,22 @@ class SettingsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const UserProfileAvatar(
-                size: 60,
+              UserProfileAvatar(
+                size: 58,
                 showBorder: true,
+                onTap: () => _showEditProfileDialog(context),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     ValueListenableBuilder<String>(
                       valueListenable: auth.userNameNotifier,
                       builder: (context, currentName, _) {
                         return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Expanded(
                               child: Text(
@@ -342,18 +286,28 @@ class SettingsScreen extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
+                                  height: 1.15,
                                   color: Color(0xFF131B2E),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
-                              onPressed: () => _showEditNameDialog(context),
-                              tooltip: 'Edit Display Name',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
+                            const SizedBox(width: 6),
+                            Tooltip(
+                              message: 'Edit Profile',
+                              child: InkWell(
+                                onTap: () => _showEditProfileDialog(context),
+                                borderRadius: BorderRadius.circular(8),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(4),
+                                  child: Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         );
@@ -364,64 +318,11 @@ class SettingsScreen extends StatelessWidget {
                       auth.userEmail,
                       style: const TextStyle(
                         fontSize: 12.5,
+                        height: 1.2,
                         color: Color(0xFF6D7A72),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isGoogle
-                            ? const Color(0xFFEA4335).withValues(alpha: 0.08)
-                            : (auth.isAuthenticated
-                                ? AppColors.primary.withValues(alpha: 0.08)
-                                : const Color(0xFFD97706).withValues(alpha: 0.1)),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isGoogle
-                              ? const Color(0xFFEA4335).withValues(alpha: 0.25)
-                              : (auth.isAuthenticated
-                                  ? AppColors.primary.withValues(alpha: 0.2)
-                                  : const Color(0xFFD97706).withValues(alpha: 0.3)),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isGoogle
-                                ? Icons.g_mobiledata_rounded
-                                : (auth.isAuthenticated
-                                    ? Icons.verified_user_rounded
-                                    : Icons.cloud_off_rounded),
-                            size: isGoogle ? 18 : 13,
-                            color: isGoogle
-                                ? const Color(0xFFEA4335)
-                                : (auth.isAuthenticated
-                                    ? AppColors.primary
-                                    : const Color(0xFFD97706)),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isGoogle
-                                ? 'Google Account'
-                                : (auth.isAuthenticated
-                                    ? 'Email Verified'
-                                    : 'Guest (Offline Mode)'),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isGoogle
-                                  ? const Color(0xFFC5221F)
-                                  : (auth.isAuthenticated
-                                      ? AppColors.primary
-                                      : const Color(0xFFB45309)),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
@@ -442,15 +343,16 @@ class SettingsScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
+                  iconColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
                 ),
-                icon: const Icon(Icons.login_rounded, size: 18),
+                icon: const Icon(Icons.login, size: 18, color: Colors.white),
                 label: const Text(
                   'Sign In / Create Account for Cloud Backup',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),
@@ -460,84 +362,229 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showEditNameDialog(BuildContext context) {
+  void _showEditProfileDialog(BuildContext context) {
     final auth = AuthService.instance;
     final currentName = auth.userDisplayName == 'Guest User' ? '' : auth.userDisplayName;
     final controller = TextEditingController(text: currentName);
+    PickedFileData? pickedPhoto;
+    bool removeExistingPhoto = false;
+    bool isSaving = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Personalize Your Name',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF131B2E)),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your name so ExpenCircle greets you properly on your dashboard.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6D7A72)),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: 'e.g. Manav',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (innerCtx, setDialogState) {
+          Future<void> handlePickPhoto(BuildContext pickerCtx, {required bool useCamera}) async {
+            if (!pickerCtx.mounted) return;
+            final bool granted;
+            if (useCamera) {
+              granted = await AppPermissionService.requestCameraPermission(
+                pickerCtx,
+                reason: 'take a profile photo',
+              );
+            } else {
+              granted = await AppPermissionService.requestPhotosPermission(
+                pickerCtx,
+                reason: 'select a profile photo from your gallery',
+              );
+            }
+            if (!granted || !pickerCtx.mounted) return;
+
+            final file = await pickImageFile(
+              useCamera: useCamera,
+              maxWidth: 512,
+              maxHeight: 512,
+              imageQuality: 85,
+            );
+            if (file != null && pickerCtx.mounted) {
+              setDialogState(() {
+                pickedPhoto = file;
+                removeExistingPhoto = false;
+              });
+            }
+          }
+
+          Widget buildAvatarPreview() {
+            if (pickedPhoto != null) {
+              return ClipOval(
+                child: Image.memory(
+                  pickedPhoto!.bytes,
+                  width: 78,
+                  height: 78,
+                  fit: BoxFit.cover,
                 ),
+              );
+            }
+            if (removeExistingPhoto || auth.userAvatarUrl == null || auth.userAvatarUrl!.isEmpty) {
+              return Container(
+                width: 78,
+                height: 78,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  auth.userInitial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 32,
+                  ),
+                ),
+              );
+            }
+            return const UserProfileAvatar(size: 78, showBorder: false);
+          }
+
+          final hasAnyPhoto = pickedPhoto != null ||
+              (!removeExistingPhoto && auth.userAvatarUrl != null && auth.userAvatarUrl!.isNotEmpty);
+
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'Edit Profile',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF131B2E)),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.primaryBorder, width: 2),
+                        ),
+                        child: buildAvatarPreview(),
+                      ),
+                      InkWell(
+                        onTap: isSaving ? null : () => handlePickPhoto(innerCtx, useCamera: false),
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt_outlined, size: 15, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: isSaving ? null : () => handlePickPhoto(innerCtx, useCamera: false),
+                        icon: const Icon(Icons.photo_library_outlined, size: 16, color: AppColors.primary),
+                        label: const Text(
+                          'Gallery',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: isSaving ? null : () => handlePickPhoto(innerCtx, useCamera: true),
+                        icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.primary),
+                        label: const Text(
+                          'Camera',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        ),
+                      ),
+                      if (hasAnyPhoto)
+                        TextButton.icon(
+                          onPressed: isSaving
+                              ? null
+                              : () => setDialogState(() {
+                                    pickedPhoto = null;
+                                    removeExistingPhoto = true;
+                                  }),
+                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFBA1A1A)),
+                          label: const Text(
+                            'Remove',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFBA1A1A)),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: controller,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      labelText: 'Display Name',
+                      hintText: 'e.g. Manav',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF6D7A72))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                await auth.updateDisplayName(newName);
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save Name'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSecurityDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Security & Biometrics'),
-        content: const Text(
-          'ExpenCircle is protected by your system security lock (Fingerprint / Face ID / Screen Lock PIN). '
-          'Your data is stored securely in your private, encrypted app storage.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel', style: TextStyle(color: Color(0xFF6D7A72))),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        setDialogState(() => isSaving = true);
+                        final newName = controller.text.trim();
+                        if (newName.isNotEmpty) {
+                          await auth.updateDisplayName(newName);
+                        }
+                        if (removeExistingPhoto) {
+                          await auth.updateProfilePhoto(null);
+                        } else if (pickedPhoto != null) {
+                          final uploadedUrl = await CloudflareR2Service.instance.uploadImage(
+                            bytes: pickedPhoto!.bytes,
+                            folder: 'avatars',
+                            extension: pickedPhoto!.extension,
+                          );
+                          if (uploadedUrl != null) {
+                            await auth.updateProfilePhoto(uploadedUrl);
+                          } else {
+                            final ext = pickedPhoto!.extension.toLowerCase();
+                            final mime = ext == 'png'
+                                ? 'image/png'
+                                : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+                            final dataUri = 'data:$mime;base64,${base64Encode(pickedPhoto!.bytes)}';
+                            await auth.updateProfilePhoto(dataUri);
+                          }
+                        }
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -584,7 +631,6 @@ class _StorageModeTile extends StatefulWidget {
 
 class _StorageModeTileState extends State<_StorageModeTile> {
   StorageMode _mode = StorageMode.local;
-  bool _loading = true;
 
   @override
   void initState() {
@@ -597,7 +643,6 @@ class _StorageModeTileState extends State<_StorageModeTile> {
     if (mounted) {
       setState(() {
         _mode = m;
-        _loading = false;
       });
     }
   }
@@ -616,16 +661,6 @@ class _StorageModeTileState extends State<_StorageModeTile> {
         color: isCloud ? AppColors.primary : const Color(0xFF4B41E1),
       ),
       title: const Text('Personal Expense Storage', style: TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(
-        _loading
-            ? 'Loading...'
-            : (isCloud ? 'Cloud Sync & Backup (Connected)' : 'Device Local Storage (Offline Mode)'),
-        style: TextStyle(
-          fontSize: 12,
-          color: isCloud ? AppColors.primary : const Color(0xFF6D7A72),
-          fontWeight: isCloud ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _showStorageDialog(context),
     );

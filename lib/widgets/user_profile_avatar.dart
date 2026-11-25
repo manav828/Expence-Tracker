@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../core/theme/app_colors.dart';
@@ -17,55 +18,83 @@ class UserProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarUrl = AuthService.instance.userAvatarUrl;
-    final initial = AuthService.instance.userInitial;
+    final auth = AuthService.instance;
+    return ValueListenableBuilder<String?>(
+      valueListenable: auth.userAvatarNotifier,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<String>(
+          valueListenable: auth.userNameNotifier,
+          builder: (context, ___, ____) {
+            final avatarUrl = auth.userAvatarUrl;
+            final initial = auth.userInitial;
 
-    Widget avatarContent;
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      avatarContent = ClipOval(
-        child: Image.network(
-          avatarUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildLetterAvatar(initial),
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return _buildLetterAvatar(initial);
+            Widget avatarContent;
+            if (avatarUrl != null && avatarUrl.startsWith('data:image')) {
+              try {
+                final commaIdx = avatarUrl.indexOf(',');
+                final rawB64 = commaIdx != -1 ? avatarUrl.substring(commaIdx + 1) : avatarUrl;
+                final bytes = base64Decode(rawB64);
+                avatarContent = ClipOval(
+                  child: Image.memory(
+                    bytes,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildLetterAvatar(initial),
+                  ),
+                );
+              } catch (_) {
+                avatarContent = _buildLetterAvatar(initial);
+              }
+            } else if (avatarUrl != null && avatarUrl.isNotEmpty) {
+              avatarContent = ClipOval(
+                child: Image.network(
+                  avatarUrl,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildLetterAvatar(initial),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return _buildLetterAvatar(initial);
+                  },
+                ),
+              );
+            } else {
+              avatarContent = _buildLetterAvatar(initial);
+            }
+
+            final Widget avatar = Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: showBorder
+                    ? Border.all(color: AppColors.primaryBorder, width: 2)
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: avatarContent,
+            );
+
+            if (onTap != null) {
+              return InkWell(
+                onTap: onTap,
+                customBorder: const CircleBorder(),
+                child: avatar,
+              );
+            }
+            return avatar;
           },
-        ),
-      );
-    } else {
-      avatarContent = _buildLetterAvatar(initial);
-    }
-
-    Widget avatar = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: showBorder
-            ? Border.all(color: AppColors.primaryBorder, width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: avatarContent,
+        );
+      },
     );
-
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: avatar,
-      );
-    }
-    return avatar;
   }
 
   Widget _buildLetterAvatar(String letter) {

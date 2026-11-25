@@ -15,7 +15,6 @@ import '../services/split_service.dart';
 import '../services/transaction_detection_service.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/budget_alert_banner.dart';
-import '../widgets/sms_tester_sheet.dart';
 import '../widgets/storage_choice_dialog.dart';
 import '../widgets/user_profile_avatar.dart';
 import 'analytics_screen.dart';
@@ -146,87 +145,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     BudgetScreen(),
   ];
 
-  void _showActionModal(BuildContext context) {
+  void _openAddExpenseSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Quick Action',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.add_circle, color: AppColors.primary),
-              ),
-              title: const Text('Add Spend', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Manually record an expense or outflow'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pop(ctx);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => const AddExpenseSheet(),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.sms, color: AppColors.secondary),
-              ),
-              title: const Text('Bank SMS Auto-Log', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Test or parse HDFC/SBI bank transaction SMS'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pop(ctx);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => const SmsTesterSheet(),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+      builder: (_) => const AddExpenseSheet(),
     );
   }
 
@@ -487,7 +411,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           Positioned(
             top: -14,
             child: GestureDetector(
-              onTap: () => _showActionModal(context),
+              onTap: () => _openAddExpenseSheet(context),
               child: Container(
                 width: 54,
                 height: 54,
