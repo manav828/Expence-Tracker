@@ -72,133 +72,84 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
     if (reminders.isEmpty) return const SizedBox.shrink();
 
     final activeIdx = _currentPage.clamp(0, reminders.length - 1);
-    final activeReminder = reminders[activeIdx];
-    final palette = _bannerPalette(activeReminder);
     final hasMultiple = reminders.length > 1;
+    const accentGreen = Color(0xFF00B16A);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      height: hasMultiple ? 120 : 112,
+      height: hasMultiple ? 128 : 118,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white, palette.surfaceTint],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: palette.borderColor, width: 1.2),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6ECF2), width: 1),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF131B2E).withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Swipeable & Auto-rotating PageView
-          PageView.builder(
-            controller: _pageController,
-            itemCount: reminders.length,
-            onPageChanged: (idx) {
-              setState(() => _currentPage = idx);
-              _restartAutoRotate();
-            },
-            itemBuilder: (context, idx) {
-              final reminder = reminders[idx];
-              return _buildReminderItem(
-                context,
-                reminder,
-                provider,
-                hasMultiple: hasMultiple,
-              );
-            },
-          ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            // Left Vertical Emerald Accent Bar
+            const Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 5,
+              child: ColoredBox(color: accentGreen),
+            ),
 
-          // Dismiss 'X' Button on top-right
-          Positioned(
-            top: 10,
-            right: 10,
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                onTap: () => provider.dismissBannerForSession(),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF1F5F9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: Color(0xFF64748B),
-                    size: 14,
-                  ),
+            // Swipeable & Auto-rotating PageView
+            PageView.builder(
+              controller: _pageController,
+              itemCount: reminders.length,
+              onPageChanged: (idx) {
+                setState(() => _currentPage = idx);
+                _restartAutoRotate();
+              },
+              itemBuilder: (context, idx) {
+                final reminder = reminders[idx];
+                return _buildReminderItem(
+                  context,
+                  reminder,
+                  provider,
+                  hasMultiple: hasMultiple,
+                );
+              },
+            ),
+
+            // Bottom Dot Indicators (only if multiple items)
+            if (hasMultiple)
+              Positioned(
+                bottom: 6,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(reminders.length, (dotIdx) {
+                    final isSelected = dotIdx == activeIdx;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                      width: isSelected ? 16 : 5,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? accentGreen
+                            : const Color(0xFFD1D5DB),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    );
+                  }),
                 ),
               ),
-            ),
-          ),
-
-          // Bottom Dot Indicators (only if multiple items)
-          if (hasMultiple)
-            Positioned(
-              bottom: 7,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(reminders.length, (dotIdx) {
-                  final isSelected = dotIdx == activeIdx;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    width: isSelected ? 16 : 5,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? palette.accentColor
-                          : const Color(0xFFD1D5DB),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  );
-                }),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-
-  _BannerPalette _bannerPalette(PaymentReminder reminder) {
-    if (reminder.isOverdue) {
-      return const _BannerPalette(
-        accentColor: Color(0xFFDC2626),
-        iconBg: Color(0xFFFEE2E2),
-        tagBg: Color(0xFFFEE2E2),
-        tagText: Color(0xFFB91C1C),
-        borderColor: Color(0xFFFECACA),
-        surfaceTint: Color(0xFFFFF8F8),
-      );
-    }
-    if (reminder.isDueToday) {
-      return const _BannerPalette(
-        accentColor: Color(0xFFD97706),
-        iconBg: Color(0xFFFEF3C7),
-        tagBg: Color(0xFFFEF3C7),
-        tagText: Color(0xFFB45309),
-        borderColor: Color(0xFFFDE68A),
-        surfaceTint: Color(0xFFFFFCF3),
-      );
-    }
-    return const _BannerPalette(
-      accentColor: AppColors.primary,
-      iconBg: AppColors.primaryLight,
-      tagBg: AppColors.primaryFill,
-      tagText: AppColors.primary,
-      borderColor: AppColors.primaryBorder,
-      surfaceTint: Color(0xFFF5FCF8),
     );
   }
 
@@ -209,7 +160,7 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
     required bool hasMultiple,
   }) {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
-    final palette = _bannerPalette(reminder);
+    const accentGreen = Color(0xFF00B16A);
 
     return Material(
       type: MaterialType.transparency,
@@ -219,122 +170,62 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
             MaterialPageRoute(builder: (_) => const PaymentRemindersScreen()),
           );
         },
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(14, 12, 14, hasMultiple ? 20 : 12),
+          padding: EdgeInsets.fromLTRB(18, 14, 16, hasMultiple ? 22 : 14),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Top Row: Circular Icon + Title + Amount only
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Category Icon Badge
                   Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: palette.iconBg,
-                      borderRadius: BorderRadius.circular(12),
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE8F7F0),
+                      shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Icon(
                         CategoryIcons.get(reminder.category),
-                        color: palette.accentColor,
-                        size: 20,
+                        color: accentGreen,
+                        size: 22,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-
-                  // Title, Status Pill & Frequency
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 28),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  reminder.title,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (reminder.splitGroupId != null) ...[
-                                const SizedBox(width: 6),
-                                const Icon(
-                                  Icons.group_rounded,
-                                  color: AppColors.textMuted,
-                                  size: 14,
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: palette.tagBg,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  reminder.dueStatusText,
-                                  style: TextStyle(
-                                    color: palette.tagText,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  reminder.frequency.label,
-                                  style: const TextStyle(
-                                    color: AppColors.textMuted,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    child: Text(
+                      reminder.title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    currencyFmt.format(reminder.amount),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ],
               ),
 
-              // Bottom Row: Amount + 1-Tap "Mark Paid" Action
+              // Bottom Row: Mark Paid & Snooze Buttons
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    currencyFmt.format(reminder.amount),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
                   ElevatedButton.icon(
                     onPressed: () async {
                       final expenseProvider = context.read<ExpenseProvider>();
@@ -372,28 +263,58 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
                         );
                       }
                     },
-                    icon: const Icon(Icons.check_rounded, size: 15),
+                    icon: const Icon(Icons.check_rounded, size: 16),
                     label: const Text(
                       'Mark Paid',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.1,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: accentGreen,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 7,
+                        horizontal: 16,
+                        vertical: 8,
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => provider.dismissBannerForSession(),
+                    icon: const Icon(
+                      Icons.access_time_rounded,
+                      size: 15,
+                      color: Color(0xFF64748B),
+                    ),
+                    label: const Text(
+                      'Snooze',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
+                        letterSpacing: -0.1,
                       ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(
+                        color: Color(0xFFCBD5E1),
+                        width: 1.2,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: const StadiumBorder(),
                     ),
                   ),
                 ],
@@ -404,22 +325,4 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
       ),
     );
   }
-}
-
-class _BannerPalette {
-  final Color accentColor;
-  final Color iconBg;
-  final Color tagBg;
-  final Color tagText;
-  final Color borderColor;
-  final Color surfaceTint;
-
-  const _BannerPalette({
-    required this.accentColor,
-    required this.iconBg,
-    required this.tagBg,
-    required this.tagText,
-    required this.borderColor,
-    required this.surfaceTint,
-  });
 }

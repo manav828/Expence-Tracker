@@ -45,7 +45,7 @@ void main() {
       expect(auth.userNameNotifier.value, 'Manav Satasiya');
     });
 
-    testWidgets('DashboardScreen displays dynamic greeting and reacts to name updates', (tester) async {
+    testWidgets('DashboardScreen displays simple time greeting without user name', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -68,29 +68,16 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Check that greeting contains Manav
-      expect(find.textContaining('Manav'), findsOneWidget);
+      final hour = DateTime.now().hour;
+      final expectedGreeting = hour < 12
+          ? 'Good morning'
+          : hour < 17
+              ? 'Good afternoon'
+              : 'Good evening';
 
-      // Verify that there is NO hardcoded "Alex"
+      expect(find.text(expectedGreeting), findsOneWidget);
+      expect(find.textContaining('Manav'), findsNothing);
       expect(find.textContaining('Alex'), findsNothing);
-
-      // Tap on the greeting to open the personalization dialog
-      final greetingFinder = find.textContaining('Manav');
-      await tester.tap(greetingFinder);
-      await tester.pumpAndSettle();
-
-      // Check dialog exists
-      expect(find.text('Personalize Your Name'), findsOneWidget);
-      expect(find.text('Save Name'), findsOneWidget);
-
-      // Change name to Rahul
-      await tester.enterText(find.byType(TextField), 'Rahul');
-      await tester.tap(find.text('Save Name'));
-      await tester.pumpAndSettle();
-
-      // Greeting should now update dynamically to Rahul
-      expect(find.textContaining('Rahul'), findsOneWidget);
-      expect(AuthService.instance.userDisplayName, 'Rahul');
     });
   });
 }

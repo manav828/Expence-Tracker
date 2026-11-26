@@ -12,7 +12,6 @@ import 'category_detail_screen.dart';
 import '../utils/category_icons.dart';
 import '../widgets/reminder_carousel_banner.dart';
 import '../widgets/dashboard_shimmer.dart';
-import '../services/auth_service.dart';
 import '../providers/split_provider.dart';
 import '../models/split_models.dart';
 import 'split/split_group_detail_screen.dart';
@@ -267,7 +266,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
     final lastDay = DateTime(now.year, now.month + 1, 0);
-    final dateRangeStr = '${DateFormat('MMM 1').format(firstDay)} – ${DateFormat('MMM d').format(lastDay)}';
+    final dateRangeStr =
+        '${DateFormat('MMM 1').format(firstDay)} – ${DateFormat('MMM d').format(lastDay)}';
 
     final hour = now.hour;
     final timeGreeting = hour < 12
@@ -276,14 +276,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? 'Good afternoon'
             : 'Good evening';
 
-    return ValueListenableBuilder<String>(
-      valueListenable: AuthService.instance.userNameNotifier,
-      builder: (context, displayName, _) {
-        final hasCustomName =
-            displayName.isNotEmpty && displayName.toLowerCase() != 'guest user';
-        final firstName = hasCustomName ? displayName.split(' ').first : '';
-
-        final datePill = Container(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            timeGreeting,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF131B2E),
+              letterSpacing: -0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: const Color(0xFFF2F3FF),
@@ -311,138 +322,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-        );
-
-        Widget buildEditableTitle(String text) {
-          return GestureDetector(
-            onTap: () => _showEditNameDialog(context),
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF131B2E),
-                      letterSpacing: -0.5,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.edit_outlined,
-                  size: 16,
-                  color: const Color(0xFF131B2E).withValues(alpha: 0.35),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (!hasCustomName) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(child: buildEditableTitle(timeGreeting)),
-              const SizedBox(width: 8),
-              datePill,
-            ],
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  '$timeGreeting,',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6D7A72),
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                datePill,
-              ],
-            ),
-            const SizedBox(height: 2),
-            buildEditableTitle(firstName),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showEditNameDialog(BuildContext context) {
-    final auth = AuthService.instance;
-    final currentName = auth.userDisplayName == 'Guest User' ? '' : auth.userDisplayName;
-    final controller = TextEditingController(text: currentName);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Personalize Your Name',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF131B2E)),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your name so ExpenCircle greets you properly on your dashboard.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6D7A72)),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: 'e.g. Manav',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF6D7A72))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                await auth.updateDisplayName(newName);
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save Name'),
-          ),
-        ],
-      ),
+      ],
     );
   }
 

@@ -79,16 +79,17 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Check banner exists
+      // Check banner exists with only title, amount, Mark Paid, and Snooze
       expect(find.byType(ReminderCarouselBanner), findsOneWidget);
       expect(find.text('Flat Rent'), findsOneWidget);
-      expect(find.textContaining('₹15,000'), findsOneWidget);
+      expect(find.text('₹15,000'), findsOneWidget);
       expect(find.text('Mark Paid'), findsOneWidget);
+      expect(find.text('Snooze'), findsOneWidget);
+      expect(find.text('Monthly'), findsNothing);
+      expect(find.byIcon(Icons.close_rounded), findsNothing);
 
-      // Verify dismiss 'X' button works
-      final dismissButton = find.byIcon(Icons.close_rounded);
-      expect(dismissButton, findsOneWidget);
-      await tester.tap(dismissButton);
+      // Verify Snooze button dismisses the banner
+      await tester.tap(find.text('Snooze'));
       await tester.pumpAndSettle();
 
       // Banner should now be dismissed
