@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/legal_sheets.dart';
+import '../../widgets/common/google_logo_icon.dart';
 import '../../core/theme/app_colors.dart';
 
 
@@ -554,17 +555,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     onPressed: _isLoading ? null : _handleGoogleSignIn,
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: const BoxDecoration(shape: BoxShape.circle),
-                          child: const Icon(Icons.g_mobiledata_rounded, size: 26, color: Color(0xFFEA4335)),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
+                        GoogleLogoIcon(size: 20),
+                        SizedBox(width: 10),
+                        Text(
                           'Sign up with Google',
                           style: TextStyle(
                             fontSize: 14,

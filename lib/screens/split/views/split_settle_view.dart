@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../models/split_models.dart';
 import '../../../providers/split_provider.dart';
+import '../../../services/split_service.dart';
 import '../settle_up_screen.dart';
 import '../widgets/dashed_border_painter.dart';
 import '../widgets/settlement_celebration_modal.dart';
@@ -142,31 +143,50 @@ class _SplitSettleViewState extends State<SplitSettleView> {
     );
   }
 
-  void _sendReminder(BuildContext context, String fromName, String toName, double amount) {
-    final text = 'Hi $fromName, a quick reminder from our "${widget.group.name}" split group: pending payment of ₹${amount.toStringAsFixed(2)} to $toName. You can settle it anytime on ExpenCircle!';
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Payment reminder for $fromName copied to clipboard!'),
-        backgroundColor: _brandDark,
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: _mintBadge,
-          onPressed: () {},
-        ),
-      ),
+  Future<void> _sendReminder(
+    BuildContext context, {
+    required SplitProvider sp,
+    required Debt debt,
+    required String fromName,
+    required String toName,
+  }) async {
+    final status = await sp.sendSettlementReminder(
+      group: widget.group,
+      debt: debt,
+      fromName: fromName,
+      toName: toName,
     );
-  }
+    if (!context.mounted) return;
 
-  void _requestViaUpi(BuildContext context, String fromName, double amount) {
-    final upiUrl = 'upi://pay?pn=ExpenCircle&am=${amount.toStringAsFixed(2)}&tn=${Uri.encodeComponent("Split payment for ${widget.group.name}")}';
-    final shareMsg = 'Hi $fromName, please settle ₹${amount.toStringAsFixed(2)} for our "${widget.group.name}" group via UPI: $upiUrl';
-    Clipboard.setData(ClipboardData(text: shareMsg));
+    final String message;
+    final Color bgColor;
+    switch (status) {
+      case SettlementReminderStatus.sent:
+        message = 'Push notification reminder sent to $fromName!';
+        bgColor = _primaryGreen;
+        break;
+      case SettlementReminderStatus.noLinkedAccount:
+        message = '$fromName has not joined with an app account yet.';
+        bgColor = _brandDark;
+        break;
+      case SettlementReminderStatus.noDeviceTokens:
+        message = '$fromName has not enabled notifications on their device yet.';
+        bgColor = _brandDark;
+        break;
+      case SettlementReminderStatus.notConfigured:
+        message = 'Push notifications are not configured on the backend yet.';
+        bgColor = _brandDark;
+        break;
+      case SettlementReminderStatus.failed:
+        message = 'Could not send push notification to $fromName. Try again later.';
+        bgColor = Colors.red.shade700;
+        break;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('UPI payment request for ₹${amount.toStringAsFixed(2)} copied to clipboard!'),
-        backgroundColor: _primaryGreen,
+        content: Text(message),
+        backgroundColor: bgColor,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -992,7 +1012,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
           // Actions row
           Row(
             children: [
-              // Request via UPI button
+              // Remind button
               Expanded(
                 flex: 3,
                 child: ElevatedButton.icon(
@@ -1004,10 +1024,16 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () => _requestViaUpi(context, fromName, debt.amount),
-                  icon: const Icon(Icons.bolt, size: 16, color: Colors.white),
+                  onPressed: () => _sendReminder(
+                    context,
+                    sp: sp,
+                    debt: debt,
+                    fromName: fromName,
+                    toName: 'You',
+                  ),
+                  icon: const Icon(Icons.notifications_none_rounded, size: 16, color: Colors.white),
                   label: const Text(
-                    'Request via UPI',
+                    'Remind',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -1477,7 +1503,13 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: () => _sendReminder(context, fromName, toName, debt.amount),
+                        onPressed: () => _sendReminder(
+                          context,
+                          sp: sp,
+                          debt: debt,
+                          fromName: fromName,
+                          toName: toName,
+                        ),
                         icon: const Icon(Icons.notifications_none_rounded, size: 14),
                         label: const Text(
                           'Remind',

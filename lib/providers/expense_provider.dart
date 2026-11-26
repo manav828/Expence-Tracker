@@ -17,13 +17,34 @@ class ExpenseProvider with ChangeNotifier {
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  /// Formats category and payment method names to Title Case by default
+  /// while preserving already-uppercase acronyms such as UPI or EMI.
+  static String formatDisplayName(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed.split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return word;
+      if (word.length > 1 && word == word.toUpperCase() && RegExp(r'^[A-Z0-9&/.-]+$').hasMatch(word)) {
+        return word;
+      }
+      return '${word[0].toUpperCase()}${word.substring(1)}';
+    }).join(' ');
+  }
+
   List<String> get categories {
-    final list = _categories.isNotEmpty
+    final raw = _categories.isNotEmpty
         ? List<String>.from(_categories)
         : ['Food & Dining', 'Shopping', 'Transport', 'Bills & Utilities', 'Entertainment', 'Health & Wellness', 'Investment', 'General'];
+    final list = <String>[];
+    for (final c in raw) {
+      final formatted = formatDisplayName(c);
+      if (formatted.isNotEmpty && !list.any((x) => x.toLowerCase() == formatted.toLowerCase())) {
+        list.add(formatted);
+      }
+    }
     for (final e in _expenses) {
       if (e.isExpense && e.category.trim().isNotEmpty) {
-        final cat = e.category.trim();
+        final cat = formatDisplayName(e.category);
         if (!list.any((c) => c.toLowerCase() == cat.toLowerCase())) {
           list.add(cat);
         }
@@ -33,12 +54,19 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   List<String> get incomeCategories {
-    final list = _incomeCategories.isNotEmpty
+    final raw = _incomeCategories.isNotEmpty
         ? List<String>.from(_incomeCategories)
         : List<String>.from(DatabaseService.defaultIncomeCategories);
+    final list = <String>[];
+    for (final c in raw) {
+      final formatted = formatDisplayName(c);
+      if (formatted.isNotEmpty && !list.any((x) => x.toLowerCase() == formatted.toLowerCase())) {
+        list.add(formatted);
+      }
+    }
     for (final e in _expenses) {
       if (e.isIncome && e.category.trim().isNotEmpty) {
-        final cat = e.category.trim();
+        final cat = formatDisplayName(e.category);
         if (!list.any((c) => c.toLowerCase() == cat.toLowerCase())) {
           list.add(cat);
         }
@@ -46,8 +74,20 @@ class ExpenseProvider with ChangeNotifier {
     }
     return list;
   }
-  List<String> get paymentMethods =>
-      _paymentMethods.isNotEmpty ? _paymentMethods : List<String>.from(DatabaseService.defaultPaymentMethods);
+
+  List<String> get paymentMethods {
+    final raw = _paymentMethods.isNotEmpty
+        ? _paymentMethods
+        : List<String>.from(DatabaseService.defaultPaymentMethods);
+    final list = <String>[];
+    for (final p in raw) {
+      final formatted = formatDisplayName(p);
+      if (formatted.isNotEmpty && !list.any((x) => x.toLowerCase() == formatted.toLowerCase())) {
+        list.add(formatted);
+      }
+    }
+    return list;
+  }
 
   void clearError() {
     _errorMessage = null;

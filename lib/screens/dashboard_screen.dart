@@ -279,78 +279,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ValueListenableBuilder<String>(
       valueListenable: AuthService.instance.userNameNotifier,
       builder: (context, displayName, _) {
-        final String greeting;
-        if (displayName.isEmpty || displayName.toLowerCase() == 'guest user') {
-          greeting = timeGreeting;
-        } else {
-          final firstName = displayName.split(' ').first;
-          greeting = '$timeGreeting, $firstName';
-        }
+        final hasCustomName =
+            displayName.isNotEmpty && displayName.toLowerCase() != 'guest user';
+        final firstName = hasCustomName ? displayName.split(' ').first : '';
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => _showEditNameDialog(context),
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        greeting,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF131B2E),
-                          letterSpacing: -0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 16,
-                      color: const Color(0xFF131B2E).withValues(alpha: 0.35),
-                    ),
-                  ],
+        final datePill = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F3FF),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08000000),
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today, size: 14, color: Color(0xFF006577)),
+              const SizedBox(width: 6),
+              Text(
+                dateRangeStr,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF3D4A42),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F3FF),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x08000000),
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.calendar_today, size: 14, color: Color(0xFF006577)),
-                  const SizedBox(width: 6),
-                  Text(
-                    dateRangeStr,
+            ],
+          ),
+        );
+
+        Widget buildEditableTitle(String text) {
+          return GestureDetector(
+            onTap: () => _showEditNameDialog(context),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    text,
                     style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF3D4A42),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF131B2E),
+                      letterSpacing: -0.5,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 16,
+                  color: const Color(0xFF131B2E).withValues(alpha: 0.35),
+                ),
+              ],
             ),
+          );
+        }
+
+        if (!hasCustomName) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: buildEditableTitle(timeGreeting)),
+              const SizedBox(width: 8),
+              datePill,
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '$timeGreeting,',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6D7A72),
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                datePill,
+              ],
+            ),
+            const SizedBox(height: 2),
+            buildEditableTitle(firstName),
           ],
         );
       },
@@ -1044,31 +1070,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$todayLabel Status',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 2,
+                    children: [
+                      Text(
+                        'Accrued: ${inrFmt.format(totalOutflow)}',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.primary),
+                      ),
+                      if (maxCeiling > totalOutflow)
+                        Text(
+                          'Target: ${inrFmt.format(maxCeiling)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6D7A72)),
+                        ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '$todayLabel Status',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-                ),
-                const Spacer(),
-                Text(
-                  'Accrued: ${inrFmt.format(totalOutflow)}',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary),
-                ),
-                if (maxCeiling > totalOutflow) ...[
-                  Text(
-                    '  •  Target: ${inrFmt.format(maxCeiling)}',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6D7A72)),
-                  ),
-                ],
               ],
             ),
           ),

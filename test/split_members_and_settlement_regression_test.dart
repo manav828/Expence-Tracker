@@ -244,5 +244,84 @@ void main() {
       expect(find.text('₹120.00'), findsOneWidget);
       expect(find.byIcon(Icons.receipt_long_outlined), findsAtLeastNWidgets(2));
     });
+
+    testWidgets('Members Tab top card shows minimal header, Add Member & Group QR only, and no avatar stack', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      splitProvider.setGroupDetailForTesting(
+        groupId: 'grp_goa_123',
+        members: [me, bob, charlie],
+        settlementGroups: [],
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Members'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Goa Trip 2026'), findsAtLeastNWidgets(1));
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Text && (w.data ?? '').startsWith('Created on ') && (w.data ?? '').endsWith(' • Active'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Add Member'), findsAtLeastNWidgets(1));
+      expect(find.text('Group QR'), findsOneWidget);
+
+      // Removed elements from top card
+      expect(find.text('Share Link'), findsNothing);
+      expect(find.text('Active Group'), findsNothing);
+      expect(find.text('Good friends, shared moments'), findsNothing);
+      expect(find.textContaining('members across'), findsNothing);
+    });
+
+    testWidgets('Settle Tab replaces Request via UPI with Remind and does not copy reminder to clipboard', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final exp = SplitExpense(
+        id: 'e1',
+        groupId: 'grp_goa_123',
+        title: 'Hotel',
+        totalAmount: 1000.0,
+        paidByMemberId: 'm_alex',
+        splitType: SplitType.equal,
+        addedByMemberId: 'm_alex',
+        createdAt: now,
+      );
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      splitProvider.setGroupDetailForTesting(
+        groupId: 'grp_goa_123',
+        members: [me, bob],
+        settlementGroups: [],
+        expenses: [exp],
+        balances: {'m_alex': 500.0, 'm_bob': -500.0},
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Settle'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Request via UPI'), findsNothing);
+      expect(find.text('Remind'), findsOneWidget);
+
+      await tester.tap(find.text('Remind'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('copied to clipboard'), findsNothing);
+      expect(
+        find.text('Bob has not joined with an app account yet.'),
+        findsOneWidget,
+      );
+    });
   });
 }

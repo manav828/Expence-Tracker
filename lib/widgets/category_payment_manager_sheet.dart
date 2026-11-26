@@ -15,6 +15,8 @@ class CategoryPaymentManagerSheet extends StatefulWidget {
 
 class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerSheet> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   String _categorySortMode = 'custom'; // 'custom', 'most_used', 'az'
   String _incomeCategorySortMode = 'custom'; // 'custom', 'most_used', 'az'
   String _paymentMethodSortMode = 'custom'; // 'custom', 'most_used', 'az'
@@ -28,6 +30,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -359,42 +362,284 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     );
   }
 
-  Widget _buildSortChip({
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
+  List<String> _dedupeAndFilter(List<String> raw) {
+    final result = <String>[];
+    final seen = <String>{};
+    final q = _searchQuery.trim().toLowerCase();
+    for (final item in raw) {
+      final trimmed = item.trim();
+      if (trimmed.isNotEmpty && seen.add(trimmed.toLowerCase())) {
+        if (q.isEmpty || trimmed.toLowerCase().contains(q)) {
+          result.add(trimmed);
+        }
+      }
+    }
+    return result;
+  }
+
+  Widget _buildManagerTab({
+    required BuildContext context,
+    required ExpenseProvider provider,
+    required List<String> items,
+    required bool isCategory,
+    required bool isIncome,
+    required String sortMode,
+    required String addButtonLabel,
+    required String searchHint,
+    required Future<void> Function(int oldIndex, int newIndex) onReorder,
+    required Future<void> Function(String mode) onSelectSort,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : const Color(0xFFF2F3FF),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? AppColors.primary : Colors.black12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 13,
-              color: isSelected ? AppColors.primary : const Color(0xFF6D7A72),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? AppColors.primary : const Color(0xFF6D7A72),
+    final isSearching = _searchQuery.trim().isNotEmpty;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                  decoration: InputDecoration(
+                    hintText: searchHint,
+                    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF6D7A72)),
+                    prefixIcon: const Icon(Icons.search, size: 19, color: AppColors.primary),
+                    suffixIcon: isSearching
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 17, color: Color(0xFF6D7A72)),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: 'Sort & Filter',
+                onSelected: onSelectSort,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: 'most_used',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_fire_department,
+                          size: 17,
+                          color: sortMode == 'most_used' ? AppColors.primary : const Color(0xFF6D7A72),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Most Used',
+                          style: TextStyle(
+                            fontWeight: sortMode == 'most_used' ? FontWeight.w700 : FontWeight.w500,
+                            color: sortMode == 'most_used' ? AppColors.primary : const Color(0xFF131B2E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'az',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.sort_by_alpha,
+                          size: 17,
+                          color: sortMode == 'az' ? AppColors.primary : const Color(0xFF6D7A72),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'A-Z',
+                          style: TextStyle(
+                            fontWeight: sortMode == 'az' ? FontWeight.w700 : FontWeight.w500,
+                            color: sortMode == 'az' ? AppColors.primary : const Color(0xFF131B2E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: sortMode != 'custom'
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: sortMode != 'custom' ? AppColors.primary : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    size: 19,
+                    color: sortMode != 'custom' ? AppColors.primary : const Color(0xFF3D4A42),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () => _promptAdd(context, isCategory, isIncome: isIncome),
+                icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                label: Text(
+                  addButtonLabel,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  iconColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        Expanded(
+          child: items.isEmpty
+              ? Center(
+                  child: Text(
+                    isSearching ? 'No matches for "$_searchQuery"' : 'No items yet',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF6D7A72)),
+                  ),
+                )
+              : ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
+                  itemCount: items.length,
+                  onReorder: (oldIndex, newIndex) async {
+                    if (isSearching) return;
+                    await onReorder(oldIndex, newIndex);
+                  },
+                  itemBuilder: (ctx, i) {
+                    final item = items[i];
+                    final itemIcon = isCategory
+                        ? CategoryIcons.get(item)
+                        : CategoryIcons.getPaymentMethodIcon(item);
+
+                    return Container(
+                      key: ValueKey('${isCategory ? (isIncome ? "inc" : "cat") : "pm"}_$item'),
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0x0F000000)),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                        onTap: () => _promptEdit(context, isCategory, item, isIncome: isIncome),
+                        leading: isCategory
+                            ? Tooltip(
+                                message: 'Tap to change icon',
+                                child: InkWell(
+                                  onTap: () async {
+                                    final currentKey = CategoryIcons.getKeyForCategory(item);
+                                    final picked = await CategoryIconPickerDialog.show(
+                                      context,
+                                      currentIconKey: currentKey,
+                                    );
+                                    if (picked != null && mounted) {
+                                      await CategoryIcons.setCustomIcon(item, picked.key);
+                                      setState(() {});
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Icon(itemIcon, size: 20, color: AppColors.primary),
+                                        Positioned(
+                                          bottom: 1,
+                                          right: 1,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(1.5),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.white,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.edit, size: 8, color: AppColors.primary),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(itemIcon, size: 20, color: AppColors.primary),
+                              ),
+                        title: Text(
+                          item,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
+                              tooltip: isCategory ? 'Edit name & icon' : 'Edit name',
+                              onPressed: () => _promptEdit(context, isCategory, item, isIncome: isIncome),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 19, color: Color(0xFFBA1A1A)),
+                              tooltip: 'Delete',
+                              onPressed: () => _confirmDelete(context, isCategory, item, isIncome: isIncome),
+                            ),
+                            if (!isSearching)
+                              ReorderableDragStartListener(
+                                index: i,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                  child: const Icon(Icons.drag_indicator, size: 22, color: Color(0xFF6D7A72)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -410,14 +655,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     } else {
       rawCategories = List<String>.from(provider.categories);
     }
-    final categories = <String>[];
-    final seenCats = <String>{};
-    for (final c in rawCategories) {
-      final trimmed = c.trim();
-      if (trimmed.isNotEmpty && seenCats.add(trimmed.toLowerCase())) {
-        categories.add(trimmed);
-      }
-    }
+    final categories = _dedupeAndFilter(rawCategories);
 
     List<String> rawIncomeCategories;
     if (_incomeCategorySortMode == 'most_used') {
@@ -427,14 +665,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     } else {
       rawIncomeCategories = List<String>.from(provider.incomeCategories);
     }
-    final incomeCategories = <String>[];
-    final seenIncCats = <String>{};
-    for (final c in rawIncomeCategories) {
-      final trimmed = c.trim();
-      if (trimmed.isNotEmpty && seenIncCats.add(trimmed.toLowerCase())) {
-        incomeCategories.add(trimmed);
-      }
-    }
+    final incomeCategories = _dedupeAndFilter(rawIncomeCategories);
 
     List<String> rawPaymentMethods;
     if (_paymentMethodSortMode == 'most_used') {
@@ -444,14 +675,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
     } else {
       rawPaymentMethods = List<String>.from(provider.paymentMethods);
     }
-    final paymentMethods = <String>[];
-    final seenPms = <String>{};
-    for (final p in rawPaymentMethods) {
-      final trimmed = p.trim();
-      if (trimmed.isNotEmpty && seenPms.add(trimmed.toLowerCase())) {
-        paymentMethods.add(trimmed);
-      }
-    }
+    final paymentMethods = _dedupeAndFilter(rawPaymentMethods);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
@@ -477,9 +701,9 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
                     'Categories & Methods',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
@@ -502,10 +726,11 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
             labelColor: AppColors.primary,
             unselectedLabelColor: const Color(0xFF6D7A72),
             indicatorColor: AppColors.primary,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 6),
             tabs: const [
               Tab(text: 'Categories'),
               Tab(text: 'Income'),
-              Tab(text: 'Payment Methods'),
+              Tab(text: 'Methods'),
             ],
           ),
           const SizedBox(height: 12),
@@ -513,511 +738,80 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Categories tab
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildSortChip(
-                                    label: 'Drag & Drop',
-                                    icon: Icons.drag_indicator,
-                                    isSelected: _categorySortMode == 'custom',
-                                    onTap: () => setState(() => _categorySortMode = 'custom'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildSortChip(
-                                    label: 'Most Used',
-                                    icon: Icons.local_fire_department,
-                                    isSelected: _categorySortMode == 'most_used',
-                                    onTap: () async {
-                                      final sorted = provider.getSortedCategories(mostUsedFirst: true);
-                                      await provider.setCustomCategoryOrder(sorted);
-                                      setState(() => _categorySortMode = 'most_used');
-                                    },
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildSortChip(
-                                    label: 'A-Z',
-                                    icon: Icons.sort_by_alpha,
-                                    isSelected: _categorySortMode == 'az',
-                                    onTap: () async {
-                                      final sorted = List<String>.from(provider.categories)
-                                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-                                      await provider.setCustomCategoryOrder(sorted);
-                                      setState(() => _categorySortMode = 'az');
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => _promptAdd(context, true),
-                            icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                            label: const Text('Add Category', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ReorderableListView.builder(
-                        buildDefaultDragHandles: false,
-                        itemCount: categories.length,
-                        onReorder: (oldIndex, newIndex) async {
-                          setState(() => _categorySortMode = 'custom');
-                          await provider.reorderCategories(oldIndex, newIndex);
-                        },
-                        itemBuilder: (ctx, i) {
-                          final cat = categories[i];
-                          final usageCount = provider.getCategoryUsageCount(cat);
-                          final catIcon = CategoryIcons.get(cat);
-
-                          return Container(
-                            key: ValueKey('cat_$cat'),
-                            margin: const EdgeInsets.symmetric(vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0x0F000000)),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                              onTap: () => _promptEdit(context, true, cat),
-                              leading: Tooltip(
-                                message: 'Tap to change icon',
-                                child: InkWell(
-                                  onTap: () async {
-                                    final currentKey = CategoryIcons.getKeyForCategory(cat);
-                                    final picked = await CategoryIconPickerDialog.show(
-                                      context,
-                                      currentIconKey: currentKey,
-                                    );
-                                    if (picked != null && mounted) {
-                                      await CategoryIcons.setCustomIcon(cat, picked.key);
-                                      setState(() {});
-                                    }
-                                  },
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Icon(catIcon, size: 20, color: AppColors.primary),
-                                        Positioned(
-                                          bottom: 1,
-                                          right: 1,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(1.5),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.edit, size: 8, color: AppColors.primary),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(cat, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                                  ),
-                                  if (usageCount > 0)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFEAEDFF),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        '${usageCount}x',
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF3323CC)),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                usageCount > 0 ? '$usageCount txns • Drag ⠿ to reorder' : 'Not used yet • Drag ⠿ to reorder',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
-                                    tooltip: 'Edit name & icon',
-                                    onPressed: () => _promptEdit(context, true, cat),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 19, color: Color(0xFFBA1A1A)),
-                                    tooltip: 'Delete',
-                                    onPressed: () => _confirmDelete(context, true, cat),
-                                  ),
-                                  ReorderableDragStartListener(
-                                    index: i,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                      child: const Icon(Icons.drag_indicator, size: 22, color: Color(0xFF6D7A72)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                _buildManagerTab(
+                  context: context,
+                  provider: provider,
+                  items: categories,
+                  isCategory: true,
+                  isIncome: false,
+                  sortMode: _categorySortMode,
+                  addButtonLabel: 'Add Category',
+                  searchHint: 'Search categories...',
+                  onReorder: (oldIndex, newIndex) async {
+                    setState(() => _categorySortMode = 'custom');
+                    await provider.reorderCategories(oldIndex, newIndex);
+                  },
+                  onSelectSort: (mode) async {
+                    if (mode == 'most_used') {
+                      final sorted = provider.getSortedCategories(mostUsedFirst: true);
+                      await provider.setCustomCategoryOrder(sorted);
+                    } else if (mode == 'az') {
+                      final sorted = List<String>.from(provider.categories)
+                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                      await provider.setCustomCategoryOrder(sorted);
+                    }
+                    setState(() => _categorySortMode = mode);
+                  },
                 ),
-                // Income Categories tab
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildSortChip(
-                                    label: 'Drag & Drop',
-                                    icon: Icons.drag_indicator,
-                                    isSelected: _incomeCategorySortMode == 'custom',
-                                    onTap: () => setState(() => _incomeCategorySortMode = 'custom'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildSortChip(
-                                    label: 'Most Used',
-                                    icon: Icons.local_fire_department,
-                                    isSelected: _incomeCategorySortMode == 'most_used',
-                                    onTap: () async {
-                                      final sorted = provider.getSortedIncomeCategories(mostUsedFirst: true);
-                                      await provider.setCustomIncomeCategoryOrder(sorted);
-                                      setState(() => _incomeCategorySortMode = 'most_used');
-                                    },
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildSortChip(
-                                    label: 'A-Z',
-                                    icon: Icons.sort_by_alpha,
-                                    isSelected: _incomeCategorySortMode == 'az',
-                                    onTap: () async {
-                                      final sorted = List<String>.from(provider.incomeCategories)
-                                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-                                      await provider.setCustomIncomeCategoryOrder(sorted);
-                                      setState(() => _incomeCategorySortMode = 'az');
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => _promptAdd(context, true, isIncome: true),
-                            icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                            label: const Text('Add Income Category', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ReorderableListView.builder(
-                        buildDefaultDragHandles: false,
-                        itemCount: incomeCategories.length,
-                        onReorder: (oldIndex, newIndex) async {
-                          setState(() => _incomeCategorySortMode = 'custom');
-                          await provider.reorderIncomeCategories(oldIndex, newIndex);
-                        },
-                        itemBuilder: (ctx, i) {
-                          final cat = incomeCategories[i];
-                          final usageCount = provider.getIncomeCategoryUsageCount(cat);
-                          final catIcon = CategoryIcons.get(cat);
-
-                          return Container(
-                            key: ValueKey('inc_cat_$cat'),
-                            margin: const EdgeInsets.symmetric(vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0x0F000000)),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                              onTap: () => _promptEdit(context, true, cat, isIncome: true),
-                              leading: Tooltip(
-                                message: 'Tap to change icon',
-                                child: InkWell(
-                                  onTap: () async {
-                                    final currentKey = CategoryIcons.getKeyForCategory(cat);
-                                    final picked = await CategoryIconPickerDialog.show(
-                                      context,
-                                      currentIconKey: currentKey,
-                                    );
-                                    if (picked != null && mounted) {
-                                      await CategoryIcons.setCustomIcon(cat, picked.key);
-                                      setState(() {});
-                                    }
-                                  },
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Icon(catIcon, size: 20, color: AppColors.primary),
-                                        Positioned(
-                                          bottom: 1,
-                                          right: 1,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(1.5),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.edit, size: 8, color: AppColors.primary),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(cat, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                                  ),
-                                  if (usageCount > 0)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        '$usageCount logged',
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                usageCount > 0 ? '$usageCount txns • Drag ⠿ to reorder' : 'Not used yet • Drag ⠿ to reorder',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
-                                    tooltip: 'Edit name & icon',
-                                    onPressed: () => _promptEdit(context, true, cat, isIncome: true),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 19, color: Color(0xFFBA1A1A)),
-                                    tooltip: 'Delete',
-                                    onPressed: () => _confirmDelete(context, true, cat, isIncome: true),
-                                  ),
-                                  ReorderableDragStartListener(
-                                    index: i,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                      child: const Icon(Icons.drag_indicator, size: 22, color: Color(0xFF6D7A72)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                _buildManagerTab(
+                  context: context,
+                  provider: provider,
+                  items: incomeCategories,
+                  isCategory: true,
+                  isIncome: true,
+                  sortMode: _incomeCategorySortMode,
+                  addButtonLabel: 'Add Income',
+                  searchHint: 'Search income...',
+                  onReorder: (oldIndex, newIndex) async {
+                    setState(() => _incomeCategorySortMode = 'custom');
+                    await provider.reorderIncomeCategories(oldIndex, newIndex);
+                  },
+                  onSelectSort: (mode) async {
+                    if (mode == 'most_used') {
+                      final sorted = provider.getSortedIncomeCategories(mostUsedFirst: true);
+                      await provider.setCustomIncomeCategoryOrder(sorted);
+                    } else if (mode == 'az') {
+                      final sorted = List<String>.from(provider.incomeCategories)
+                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                      await provider.setCustomIncomeCategoryOrder(sorted);
+                    }
+                    setState(() => _incomeCategorySortMode = mode);
+                  },
                 ),
-                // Payment Methods tab
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildSortChip(
-                                    label: 'Drag & Drop',
-                                    icon: Icons.drag_indicator,
-                                    isSelected: _paymentMethodSortMode == 'custom',
-                                    onTap: () => setState(() => _paymentMethodSortMode = 'custom'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildSortChip(
-                                    label: 'Most Used',
-                                    icon: Icons.local_fire_department,
-                                    isSelected: _paymentMethodSortMode == 'most_used',
-                                    onTap: () async {
-                                      final sorted = provider.getSortedPaymentMethods(mostUsedFirst: true);
-                                      await provider.setCustomPaymentMethodOrder(sorted);
-                                      setState(() => _paymentMethodSortMode = 'most_used');
-                                    },
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildSortChip(
-                                    label: 'A-Z',
-                                    icon: Icons.sort_by_alpha,
-                                    isSelected: _paymentMethodSortMode == 'az',
-                                    onTap: () async {
-                                      final sorted = List<String>.from(provider.paymentMethods)
-                                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-                                      await provider.setCustomPaymentMethodOrder(sorted);
-                                      setState(() => _paymentMethodSortMode = 'az');
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => _promptAdd(context, false),
-                            icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                            label: const Text('Add Method', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ReorderableListView.builder(
-                        buildDefaultDragHandles: false,
-                        itemCount: paymentMethods.length,
-                        onReorder: (oldIndex, newIndex) async {
-                          setState(() => _paymentMethodSortMode = 'custom');
-                          await provider.reorderPaymentMethods(oldIndex, newIndex);
-                        },
-                        itemBuilder: (ctx, i) {
-                          final pm = paymentMethods[i];
-                          final usageCount = provider.getPaymentMethodUsageCount(pm);
-                          final pmIcon = CategoryIcons.getPaymentMethodIcon(pm);
-
-                          return Container(
-                            key: ValueKey('pm_$pm'),
-                            margin: const EdgeInsets.symmetric(vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0x0F000000)),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                              onTap: () => _promptEdit(context, false, pm),
-                              leading: Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF3323CC).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(pmIcon, size: 20, color: const Color(0xFF3323CC)),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(pm, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                                  ),
-                                  if (usageCount > 0)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFEAEDFF),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        '${usageCount}x',
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF3323CC)),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                usageCount > 0 ? '$usageCount txns • Drag ⠿ to reorder' : 'Not used yet • Drag ⠿ to reorder',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 19, color: AppColors.primary),
-                                    tooltip: 'Edit name',
-                                    onPressed: () => _promptEdit(context, false, pm),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 19, color: Color(0xFFBA1A1A)),
-                                    tooltip: 'Delete',
-                                    onPressed: () => _confirmDelete(context, false, pm),
-                                  ),
-                                  ReorderableDragStartListener(
-                                    index: i,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                                      child: const Icon(Icons.drag_indicator, size: 22, color: Color(0xFF6D7A72)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                _buildManagerTab(
+                  context: context,
+                  provider: provider,
+                  items: paymentMethods,
+                  isCategory: false,
+                  isIncome: false,
+                  sortMode: _paymentMethodSortMode,
+                  addButtonLabel: 'Add Method',
+                  searchHint: 'Search methods...',
+                  onReorder: (oldIndex, newIndex) async {
+                    setState(() => _paymentMethodSortMode = 'custom');
+                    await provider.reorderPaymentMethods(oldIndex, newIndex);
+                  },
+                  onSelectSort: (mode) async {
+                    if (mode == 'most_used') {
+                      final sorted = provider.getSortedPaymentMethods(mostUsedFirst: true);
+                      await provider.setCustomPaymentMethodOrder(sorted);
+                    } else if (mode == 'az') {
+                      final sorted = List<String>.from(provider.paymentMethods)
+                        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                      await provider.setCustomPaymentMethodOrder(sorted);
+                    }
+                    setState(() => _paymentMethodSortMode = mode);
+                  },
                 ),
               ],
             ),

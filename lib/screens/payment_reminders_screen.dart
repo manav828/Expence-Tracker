@@ -72,7 +72,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                   unselectedLabelColor: AppColors.textMuted,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                   tabs: [
-                    Tab(text: 'Due & Upcoming (${activeReminders.length})'),
+                    Tab(text: 'Upcoming (${activeReminders.length})'),
                     Tab(text: 'Completed (${completedReminders.length})'),
                     Tab(text: 'Paused (${pausedReminders.length})'),
                   ],
@@ -466,20 +466,20 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                           foregroundColor: Colors.white,
                           iconColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          minimumSize: const Size(0, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check, size: 15, color: Colors.white),
-                            SizedBox(width: 5),
+                            Icon(Icons.check, size: 16, color: Colors.white),
+                            SizedBox(width: 6),
                             Text(
                               'Mark Paid',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),

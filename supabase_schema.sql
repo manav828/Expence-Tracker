@@ -856,3 +856,28 @@ FOR ALL
 TO authenticated
 USING (auth.uid()::text = user_id)
 WITH CHECK (auth.uid()::text = user_id);
+
+-- ==============================================================================
+-- 10. USER DEVICE TOKENS (FCM Push Notification Tokens)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.user_device_tokens (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    fcm_token TEXT NOT NULL,
+    platform TEXT DEFAULT 'android',
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_user_device_token UNIQUE (user_id, fcm_token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_device_tokens_user_id
+ON public.user_device_tokens(user_id);
+
+ALTER TABLE public.user_device_tokens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own device tokens" ON public.user_device_tokens;
+CREATE POLICY "Users manage own device tokens"
+ON public.user_device_tokens
+FOR ALL
+TO authenticated
+USING (auth.uid()::text = user_id)
+WITH CHECK (auth.uid()::text = user_id);

@@ -826,4 +826,28 @@ class SplitProvider with ChangeNotifier {
     final diff = direct.length - simplified.length;
     return diff > 0 ? diff : 0;
   }
+
+  /// Sends a push notification reminder to the debtor in [debt].
+  Future<SettlementReminderStatus> sendSettlementReminder({
+    required SplitGroup group,
+    required Debt debt,
+    required String fromName,
+    required String toName,
+  }) async {
+    final groupMembers = getMembersForGroup(group.id);
+    final recipient = groupMembers.cast<SplitMember?>().firstWhere(
+          (m) => m?.id == debt.fromMemberId,
+          orElse: () => null,
+        );
+    return SplitService.instance.sendSettlementReminder(
+      groupId: group.id,
+      groupName: group.name,
+      fromMemberId: debt.fromMemberId,
+      toMemberId: debt.toMemberId,
+      fromName: fromName,
+      toName: toName,
+      amount: debt.amount,
+      recipientUserId: recipient?.userId,
+    );
+  }
 }

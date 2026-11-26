@@ -150,9 +150,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Categories & Methods'), findsOneWidget);
-      expect(find.text('Drag & Drop'), findsOneWidget);
-      expect(find.text('Most Used'), findsOneWidget);
-      expect(find.text('A-Z'), findsOneWidget);
+      expect(find.text('Drag & Drop'), findsNothing);
+      expect(find.textContaining('txns'), findsNothing);
+      expect(find.byIcon(Icons.search), findsOneWidget);
+      expect(find.byIcon(Icons.tune_rounded), findsOneWidget);
 
       // Verify category rows rendered
       expect(find.text('Food & Dining'), findsOneWidget);
@@ -160,7 +161,11 @@ void main() {
       expect(find.text('Transport'), findsOneWidget);
       expect(find.byIcon(Icons.drag_indicator), findsWidgets);
 
-      // Tap sort chip to switch to A-Z
+      // Tap Filter/Sort button and choose A-Z
+      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text('Most Used'), findsOneWidget);
+      expect(find.text('A-Z'), findsOneWidget);
       await tester.tap(find.text('A-Z'));
       await tester.pumpAndSettle();
       expect(provider.categories.first, 'Food & Dining');

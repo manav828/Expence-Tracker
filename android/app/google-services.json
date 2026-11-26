@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "205303469119",
+    "project_id": "expencircle",
+    "storage_bucket": "expencircle.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:205303469119:android:64bd6fec10b6cfde53548a",
+        "android_client_info": {
+          "package_name": "com.manav.expense.expense_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8TwFhd96QB65XCQl5aVWkXICCp2sPL8k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

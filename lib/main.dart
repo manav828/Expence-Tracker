@@ -20,6 +20,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
+import 'services/push_notification_service.dart';
 import 'services/storage_preference_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -36,6 +37,7 @@ void main() async {
     publishableKey: AppConfig.supabaseAnonKey,
   );
   await AuthService.instance.initUserCache();
+  await PushNotificationService.instance.initialize(navigatorKey: appNavigatorKey);
 
   if (kIsWeb) {
     final initialCode = InviteCodeParser.extractInviteCode(Uri.base);
@@ -120,6 +122,7 @@ class _AppRootState extends State<AppRoot> {
 
     if (isAuth) {
       await StoragePreferenceService.setMode(StorageMode.cloud);
+      unawaited(PushNotificationService.instance.syncDeviceToken());
     }
 
     if (mounted) {

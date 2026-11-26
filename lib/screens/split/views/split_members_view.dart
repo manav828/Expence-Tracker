@@ -46,19 +46,6 @@ class _SplitMembersViewState extends State<SplitMembersView> {
   static const _surfaceLow = Color(0xFFF2F4F6);
   static const _brandDark = Color(0xFF13353B);
 
-  final List<Color> _avatarColors = const [
-    Color(0xFF006D39),
-    Color(0xFF008A4B),
-    Color(0xFF4B41E1),
-    Color(0xFF0284C7),
-    Color(0xFFD97706),
-    Color(0xFF7C3AED),
-  ];
-
-  Color _getAvatarColor(int index) {
-    return _avatarColors[index % _avatarColors.length];
-  }
-
   void _showGroupQrModal(BuildContext context) {
     showDialog(
       context: context,
@@ -422,12 +409,7 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         // A. CheQ Style Compact Trip Overview Card
-                        _buildTripOverviewCard(
-                          context,
-                          members: members,
-                          displayGroupsCount: displayGroups.length,
-                          ungroupedCount: ungroupedMembers.length,
-                        ),
+                        _buildTripOverviewCard(context),
                         const SizedBox(height: 12),
 
                         // B. Minimal Filter Chips & Invite Action
@@ -518,17 +500,10 @@ class _SplitMembersViewState extends State<SplitMembersView> {
   // ─────────────────────────────────────────────────────────────────────────
   // A. TRIP OVERVIEW CARD
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildTripOverviewCard(
-    BuildContext context, {
-    required List<SplitMember> members,
-    required int displayGroupsCount,
-    required int ungroupedCount,
-  }) {
-    final dateStr = DateFormat('d MMM yyyy').format(widget.group.createdAt);
-    final totalUnits = displayGroupsCount + ungroupedCount;
+  Widget _buildTripOverviewCard(BuildContext context) {
+    final dateStr = DateFormat('d MMM').format(widget.group.createdAt);
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -541,217 +516,173 @@ class _SplitMembersViewState extends State<SplitMembersView> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: Group Icon + Name & Active Badge + Edit/More
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFA7F3D0)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(19),
+        child: Stack(
+          children: [
+            // Soft white-to-mint pastel wash on the right
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white,
+                      Color(0xFFF6FDF9),
+                      Color(0xFFD9F7E8),
+                    ],
+                    stops: [0.35, 0.68, 1.0],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: const Icon(Icons.flight_takeoff_rounded, color: _primaryDark, size: 22),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            widget.group.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF191C1E),
-                              letterSpacing: -0.3,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+            ),
+
+            // Subtle decorative mint arc & landmark silhouette on the right
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 155,
+              child: CustomPaint(
+                painter: _TripCardDecorPainter(),
+              ),
+            ),
+
+            // Card foreground content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row: Circular mint airplane icon + Group Name + Created Date & Active
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFDDF7E8),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Transform.rotate(
+                          angle: 0.785398,
+                          child: const Icon(
+                            Icons.flight_rounded,
+                            color: _primaryDark,
+                            size: 24,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFA7F3D0)),
-                          ),
-                          child: const Text(
-                            'Active Group',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              color: _primaryDark,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.group.description?.isNotEmpty == true
-                          ? widget.group.description!
-                          : 'Good friends, shared moments',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today_rounded, size: 12, color: _primaryDark),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Created $dateStr',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.group.name,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF191C1E),
+                                letterSpacing: -0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 13,
+                                  color: Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    'Created on $dateStr • Active',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Action Buttons: Add Member & Group QR only
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryGreen,
+                            foregroundColor: Colors.white,
+                            iconColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: widget.onAddMemberTap,
+                          icon: const Icon(
+                            Icons.person_add_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Add Member',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: widget.onSettingsTap,
-                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Action Buttons: Share Link & Group QR
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
-                    foregroundColor: Colors.white,
-                    iconColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.92),
+                          foregroundColor: const Color(0xFF334155),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => _showGroupQrModal(context),
+                        icon: const Icon(Icons.qr_code_2_rounded, size: 16),
+                        label: const Text(
+                          'Group QR',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: widget.onShareInviteTap,
-                  icon: const Icon(Icons.share, size: 15, color: Colors.white),
-                  label: const Text(
-                    'Share Link',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: _surfaceLow,
-                  foregroundColor: const Color(0xFF334155),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => _showGroupQrModal(context),
-                icon: const Icon(Icons.qr_code_2_rounded, size: 16),
-                label: const Text(
-                  'Group QR',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 10),
-
-          // Bottom Avatar Stack & Summary
-          Row(
-            children: [
-              _buildAvatarOverlappingStack(members),
-              const SizedBox(width: 8),
-              Text(
-                '${members.length} members across $totalUnits units',
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatarOverlappingStack(List<SplitMember> members) {
-    const int maxVisible = 4;
-    final hasOverflow = members.length > maxVisible;
-    final visibleCount = hasOverflow ? maxVisible : members.length;
-    final remaining = hasOverflow ? (members.length - maxVisible) : 0;
-    const double size = 24.0;
-    const double overlap = 16.0;
-
-    return SizedBox(
-      height: size,
-      width: (visibleCount - 1) * overlap + size + (hasOverflow ? overlap : 0),
-      child: Stack(
-        children: [
-          for (int i = 0; i < visibleCount; i++)
-            Positioned(
-              left: i * overlap,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  color: _getAvatarColor(i),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  members[i].name.isNotEmpty ? members[i].name[0].toUpperCase() : '?',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10),
-                ),
+                ],
               ),
             ),
-          if (hasOverflow)
-            Positioned(
-              left: visibleCount * overlap,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '+$remaining',
-                  style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w800, fontSize: 9),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1324,4 +1255,71 @@ class _MemberDisplayGroup {
     this.settlementGroup,
     this.expenseGroup,
   });
+}
+
+class _TripCardDecorPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // Soft pastel circle glow on the right
+    final circlePaint = Paint()
+      ..color = const Color(0xFF86EFAC).withValues(alpha: 0.22)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(w * 0.88, h * 0.45), h * 0.85, circlePaint);
+
+    // Subtle temple/landmark shikhara silhouette in soft mint gradient
+    final spirePaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+        colors: [
+          const Color(0xFF10B981).withValues(alpha: 0.36),
+          const Color(0xFF34D399).withValues(alpha: 0.16),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h))
+      ..style = PaintingStyle.fill;
+
+    final secondaryPaint = Paint()
+      ..color = const Color(0xFF34D399).withValues(alpha: 0.18)
+      ..style = PaintingStyle.fill;
+
+    // Secondary smaller left spire
+    final leftSpire = Path()
+      ..moveTo(w * 0.36, h)
+      ..lineTo(w * 0.36, h * 0.72)
+      ..quadraticBezierTo(w * 0.42, h * 0.56, w * 0.46, h * 0.44)
+      ..lineTo(w * 0.46, h * 0.38)
+      ..lineTo(w * 0.475, h * 0.44)
+      ..quadraticBezierTo(w * 0.52, h * 0.56, w * 0.57, h * 0.72)
+      ..lineTo(w * 0.57, h)
+      ..close();
+    canvas.drawPath(leftSpire, secondaryPaint);
+
+    // Soft distant dome at far-left edge of illustration
+    final lowDome = Path()
+      ..moveTo(w * 0.14, h)
+      ..quadraticBezierTo(w * 0.26, h * 0.74, w * 0.38, h)
+      ..close();
+    canvas.drawPath(lowDome, secondaryPaint);
+
+    // Main prominent spire on the right
+    final mainSpire = Path()
+      ..moveTo(w * 0.56, h)
+      ..lineTo(w * 0.56, h * 0.68)
+      ..lineTo(w * 0.60, h * 0.65)
+      ..quadraticBezierTo(w * 0.66, h * 0.34, w * 0.75, h * 0.14)
+      ..lineTo(w * 0.75, h * 0.06)
+      ..lineTo(w * 0.768, h * 0.06)
+      ..lineTo(w * 0.768, h * 0.14)
+      ..quadraticBezierTo(w * 0.86, h * 0.34, w * 0.92, h * 0.65)
+      ..lineTo(w * 0.96, h * 0.68)
+      ..lineTo(w * 0.96, h)
+      ..close();
+    canvas.drawPath(mainSpire, spirePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

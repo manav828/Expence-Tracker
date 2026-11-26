@@ -6,6 +6,7 @@ import 'package:expense_tracker/screens/auth/onboarding_screen.dart';
 import 'package:expense_tracker/screens/auth/login_screen.dart';
 import 'package:expense_tracker/screens/auth/register_screen.dart';
 import 'package:expense_tracker/widgets/storage_choice_dialog.dart';
+import 'package:expense_tracker/widgets/common/google_logo_icon.dart';
 
 void main() {
   testWidgets('OnboardingScreen renders first page with headline and Next action', (WidgetTester tester) async {
@@ -29,7 +30,7 @@ void main() {
     expect(find.byType(PageView), findsOneWidget);
   });
 
-  testWidgets('LoginScreen renders email, password, Google, and Guest offline mode', (WidgetTester tester) async {
+  testWidgets('LoginScreen renders email, password, Google login without guest or welcome text', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -45,11 +46,14 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome back!'), findsOneWidget);
+    expect(find.text('Welcome back!'), findsNothing);
+    expect(find.text('Sign in to continue managing your expenses.'), findsNothing);
+    expect(find.text('Continue as Guest'), findsNothing);
+    expect(find.text('Use offline • No account required'), findsNothing);
+    expect(find.byIcon(Icons.g_mobiledata_rounded), findsNothing);
+    expect(find.byType(GoogleLogoIcon), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('Continue as Guest'), findsOneWidget);
-    expect(find.text('Use offline • No account required'), findsOneWidget);
     expect(find.text('Sign Up'), findsOneWidget);
   });
 

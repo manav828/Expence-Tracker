@@ -7,6 +7,7 @@ import '../core/errors/error_handler.dart';
 import '../core/utils/invite_code_parser.dart';
 import 'storage_preference_service.dart';
 import 'database_service.dart';
+import 'push_notification_service.dart';
 import 'split_service.dart';
 
 class AuthService {
@@ -186,6 +187,7 @@ class AuthService {
     await StoragePreferenceService.setMode(StorageMode.cloud);
     userNameNotifier.value = userDisplayName;
     userAvatarNotifier.value = userAvatarUrl;
+    await PushNotificationService.instance.syncDeviceToken();
     return response;
   }
 
@@ -202,6 +204,7 @@ class AuthService {
       emailRedirectTo: kIsWeb ? Uri.base.origin : null,
     );
     await StoragePreferenceService.setMode(StorageMode.cloud);
+    await PushNotificationService.instance.syncDeviceToken();
 
     try {
       _cachedDisplayName = fullName.trim();
@@ -276,6 +279,7 @@ class AuthService {
       await StoragePreferenceService.setMode(StorageMode.cloud);
       userNameNotifier.value = userDisplayName;
       userAvatarNotifier.value = userAvatarUrl;
+      await PushNotificationService.instance.syncDeviceToken();
       return res;
     } catch (e, st) {
       ErrorHandler.log('AuthService.signInWithGoogle', e, st);
@@ -291,6 +295,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    await PushNotificationService.instance.removeCurrentDeviceToken();
     try {
       await _client.auth.signOut();
     } catch (e, st) {

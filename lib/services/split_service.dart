@@ -9,6 +9,14 @@ import '../models/split_models.dart';
 import 'database_service.dart';
 import 'auth_service.dart';
 
+enum SettlementReminderStatus {
+  sent,
+  noLinkedAccount,
+  noDeviceTokens,
+  notConfigured,
+  failed,
+}
+
 class SplitService {
   static final SplitService instance = SplitService._();
   SplitService._();
@@ -1885,5 +1893,62 @@ class SplitService {
       settlements: results[2] as List<Settlement>,
       shares: results[3] as List<SplitShare>,
     );
+  }
+
+  /// Sends a push notification settlement reminder via the Supabase Edge
+  /// Function `send-settlement-reminder` to the linked user account.
+  Future<SettlementReminderStatus> sendSettlementReminder({
+    required String groupId,
+    required String groupName,
+    required String fromMemberId,
+    required String toMemberId,
+    required String fromName,
+    required String toName,
+    required double amount,
+    String? recipientUserId,
+  }) async {
+    if (recipientUserId == null || recipientUserId.trim().isEmpty) {
+      return SettlementReminderStatus.noLinkedAccount;
+    }
+
+    try {
+      final online = await _isOnline();
+      if (!online) return SettlementReminderStatus.failed;
+
+      final res = await _db.functions.invoke(
+        'send-settlement-reminder',
+        body: {
+          'group_id': groupId,
+          'group_name': groupName,
+          'from_member_id': fromMemberId,
+          'to_member_id': toMemberId,
+          'recipient_user_id': recipientUserId,
+          'from_name': fromName,
+          'to_name': toName,
+          'amount': amount,
+        },
+      );
+
+      if (res.status >= 200 && res.status < 300) {
+        final data = res.data;
+        if (data is Map && (data['sent'] == 0 || data['reason'] == 'no_device_tokens')) {
+          return SettlementReminderStatus.noDeviceTokens;
+        }
+        return SettlementReminderStatus.sent;
+      }
+      if (res.status == 404 || res.status == 501) {
+        return SettlementReminderStatus.notConfigured;
+      }
+      return SettlementReminderStatus.failed;
+    } on FunctionException catch (e) {
+      debugPrint('sendSettlementReminder FunctionException: ${e.status} ${e.details}');
+      if (e.status == 404 || e.status == 501) {
+        return SettlementReminderStatus.notConfigured;
+      }
+      return SettlementReminderStatus.failed;
+    } catch (e) {
+      debugPrint('sendSettlementReminder error: $e');
+      return SettlementReminderStatus.notConfigured;
+    }
   }
 }

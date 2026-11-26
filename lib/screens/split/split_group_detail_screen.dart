@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/split_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../models/split_models.dart';
@@ -55,21 +55,30 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
     if (mounted) setState(() => _loadingDetail = false);
   }
 
-  void _shareInvite() {
+  Future<void> _shareInvite() async {
     final webUrl = kIsWeb
         ? '${Uri.base.origin}/?code=${_group.inviteCode}'
         : 'https://expensetracker.web.app/?code=${_group.inviteCode}';
     final shareText = 'Join our group "${_group.name}" on ExpenCircle!\n'
         'Invite Code: ${_group.inviteCode}\n'
         'Direct link: $webUrl';
-    Clipboard.setData(ClipboardData(text: shareText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Invite link copied! Friends can open it in browser or app.'),
-        backgroundColor: _primaryColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: shareText,
+          subject: 'Join ${_group.name} on ExpenCircle',
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open share options: $e'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _showEditGroupDialog() async {

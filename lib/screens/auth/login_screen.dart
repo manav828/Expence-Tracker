@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'register_screen.dart';
 import '../../core/theme/app_colors.dart';
+import '../../widgets/common/google_logo_icon.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -73,13 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleGuestMode() async {
-    await AuthService.instance.setGuestMode(true);
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     }
   }
 
@@ -172,26 +166,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
                     color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                // Headline & Subtitle
-                const Text(
-                  'Welcome back!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF131B2E),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Sign in to continue managing your expenses.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6D7A72),
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -389,76 +363,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     onPressed: _isLoading ? null : _handleGoogleSignIn,
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: const BoxDecoration(shape: BoxShape.circle),
-                          child: const Icon(Icons.g_mobiledata_rounded, size: 26, color: Color(0xFFEA4335)),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
+                        GoogleLogoIcon(size: 20),
+                        SizedBox(width: 10),
+                        Text(
                           'Continue with Google',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 14.5,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF131B2E),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Continue as Guest (Offline)
-                InkWell(
-                  onTap: _handleGuestMode,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Continue as Guest',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              Text(
-                                'Use offline • No account required',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF6D7A72),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 18),
                       ],
                     ),
                   ),
