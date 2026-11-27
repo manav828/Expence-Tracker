@@ -1,641 +1,600 @@
-# ExpenCircle & Splitwise - Complete Master Knowledge Base
+# ExpenCircle — Master Knowledge Bank & Developer Reference
 
-> **Authoritative Technical & Functional Reference Manual**  
-> *Version:* 2.0 (Production Release)  
-> *Stack:* Flutter (Dart 3.x) • Supabase (PostgreSQL 17) • SQLite (`expenses.db`) • Google OAuth  
-> *Target Platforms:* Android (Mobile), iOS, Web (PWA / Responsive Desktop)
+> **Authoritative Product Catalog, Architecture Guide, & Engineering Onboarding Manual**  
+> **App Name:** ExpenCircle (`expense_tracker`) • **Version:** `1.0.3+4` (`AppConfig.appVersion`)  
+> **Tech Stack:** Flutter (Dart `^3.7.0`) • Provider • SQLite (`sqflite`) • Supabase (PostgreSQL + Auth + Edge Functions) • Firebase Cloud Messaging (`firebase_messaging`) • Cloudflare R2 • Kotlin (Android Native)  
+> **Platforms:** Android (`com.manav.expense.expense_tracker`), Web (PWA / Vercel), iOS (`ios/Runner`)  
+> **Verification Baseline:** `flutter analyze --no-pub` (0 issues) • `flutter test --no-pub` (189 tests across 28 test suites)
 
 ---
 
 ## Table of Contents
-1. [Executive Summary & Core Value Proposition](#1-executive-summary--core-value-proposition)
-2. [End-to-End Functional Specifications](#2-end-to-end-functional-specifications)
-   - [2.1 3-Step Onboarding Journey](#21-3-step-onboarding-journey)
-   - [2.2 Authentication & Guest Mode](#22-authentication--guest-mode)
-   - [2.3 Immediate Storage Choice Prompt (Cloud vs Local)](#23-immediate-storage-choice-prompt-cloud-vs-local)
-   - [2.4 Home Dashboard & Spend Trajectory](#24-home-dashboard--spend-trajectory)
-   - [2.5 Expenses & Financial Analytics Ledger (Option A Architecture)](#25-expenses--financial-analytics-ledger-option-a-architecture)
-   - [2.6 Shared Group Splitting Engine (Splitwise Alternative)](#26-shared-group-splitting-engine-splitwise-alternative)
-   - [2.7 Budgeting & Guardrail Alerts](#27-budgeting--guardrail-alerts)
-   - [2.8 Automated On-Device SMS Transaction Ingestion](#28-automated-on-device-sms-transaction-ingestion)
-   - [2.9 Settings, Data Portability & Legal Modals](#29-settings-data-portability--legal-modals)
-3. [System Architecture & Technical Implementation](#3-system-architecture--technical-implementation)
-   - [3.1 Architecture Overview (MVVM + Provider Pattern)](#31-architecture-overview-mvvm--provider-pattern)
-   - [3.2 State Management & Reactive Streams](#32-state-management--reactive-streams)
-   - [3.3 Complete Local Database Schema (SQLite)](#33-complete-local-database-schema-sqlite)
-   - [3.4 Complete Cloud Database Schema (Supabase PostgreSQL 17)](#34-complete-cloud-database-schema-supabase-postgresql-17)
-   - [3.5 Supabase Authentication & Google OAuth Flow](#35-supabase-authentication--google-oauth-flow)
-4. [Deep Dive: App Upgrades & Data Preservation](#4-deep-dive-app-upgrades--data-preservation)
-   - [4.1 What Happens When an Existing User Updates the App](#41-what-happens-when-an-existing-user-updates-the-app)
-   - [4.2 Android OS Sandbox Storage Mechanics](#42-android-os-sandbox-storage-mechanics)
-   - [4.3 Keystore & Signing Rules for In-Place Upgrades](#43-keystore--signing-rules-for-in-place-upgrades)
-5. [Industry Comparison: How Real-World Finance Apps Store Data](#5-industry-comparison-how-real-world-finance-apps-store-data)
-   - [5.1 Storage Architecture Comparison Matrix](#51-storage-architecture-comparison-matrix)
-   - [5.2 Why ExpenCircle Uses a Hybrid Local-First Architecture](#52-why-expencircle-uses-a-hybrid-local-first-architecture)
-6. [High-Scale Data Synchronization Mechanics](#6-high-scale-data-synchronization-mechanics)
-   - [6.1 The Scaling Challenge: Hundreds of Entries Per User](#61-the-scaling-challenge-hundreds-of-entries-per-user)
-   - [6.2 Delta Sync / Change Data Capture (CDC)](#62-delta-sync--change-data-capture-cdc)
-   - [6.3 Pagination, Index Traversal & Memory Efficiency](#63-pagination-index-traversal--memory-efficiency)
-   - [6.4 Network Bandwidth & Payload Mathematics](#64-network-bandwidth--payload-mathematics)
-7. [Design System & UI Tokens](#7-design-system--ui-tokens)
-8. [Complete Codebase Directory & File Inventory](#8-complete-codebase-directory--file-inventory)
-9. [Deployment, Configuration & Verification Runbook](#9-deployment-configuration--verification-runbook)
+
+1. [What Was Built — Complete Feature Catalog](#1-what-was-built--complete-feature-catalog)
+2. [New Developer Quick-Start & Environment Setup](#2-new-developer-quick-start--environment-setup)
+3. [System Architecture & State Management](#3-system-architecture--state-management)
+4. [Feature Modules & Core Business Logic](#4-feature-modules--core-business-logic)
+   - [4.1 Onboarding, Authentication & Session Lifecycle](#41-onboarding-authentication--session-lifecycle)
+   - [4.2 Hybrid Storage Mode (Local SQLite vs Supabase Cloud)](#42-hybrid-storage-mode-local-sqlite-vs-supabase-cloud)
+   - [4.3 Personal Income & Expense Tracking Engine](#43-personal-income--expense-tracking-engine)
+   - [4.4 Home Dashboard & Spend Trajectory](#44-home-dashboard--spend-trajectory)
+   - [4.5 Analytics & Financial Ledger](#45-analytics--financial-ledger)
+   - [4.6 Category Budgets & Guardrail Alerts](#46-category-budgets--guardrail-alerts)
+   - [4.7 Payment Reminders & Cycle Roll-Forward Engine](#47-payment-reminders--cycle-roll-forward-engine)
+   - [4.8 Splitwise-Style Group Expense Engine & Combined Settlements](#48-splitwise-style-group-expense-engine--combined-settlements)
+   - [4.9 Trip Mode (Direct Expense Routing)](#49-trip-mode-direct-expense-routing)
+   - [4.10 48-Hour Ephemeral Trip Photo Vault](#410-48-hour-ephemeral-trip-photo-vault)
+   - [4.11 On-Device Bank SMS Auto-Detection](#411-on-device-bank-sms-auto-detection)
+   - [4.12 Push Notifications (FCM + Supabase Edge Function)](#412-push-notifications-fcm--supabase-edge-function)
+   - [4.13 Media Pipeline (Cloudflare R2 & Pixabay)](#413-media-pipeline-cloudflare-r2--pixabay)
+   - [4.14 Data Export (CSV, JSON & Google Sheets Sync)](#414-data-export-csv-json--google-sheets-sync)
+5. [Native Android Architecture (Kotlin Modules & Platform Channels)](#5-native-android-architecture-kotlin-modules--platform-channels)
+6. [iOS & Web Platform Specifics](#6-ios--web-platform-specifics)
+7. [Database Architecture & Schemas](#7-database-architecture--schemas)
+   - [7.1 Local SQLite Schema (`expenses.db`)](#71-local-sqlite-schema-expensesdb)
+   - [7.2 Cloud PostgreSQL Schema (`supabase_schema.sql`)](#72-cloud-postgresql-schema-supabase_schemasql)
+   - [7.3 Ephemeral Photo Vault Schema (`supabase_trip_photo_vault.sql`)](#73-ephemeral-photo-vault-schema-supabase_trip_photo_vaultsql)
+   - [7.4 Row-Level Security (RLS) & Security Definer RPCs](#74-row-level-security-rls--security-definer-rpcs)
+8. [Security, Error Handling & Store Compliance](#8-security-error-handling--store-compliance)
+9. [Design System & Visual Tokens](#9-design-system--visual-tokens)
+10. [Complete Codebase Directory Inventory](#10-complete-codebase-directory-inventory)
+11. [Testing & Quality Assurance Guide](#11-testing--quality-assurance-guide)
+12. [CI/CD, OTA Updates & Release Runbook](#12-cicd-ota-updates--release-runbook)
 
 ---
 
-## 1. Executive Summary & Core Value Proposition
+## 1. What Was Built — Complete Feature Catalog
 
-**ExpenCircle** is a production-grade personal finance management and collaborative group-splitting system. Built as a high-performance cross-platform Flutter application, it operates seamlessly on Android, iOS, and Web browsers, backed by Supabase (PostgreSQL 17, Mumbai Region).
+This section serves as a permanent capability index of everything built in ExpenCircle:
 
-### The Core Problems It Solves
-1. **The Privacy Dilemma in Personal Finance**: Most commercial financial apps force users to upload their sensitive personal income, bank balances, and expense records to proprietary third-party servers. ExpenCircle solves this by offering a **100% Offline-First Local Mode** where financial data resides exclusively within an encrypted on-device SQLite database.
-2. **Frictionless Shared Splitting**: Roommates, travel groups, and couples require shared ledgers with real-time sync. ExpenCircle provides a built-in Splitwise engine powered by Supabase Cloud, supporting equal, unequal, and percentage splits with 1-click debt settlement.
-3. **Manual Logging Fatigue**: Entering expenses by hand leads to abandoned apps. ExpenCircle incorporates an on-device bank SMS parser that extracts amounts, merchants, categories, and payment channels without transmitting raw SMS text off the device.
-4. **Information Overload in Financial Analytics**: Traditional analytics screens present dense tables. ExpenCircle implements **Option A UX Architecture**: high-level executive cards, an interactive category donut with tap-to-filter, an adaptive spending rhythm bar chart, an interactive daily heatmap calendar, and an instant filterable ledger.
-
----
-
-## 2. End-to-End Functional Specifications
-
-### 2.1 3-Step Onboarding Journey
-- **Component File**: `lib/screens/auth/onboarding_screen.dart`
-- **Illustrations**: Displayed via native asset bundle images (`screen/onboarding_1_illustration.png`, `screen/onboarding_2_illus.png`, `screen/onboarding_3_illust.png`).
-- **Flow Logic**:
-  - **Step 1: Complete Data Ownership**: Introduces offline-first architecture. Informs users they own their data—stored locally on their phone with optional encrypted cloud backup.
-  - **Step 2: Auto-Log from SMS**: Explains automated transactional SMS parsing for instantaneous entry creation without manual typing.
-  - **Step 3: Split Expenses with Friends**: Demonstrates group ledgers, bill splitting, and debt settlements.
-- **Controls**:
-  - Active step indicator dots with animated widths.
-  - "Skip" text button: Bypasses directly to the `LoginScreen`.
-  - "Next →" button on steps 1 and 2; transforms into "Get Started →" on step 3.
-
-### 2.2 Authentication & Guest Mode
-- **Component Files**: `lib/screens/auth/login_screen.dart`, `lib/screens/auth/register_screen.dart`, `lib/services/auth_service.dart`
-- **Capabilities**:
-  - **Email & Password Login**: Full validation, Supabase error message mapping, and "Forgot password?" reset link triggering.
-  - **Google OAuth Login**: One-tap sign-in via Google credentials using Supabase Auth with automated browser callback handling.
-  - **Guest Offline Mode**: A dedicated "Continue as Guest (Use offline • No account required)" action. Users can immediately enter the full application in Local SQLite mode without creating an account or supplying credentials.
-  - **Registration Screen**:
-    - Input fields: Full Name, Email, Password, Confirm Password.
-    - **Live 4-Segment Password Strength Meter**: Evaluates character length, numbers, special characters, and mixed casing (Weak = Red, Fair = Amber, Good = Teal, Strong = Green).
-    - **Legal Agreement Checkbox**: Mandatory checkbox with clickable modal triggers for "Terms of Service" and "Privacy Policy".
-  - **Session Routing**: `AppRoot` in `lib/main.dart` listens to `Supabase.instance.client.auth.onAuthStateChange` in real-time. Successful sign-in or guest bypass immediately renders `MainScreen()`.
-
-### 2.3 Immediate Storage Choice Prompt (Cloud vs Local)
-- **Component File**: `lib/widgets/storage_choice_dialog.dart`
-- **Behavior & Trigger**:
-  - Automatically pops up on the Home screen the very first time an authenticated or guest user lands on the dashboard.
-  - Checks `StoragePreferenceService.hasUserChosenStorage()`. If `false`, displays a modal dialog with two clear options:
-    1. **Cloud Storage (Recommended)**: Backs up expenses to Supabase Mumbai, enables multi-device sync. Automatically triggers `DatabaseService.syncLocalToCloud()` to upload any offline transactions.
-    2. **Local Storage Only (Privacy First)**: Stores transactions strictly on the physical device inside `expenses.db`. No personal records touch the network.
-  - **Persistent Settings Switcher**: Users can modify their preference at any time from **Settings → Storage Location**. Switching between modes offers 1-click tools to upload local records to cloud or download cloud records to local SQLite.
-
-### 2.4 Home Dashboard & Spend Trajectory
-- **Component File**: `lib/screens/dashboard_screen.dart`
-- **Features**:
-  - **Storage Mode Status Banner**: Live badge indicating "Local Storage (Offline)" or "Supabase Cloud", displaying sync status.
-  - **Current Month Spend Trajectory Curve**: Smooth Spline line chart charting cumulative spending across the days of the month. Formatted with clean 4-milestone X-axis labels (Day 1, 10, 20, End of Month) with individual data dots removed for clarity.
-  - **Quick Stats Bar**: Total spent this month, daily average, top category badge, and active budget utilization.
-  - **Recent Transactions Section**: Most recent 5 transactions with category icons, notes, and formatted INR amounts (`₹`).
-  - **Floating Action Button (`+`)**: Launches `AddExpenseSheet` modal for manual logging.
-
-### 2.5 Expenses & Financial Analytics Ledger (Option A Architecture)
-- **Component File**: `lib/screens/analytics_screen.dart`
-- **Features**:
-  1. **Dynamic Timeframe Selector**:
-     - Quick preset pills: `This Month`, `Last Month`, `Last 30 Days`, `This Year`, and `Custom 📅`.
-     - Month stepper buttons (`<` and `>`) for fast chronological navigation.
-     - Native Flutter `showDateRangePicker` allowing users to select any custom date range.
-  2. **Period Summary Hero Card**:
-     - Large formatted Total Spend (`₹XX,XXX.XX`).
-     - Sub-metrics: Daily average spend (`₹/day`), total transaction count, and active span in days.
-  3. **"Where Your Money Went" Category Donut Chart**:
-     - Interactive FL Chart `PieChart` with color-coded slices.
-     - **Tap-to-Filter Ledger**: Tapping any category slice or legend pill automatically filters the transaction ledger below to only transactions from that category, with an active filter badge and `✕` dismiss button.
-  4. **Adaptive Spending Rhythm Bar Chart**:
-     - Dynamically shifts aggregation intervals based on selected date span:
-       - $\le 7$ days: Daily bars (`Mon`, `Tue`, `Wed`, etc.).
-       - $8 - 45$ days: Weekly interval bars (`Wk 1`, `Wk 2`, etc.).
-       - $> 45$ days: Monthly interval bars (`Jan`, `Feb`, etc.).
-     - Prevents label overlap and adapts bar widths cleanly.
-  5. **Preserved Daily Heatmap Calendar**:
-     - Full interactive monthly calendar with color-graded day cells:
-       - Light Green: $< ₹500$
-       - Ocean Teal: $₹500 - ₹2,000$
-       - Electric Indigo: $> ₹2,000$
-     - Expandable and collapsible card.
-     - Tapping any day displays that day's total expense and provides a **"Filter Ledger"** button to isolate that single day's records in the ledger below.
-  6. **Searchable & Filterable Transactions Ledger**:
-     - Live text search bar across comments, merchant names, amounts, and categories.
-     - Filter chips for Categories (Food, Shopping, Utilities, etc.) and Payment Methods (UPI, Credit Card, Cash, NetBanking).
-     - Tap any transaction item to open `AddExpenseSheet` in edit mode (or delete).
-
-### 2.6 Shared Group Splitting Engine (Splitwise Alternative)
-- **Component Files**: `lib/screens/split/split_screen.dart`, `lib/screens/split/split_group_detail_screen.dart`, `lib/screens/split/join_group_screen.dart`, `lib/services/split_service.dart`
-- **Features**:
-  - **Group Creation & Invites**: Create groups (e.g., "Goa Trip 2026", "Apartment 402"). Generates an 8-character unique alphanumeric invite code (e.g. `K9B2X4A1`) and web deep link (`https://.../?code=XYZ`).
-  - **Group Joining**: Members join via code entry or URL.
-  - **Splitting Engine**:
-    - **Equal Split**: Even division of bill amount among all selected participants.
-    - **Unequal Split**: Custom amounts specified per member, with client-side balance validation ensuring the sum of shares equals the total.
-    - **Percentage Split**: Proportional percentage shares per member (validating that $\sum \% = 100\%$).
-  - **Multi-Payer Logging**: Any group member can record that another member paid for an expense.
-  - **Real-Time Net Balance Algorithm**:
-    - Calculates the net balance of each member:
-      $$\text{Net Balance} = \sum \text{Paid By Member} - \sum \text{Member's Share} + \sum \text{Settlements Received} - \sum \text{Settlements Sent}$$
-    - Visual indicators: "You are owed ₹X" (Pine Green) vs "You owe ₹Y" (Rose Red).
-  - **"Settle Up" Flow**: Direct recording of payments between debtor and creditor, marking shares settled and logging the settlement in `settlements`.
-
-### 2.7 Budgeting & Guardrail Alerts
-- **Component Files**: `lib/screens/budget_screen.dart`, `lib/providers/budget_provider.dart`, `lib/widgets/budget_alert_banner.dart`
-- **Features**:
-  - Set monthly spending ceilings per category.
-  - Visual progress bars comparing spent amount against limit.
-  - **Automated Alerts**:
-    - **Caution Banner (Yellow)**: Triggers at $\ge 80\%$ budget utilization.
-    - **Critical Alert Banner (Red)**: Triggers at $\ge 100\%$ budget overrun.
-  - Real-time notification banners appear on the Dashboard and Budget screens.
-
-### 2.8 Automated On-Device SMS Transaction Ingestion
-- **Component Files**: `lib/services/transaction_detection_service.dart`, `lib/widgets/sms_tester_sheet.dart`
-- **Features**:
-  - Native Android platform channel listening for incoming SMS.
-  - **Privacy Guarantee**: SMS parsing is 100% on-device. SMS body text is processed with regular expressions and immediately discarded from memory. No raw SMS is stored or transmitted over the internet.
-  - **Regex Extraction**:
-    - Amount regex matches Indian currency patterns (`INR`, `Rs.`, `Rs`, `₹`).
-    - Merchant extraction identifies vendors (`Swiggy`, `Zomato`, `Uber`, `Amazon`, `Flipkart`, etc.).
-    - Payment channel identifies `UPI`, `Debit Card`, `Credit Card`, `ATM`, or `NetBanking`.
-  - **Interactive Confirmation Bottom Sheet**: When an SMS is detected, the app presents a pre-filled bottom sheet asking the user to confirm or edit before saving.
-
-### 2.9 Settings, Data Portability & Legal Modals
-- **Component Files**: `lib/screens/settings_screen.dart`, `lib/widgets/legal_sheets.dart`, `lib/services/google_sheets_service.dart`
-- **Features**:
-  - **Storage Location Switcher**: Toggle between Local SQLite and Supabase Cloud. Includes 1-click manual upload and download tools.
-  - **Google Sheets Sync**: Instant export of personal ledger to a user's Google Sheet via Service Account or OAuth.
-  - **CSV & JSON Export**: Complete local database backup exportable to device storage or shared via OS share sheet.
-  - **Legal Sheets (`LegalSheets`)**:
-    - **Privacy Policy**: Explicit disclosure of local-only data residence, on-device SMS parsing, zero advertising SDKs, and data deletion rights.
-    - **Terms of Service**: Bookkeeping disclaimer, informal debt settlement clarity, and liability boundaries.
-  - **Account & Sign Out**: Clean logout handling clearing Supabase session while preserving local SQLite database.
-
----
-
-## 3. System Architecture & Technical Implementation
-
-### 3.1 Architecture Overview (MVVM + Provider Pattern)
-ExpenCircle adopts the **Model-View-ViewModel (MVVM)** pattern combined with Provider for dependency injection and state propagation.
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        PRESENTATION LAYER (VIEWS)                      │
-│   DashboardScreen • AnalyticsScreen • SplitScreen • BudgetScreen       │
-│   OnboardingScreen • LoginScreen • RegisterScreen • SettingsScreen     │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Watches & Listens
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        VIEWMODELS / PROVIDERS                          │
-│   ExpenseProvider • BudgetProvider • SplitProvider                     │
-│   - Holds observable state (ChangeNotifier)                            │
-│   - Computes derived analytics (Totals, Daily Avgs, Slices, Trends)    │
-│   - Dispatches user actions to underlying Services                     │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Calls
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                            SERVICE LAYER                               │
-│   DatabaseService • SplitService • AuthService                         │
-│   StoragePreferenceService • TransactionDetectionService               │
-└───────────────────┬────────────────────────────────┬───────────────────┘
-                    │                                │
-                    ▼                                ▼
-       ┌────────────────────────┐       ┌────────────────────────┐
-       │   LOCAL DATA SOURCE    │       │   CLOUD DATA SOURCE    │
-       │   SQLite (expenses.db) │       │   Supabase Postgres 17 │
-       │   (On-Device Sandbox)  │       │   (Mumbai ap-south-1)  │
-       └────────────────────────┘       └────────────────────────┘
-```
-
-### 3.2 State Management & Reactive Streams
-- `ExpenseProvider`: Manages personal expenses list, custom date range filtering, search terms, and active category/payment filters. Notifies UI via `notifyListeners()`.
-- `SplitProvider`: Manages group lists, active group ledger, split share computations, and net balances.
-- `BudgetProvider`: Manages monthly budget limits and evaluates overspend warnings.
-- `AuthService`: Exposes Supabase auth state and guest session flags.
-- `StoragePreferenceService`: Manages persistent `SharedPreferences` keys:
-  - `storage_location`: `'cloud'` or `'local'`.
-  - `storage_choice_made`: `true` or `false`.
-
-### 3.3 Complete Local Database Schema (SQLite)
-Stored in `/data/data/<package_name>/databases/expenses.db` on Android.
-
-```sql
--- 1. Personal Expenses Table
-CREATE TABLE expenses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    amount REAL NOT NULL,
-    category TEXT NOT NULL,
-    payment_method TEXT NOT NULL,
-    comment TEXT,
-    expense_date INTEGER NOT NULL, -- Epoch milliseconds
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-);
-
--- 2. Performance B-Tree Indexes
-CREATE INDEX idx_expense_date ON expenses(expense_date);
-CREATE INDEX idx_category ON expenses(category);
-CREATE INDEX idx_payment_method ON expenses(payment_method);
-
--- 3. Custom Categories
-CREATE TABLE categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
-);
-
--- 4. Custom Payment Methods
-CREATE TABLE payment_methods (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
-);
-
--- 5. Monthly Category Budgets
-CREATE TABLE budgets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category TEXT UNIQUE NOT NULL,
-    monthly_limit REAL NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-);
-```
-
-### 3.4 Complete Cloud Database Schema (Supabase PostgreSQL 17)
-Hosted in the **Mumbai Region (`ap-south-1`)**:
-- Project URL: `https://kqchjyfnvzfcxvhaonqz.supabase.co`
-- Publishable Key: `sb_publishable_r7uEuebZL7Ed74YQzWlTqg_VnmFZ6It`
-
-```sql
--- 1. Split Groups Table
-CREATE TABLE IF NOT EXISTS public.split_groups (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_by TEXT NOT NULL,
-    invite_code TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 2. Split Members Table
-CREATE TABLE IF NOT EXISTS public.split_members (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL REFERENCES public.split_groups(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    phone TEXT,
-    joined_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 3. Split Expenses Table
-CREATE TABLE IF NOT EXISTS public.split_expenses (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL REFERENCES public.split_groups(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    total_amount NUMERIC(12, 2) NOT NULL,
-    paid_by_member_id TEXT NOT NULL,
-    split_type TEXT NOT NULL DEFAULT 'equal', -- 'equal', 'unequal', 'percentage'
-    category TEXT,
-    note TEXT,
-    added_by_member_id TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. Split Shares Table
-CREATE TABLE IF NOT EXISTS public.split_shares (
-    id TEXT PRIMARY KEY,
-    expense_id TEXT NOT NULL REFERENCES public.split_expenses(id) ON DELETE CASCADE,
-    member_id TEXT NOT NULL,
-    share_amount NUMERIC(12, 2) NOT NULL,
-    is_settled BOOLEAN DEFAULT FALSE
-);
-
--- 5. Settlements Table
-CREATE TABLE IF NOT EXISTS public.settlements (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL REFERENCES public.split_groups(id) ON DELETE CASCADE,
-    from_member_id TEXT NOT NULL,
-    to_member_id TEXT NOT NULL,
-    amount NUMERIC(12, 2) NOT NULL,
-    settled_at TIMESTAMPTZ DEFAULT NOW(),
-    note TEXT
-);
-
--- 6. User Personal Cloud Expenses (Cloud Storage Mode)
-CREATE TABLE IF NOT EXISTS public.user_expenses (
-    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    user_id UUID DEFAULT auth.uid(),
-    amount NUMERIC(12, 2) NOT NULL,
-    category TEXT NOT NULL,
-    payment_method TEXT NOT NULL,
-    comment TEXT,
-    expense_date BIGINT NOT NULL, -- Epoch millis
-    created_at BIGINT NOT NULL,
-    updated_at BIGINT NOT NULL
-);
-
--- Production Performance Indexes
-CREATE INDEX IF NOT EXISTS idx_split_members_group_id ON public.split_members(group_id);
-CREATE INDEX IF NOT EXISTS idx_split_groups_invite_code ON public.split_groups(invite_code);
-CREATE INDEX IF NOT EXISTS idx_split_expenses_group_id ON public.split_expenses(group_id);
-CREATE INDEX IF NOT EXISTS idx_split_shares_expense_id ON public.split_shares(expense_id);
-CREATE INDEX IF NOT EXISTS idx_settlements_group_id ON public.settlements(group_id);
-CREATE INDEX IF NOT EXISTS idx_user_expenses_date ON public.user_expenses(expense_date DESC);
-CREATE INDEX IF NOT EXISTS idx_user_expenses_user_id ON public.user_expenses(user_id);
-
--- Row Level Security (RLS) Policies
-ALTER TABLE public.user_expenses ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only view their own expenses" 
-ON public.user_expenses FOR SELECT 
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can only insert their own expenses" 
-ON public.user_expenses FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can only update their own expenses" 
-ON public.user_expenses FOR UPDATE 
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can only delete their own expenses" 
-ON public.user_expenses FOR DELETE 
-USING (auth.uid() = user_id);
-```
-
-### 3.5 Supabase Authentication & Google OAuth Flow
-- **Google Web Client ID**: `399080992633-83vkmq76bgerotmks2ol10bniofcjq4t.apps.googleusercontent.com`
-- **Web Client Configuration**: Injected into `web/index.html` via `<meta name="google-signin-client_id" content="...">`.
-- **Android Deep Link Integration**:
-  In `android/app/src/main/AndroidManifest.xml`:
-  ```xml
-  <intent-filter>
-      <action android:name="android.intent.action.VIEW" />
-      <category android:name="android.intent.category.DEFAULT" />
-      <category android:name="android.intent.category.BROWSABLE" />
-      <data android:scheme="io.supabase.expensetracker" android:host="login-callback" />
-  </intent-filter>
-  ```
-- **Live Auth Listener**: `_AppRootState` in `lib/main.dart` subscribes to `Supabase.instance.client.auth.onAuthStateChange`. When the browser redirects back with an auth token, the listener captures the session and instantly refreshes the root view to `MainScreen()` without manual reload.
-
----
-
-## 4. Deep Dive: App Upgrades & Data Preservation
-
-### 4.1 What Happens When an Existing User Updates the App
-When a user has an older version of this app installed on their phone with hundreds of logged expenses and subsequently installs an update:
-
-> **All existing local data is 100% safe and preserved.**
-
-### 4.2 Android OS Sandbox Storage Mechanics
-1. **Isolated App Directory**: On Android, an application's internal data is stored inside a private sandbox at:  
-   `/data/data/<package_name>/databases/expenses.db`
-2. **Package Manager Upgrade Routine**: When the Android OS installs an update (via Google Play Store, ADB, or APK direct install):
-   - The OS **only replaces the application binaries** (`/data/app/<package_name>/base.apk` containing Dalvik/ART code and assets).
-   - The OS **never touches or deletes** the `/data/data/<package_name>/` private directory.
-   - The SQLite database file (`expenses.db`), shared preferences, and key-value stores remain completely untouched.
-3. **Data Loss Only Occurs If**:
-   - The user explicitly taps **"Uninstall"** before installing the update. (Uninstalling instructs the OS to wipe `/data/data/<package_name>/`).
-   - The user goes into **Android Settings → Apps → Storage → Clear Data**.
-
-### 4.3 Keystore & Signing Rules for In-Place Upgrades
-To perform an in-place update without uninstalling:
-- **Same Package Name**: Must match `com.example.expense_tracker` (or your registered application ID).
-- **Same Signing Certificate**: The APK must be signed with the same keystore file and key alias. If the keystore differs, Android will reject the update with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
-- **Higher Version Code**: `pubspec.yaml` `version: X.Y.Z+N` where `N` (the versionCode) is strictly greater than the currently installed version.
-
----
-
-## 5. Industry Comparison: How Real-World Finance Apps Store Data
-
-### 5.1 Storage Architecture Comparison Matrix
-
-| Application | Storage Architecture | Local Offline Support | Cloud Backup / Sync | Multi-User Splitting | Notes |
-|---|---|---|---|---|---|
-| **Splitwise** | **Cloud-First** (Server DB + Local Cache) | Partial (Read cache, queues edits) | Yes (AWS / Postgres) | Full (Primary feature) | Requires account. High server load, syncs via background workers. |
-| **Walnut / Axio** | **Hybrid / Cloud-Centric** | Yes (Local SQLite) | Yes (Proprietary cloud) | No | Auto-reads bank SMS locally, syncs financial profiles to server for credit/loan offers. |
-| **Money Lover** | **Cloud-Centric** | Yes (Offline SQLite) | Yes (Paid subscription) | Basic | Free tier has sync limits. Syncs via REST APIs. |
-| **Cashew** | **Local-First** | Yes (SQLite) | Optional Google Drive | No | Open-source, extreme privacy focus, no proprietary cloud. |
-| **ExpenCircle (This App)** | **Configurable Hybrid** | **100% Complete Offline Mode** | **Yes (Supabase Mumbai)** | **Full Splitwise Engine** | **User explicitly chooses Local or Cloud.** Zero vendor lock-in. |
-
-### 5.2 Why ExpenCircle Uses a Hybrid Local-First Architecture
-1. **Zero Latency**: Reading from an on-device SQLite database takes $\sim 1\text{ to }3\text{ milliseconds}$. The app opens instantly, even in an elevator or on airplane mode, without any spinner or skeleton screen.
-2. **User Sovereignty**: Users who do not trust third-party clouds with their financial records can select "Local Storage Only" and use the entire personal finance suite indefinitely with complete peace of mind.
-3. **Selective Cloud Collaboration**: Group splitting by definition requires network synchronization so friends can see who paid what. By utilizing Supabase only where collaboration is required, ExpenCircle minimizes server costs while maximizing user privacy.
-
----
-
-## 6. High-Scale Data Synchronization Mechanics
-
-### 6.1 The Scaling Challenge: Hundreds of Entries Per User
-A common concern for developers is:
-> *"If every user has hundreds or thousands of expense entries, isn't fetching all entries every time a huge bottleneck for the server and mobile data?"*
-
-Real-world production applications (and ExpenCircle) solve this using four specific engineering mechanisms:
-
-### 6.2 Delta Sync / Change Data Capture (CDC)
-Production finance apps **never download the entire database on every app launch**. Instead, they perform **Incremental Sync (Delta Sync)**:
-
-```
-Mobile Device                          Supabase Cloud Database
-     │                                           │
-     │ 1. GET /expenses?updated_at > 1729780000  │
-     ├──────────────────────────────────────────►│
-     │    (Only asking for changes since         │
-     │     last sync timestamp)                  │
-     │                                           │
-     │ 2. Return 3 new rows (300 bytes)          │
-     │◄──────────────────────────────────────────┤
-     │                                           │
-     │ 3. Apply changes into local SQLite        │
-     │    Update last_sync = 1729800000          │
-```
-
-- Each record contains `created_at` and `updated_at` (epoch milliseconds or ISO-8601).
-- The mobile app saves `last_successful_sync_timestamp` in `SharedPreferences`.
-- On launch, the app only asks:  
-  `SELECT * FROM user_expenses WHERE updated_at > :last_sync`
-- If 0 expenses changed, the server returns an empty list (`[]`) in $20\text{ ms}$, consuming less than $1\text{ KB}$ of bandwidth.
-- **Deletions (Tombstones)**: Soft deletions (`is_deleted = TRUE`) ensure that when an item is deleted on one device, other devices receive the deletion instruction during their delta sync.
-
-### 6.3 Pagination, Index Traversal & Memory Efficiency
-1. **PostgreSQL B-Tree Indexing**:
-   ```sql
-   CREATE INDEX idx_user_expenses_date ON user_expenses(user_id, expense_date DESC);
-   ```
-   Because the database table is indexed by `(user_id, expense_date)`, PostgreSQL does not scan every row in the table (O(N)). It traverses an index tree in logarithmic time ($O(\log N)$), retrieving 50 rows in $<1\text{ millisecond}$ regardless of whether the table has 10,000 or 10,000,000 rows.
-2. **Pagination / Infinite Scroll**:
-   When opening the Ledger or History screen, the app requests:
-   ```sql
-   SELECT * FROM user_expenses 
-   WHERE user_id = :uid 
-   ORDER BY expense_date DESC 
-   LIMIT 50 OFFSET 0;
-   ```
-   Only when the user scrolls to the bottom does the app fetch the next 50 entries.
-
-### 6.4 Network Bandwidth & Payload Mathematics
-Financial records consist of basic primitives (numbers, small strings, dates):
-- `id`: 8 bytes
-- `amount`: 8 bytes
-- `category`: ~12 bytes
-- `payment_method`: ~10 bytes
-- `comment`: ~30 bytes
-- `expense_date`: 8 bytes
-- **Total payload per record**: $\approx 100 \text{ to } 150 \text{ bytes}$.
-
-#### The Math:
-- 1 single expense row $\approx 0.1\text{ KB}$.
-- 100 expenses $\approx 10\text{ KB}$.
-- 1,000 expenses $\approx 100\text{ KB}$ (roughly the size of a single compressed icon).
-- With HTTP gzip/brotli compression applied by Supabase, 1,000 expense records compress down to $\approx 25\text{ KB}$.
-- Even over a slow 3G connection (1 Mbps), downloading 1,000 records takes **under 0.2 seconds**.
-
----
-
-## 7. Design System & UI Tokens
-
-The application follows a curated, modern aesthetic centered around the **Imperial Pine & Electric Indigo** palette with typography powered by **Plus Jakarta Sans**.
-
-| Design Token | Hex Code | Visual Application |
+| Domain | Key Capabilities Implemented | Primary Files |
 |---|---|---|
-| **Primary (Imperial Pine Green)** | `#006948` | Primary CTA buttons, positive balances ("Owed"), active bottom navigation tab |
-| **Primary Container** | `#00855D` | Hover states, prominent progress fills, section headers |
-| **Secondary (Electric Indigo)** | `#4B41E1` | Group splitting icons, text links, interactive toggles |
-| **Secondary Accent** | `#645EFB` | Card glows, tags, secondary button highlights |
-| **Tertiary (Ocean Teal)** | `#008096` | Financial metric indicators, analytics progress rings |
-| **Scaffold Canvas** | `#FAF8FF` / `#F8F9FD` | Crisp, modern soft tinted application canvas |
-| **Surface (Cards & Sheets)** | `#FFFFFF` | Elevated cards, bottom sheets, form input fields |
-| **Soft Pill / Chip Tint** | `#F2F3FF` | Inactive filter pills, input borders, unselected day cells |
-| **Headline / Primary Text** | `#131B2E` | Deep Midnight Slate for bold headings and legible amounts |
-| **Muted Text / Subtitles** | `#3D4A42` / `#6D7A72` | Secondary body text, timestamps, helper labels |
-| **Alert / Negative Balance** | `#F43F5E` | Budget overspend warnings, debt indicators ("You Owe"), delete actions |
-| **Warning / Caution** | `#F59E0B` | Budget 80% threshold warnings, pending settlements |
-| **Typography Family** | `Plus Jakarta Sans` | Modern geometric sans-serif font across all weights (400, 500, 600, 700) |
+| **Auth & Entry** | 3-step onboarding carousel, Email/Password sign-in & sign-up with 4-segment password strength meter, Native Mobile & Web Google Sign-In (`GoogleLogoIcon`), password reset, Terms/Privacy modals | `lib/screens/auth/*`, `lib/services/auth_service.dart`, `lib/main.dart` |
+| **Hybrid Storage** | User-selectable Local-Only SQLite (`expenses.db`) or Supabase Cloud (`user_expenses`) personal ledger with 1-click Local→Cloud and Cloud→Local migration tools | `lib/services/storage_preference_service.dart`, `lib/widgets/storage_choice_dialog.dart`, `lib/services/database_service.dart` |
+| **Personal Finance (Dual Flow)** | Expense (`debit`) & Income (`credit`) tracking, frequency-sorted expense categories, income categories, payment methods, customizable icons (`CategoryIcons`), receipt photo uploads (`CloudflareR2Service`) | `lib/models/expense.dart`, `lib/providers/expense_provider.dart`, `lib/widgets/add_expense_sheet.dart`, `lib/widgets/category_payment_manager_sheet.dart` |
+| **Home Dashboard** | Clean time-of-day greeting row (`Nov 1 – Nov 30` date pill), Active Trip Mode quick-open banner, minimal Reminder Carousel Banner (`Mark Paid` & `Snooze`), Monthly Budget Snapshot, Category Donut Card, Cumulative Spend Trajectory Curve, Recent Verified Ledger | `lib/screens/dashboard_screen.dart`, `lib/widgets/reminder_carousel_banner.dart`, `lib/widgets/dashboard_shimmer.dart` |
+| **Analytics & Search** | Timeframe presets (`This Month`, `Last Month`, `Last 30 Days`, `This Year`, `Custom`), 3 view modes (`List`, `Calendar` heatmap, `Chart` breakdown), separate Expense & Income breakdown accordions, tap-to-filter category chips, multi-facet `SearchScreen` & `SearchFilter` | `lib/screens/analytics_screen.dart`, `lib/screens/search_screen.dart`, `lib/models/search_filter.dart`, `lib/screens/category_detail_screen.dart` |
+| **Budgets & Guardrails** | Category monthly spend ceilings, progress indicators (`80%` near-limit warning, `100%+` overspend alert), global persistent top `BudgetAlertBanner` across tabs | `lib/screens/budget_screen.dart`, `lib/providers/budget_provider.dart`, `lib/widgets/budget_alert_banner.dart`, `lib/widgets/set_budget_sheet.dart` |
+| **Payment Reminders** | One-Time, Weekly, Monthly, Quarterly, Yearly, & Custom Interval bills; 1-tap `Mark Paid` (logs personal expense + optional split entry/settlement + rolls cycle forward); Dashboard carousel with `Snooze`; Day -1 & Day 0 alert tracking; app-bar notification badge | `lib/models/payment_reminder.dart`, `lib/providers/reminder_provider.dart`, `lib/screens/payment_reminders_screen.dart`, `lib/widgets/add_edit_reminder_sheet.dart` |
+| **Split Engine (Splitwise)** | Cloud-synced shared groups, 8-char invite codes, QR modal & OS share sheet (`SharePlus`), Web URL deep linking (`?code=XYZ`), Equal/Unequal/Percentage splitting with remainder-cent allocation, Module A participant shortcuts (`SplitExpenseGroup`), Module B combined settlement groups (`SplitSettlementGroup`), Greedy Debt Simplification (`simplifyDebtsWithGroups`), Direct Pairwise Debts + DFS Cycle Elimination (`eliminateDebtCycles`), Draggable `SlideToPayTrack`, `SettlementCelebrationModal`, Custom cover banners (Pixabay + R2), Offline mutation queue (`split_sync_queue`) | `lib/screens/split/*`, `lib/models/split_models.dart`, `lib/providers/split_provider.dart`, `lib/services/split_service.dart` |
+| **Trip Mode** | Activate an ongoing trip group so dashboard shows Trip Mode banner and `AddExpenseSheet` offers direct routing into that split group | `lib/providers/split_provider.dart`, `lib/screens/dashboard_screen.dart`, `lib/widgets/add_expense_sheet.dart` |
+| **48h Trip Photo Vault** | Ephemeral trip photo album inside every split group (`split_group_photos`), R2 primary + Supabase Storage fallback, multi-photo upload, remaining TTL urgency tags, 100% private local likes (`SharedPreferences`), full-screen viewer, multi-photo download/save, owner-only deletion | `lib/models/trip_photo.dart`, `lib/providers/trip_photo_provider.dart`, `lib/services/trip_photo_service.dart`, `lib/services/trip_photo_local_likes_service.dart`, `lib/screens/split/trip_photo_vault_*` |
+| **On-Device SMS Auto-Log** | Native Android `BroadcastReceiver` + Flutter `SmsParser` extracting Indian bank debit/credit alerts while filtering OTP/2FA & promos and avoiding available-balance collisions; interactive approval flow + `SmsTesterSheet` | `lib/services/sms_parser.dart`, `lib/services/transaction_detection_service.dart`, `android/.../SmsReceiver.kt`, `lib/widgets/sms_tester_sheet.dart` |
+| **Android Native Extras** | Transparent lock-screen/quick `QuickAddActivity`, Quick Settings Tile (`QuickAddTileService`), Home-screen Glance AppWidget (`ExpenseWidgetProvider`), shared SQLite `DatabaseHelper` | `android/app/src/main/kotlin/com/manav/expense/expense_tracker/*.kt` |
+| **Push Notifications** | FCM HTTP v1 settlement reminders via Supabase Edge Function (`send-settlement-reminder`), token registry (`user_device_tokens`), foreground Android notification channel, tap deep-link into group Settle tab | `lib/services/push_notification_service.dart`, `supabase/functions/send-settlement-reminder/index.ts`, `MainActivity.kt` |
+| **Export & Portability** | OWASP CWE-1236 formula-injection-safe CSV export, structured JSON backup, cross-platform Web/IO file save/share, Google Apps Script webhook auto-sync & batch sync | `lib/services/data_export_service.dart`, `lib/services/google_sheets_service.dart`, `lib/widgets/export_data_sheet.dart`, `lib/widgets/google_sheets_sync_sheet.dart` |
+| **Operations & CI/CD** | GitHub Actions Web deploy to Vercel on `main` push, Shorebird OTA configuration, store-compliant permission disclosures (`AppPermissionService`) | `.github/workflows/deploy.yml`, `vercel.json`, `shorebird.yaml`, `lib/services/app_permission_service.dart` |
 
 ---
 
-## 8. Complete Codebase Directory & File Inventory
+## 2. New Developer Quick-Start & Environment Setup
+
+### 2.1 Prerequisites
+- **Flutter SDK:** Stable channel compatible with Dart `^3.7.0`
+- **Android Studio / Android SDK:** NDK `27.0.12077973`, Java 11 (`JavaVersion.VERSION_11`)
+- **Node.js & Deno / Supabase CLI** *(only needed if modifying or deploying Supabase Edge Functions)*
+- **macOS + Xcode + Apple Developer Account** *(only required when building or configuring APNs push for iOS)*
+
+### 2.2 Install Dependencies & Run Locally
+```powershell
+# 1. Install Dart/Flutter dependencies
+flutter pub get
+
+# 2. Verify code analysis and all 189 tests
+flutter analyze --no-pub
+flutter test --no-pub
+
+# 3. Run on connected Android device/emulator
+flutter run
+
+# 4. Run on Chrome Web (SPA routing works with base href)
+flutter run -d chrome
+```
+
+### 2.3 Environment & Secret Configuration
+Compile-time config lives in `lib/core/config/app_config.dart` (read via `String.fromEnvironment`). Refer to `.env.example` for all supported `--dart-define` keys:
+
+| Variable (`--dart-define`) | Purpose | Required For |
+|---|---|---|
+| `SUPABASE_URL` | Supabase project REST/Auth base URL | Cloud sync, Auth, Split, Photo Vault |
+| `SUPABASE_ANON_KEY` | Supabase public publishable key | Client requests respecting RLS |
+| `GOOGLE_WEB_CLIENT_ID` | OAuth 2.0 Web Client ID (also in `web/index.html` `<meta name="google-signin-client_id">`) | Web & Mobile ID-token Google Sign-In |
+| `GOOGLE_ANDROID_CLIENT_ID` | Google Android OAuth Client ID | Android Google Sign-In |
+| `GOOGLE_IOS_CLIENT_ID` | Google iOS OAuth Client ID | iOS Google Sign-In |
+| `PIXABAY_API_KEY` | Pixabay image search key | Dynamic group banner search (`PixabayService`) |
+| `R2_ACCOUNT_ID` | Cloudflare account ID | R2 S3-compatible endpoint |
+| `R2_BUCKET_NAME` | Cloudflare R2 bucket name | Receipt, avatar & trip photo storage |
+| `R2_ACCESS_KEY_ID` | R2 S3 access key ID | AWS SigV4 signed `PUT`/`DELETE` requests |
+| `R2_SECRET_ACCESS_KEY` | R2 S3 secret key | HMAC-SHA256 SigV4 signing (keep secret!) |
+| `R2_PUBLIC_BASE_URL` | Public CDN base URL (`https://pub-*.r2.dev`) | Public image URLs stored in DB |
+
+Example parameterized run:
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your_publishable_key \
+  --dart-define=R2_ACCOUNT_ID=your_r2_account \
+  --dart-define=R2_BUCKET_NAME=your_bucket \
+  --dart-define=R2_ACCESS_KEY_ID=your_r2_key \
+  --dart-define=R2_SECRET_ACCESS_KEY=your_r2_secret \
+  --dart-define=R2_PUBLIC_BASE_URL=https://pub-your-cdn.r2.dev \
+  --dart-define=PIXABAY_API_KEY=your_pixabay_key
+```
+
+### 2.4 Backend Setup Checklist (Fresh Project Clone)
+1. **Supabase SQL Schema:** Run `supabase_schema.sql` first, then run `supabase_trip_photo_vault.sql` in Supabase Dashboard -> **SQL Editor**.
+2. **Firebase Android Client:** Place your `google-services.json` (package `com.manav.expense.expense_tracker`) at `android/app/google-services.json` (used by `com.google.gms.google-services` in `android/app/build.gradle.kts`).
+3. **Edge Function Deployment & Secret:**
+   - Deploy `supabase/functions/send-settlement-reminder/index.ts`.
+   - In Supabase Dashboard -> **Edge Functions -> Secrets**, add `FIREBASE_SERVICE_ACCOUNT_JSON` containing the full Firebase Service Account JSON (`project_id`, `client_email`, `private_key`).
+4. **Google OAuth:** Enable Google provider in Supabase Auth, configure Web/Android/iOS client IDs, and ensure Android redirect intent filter (`io.supabase.expensetracker://login-callback`) matches.
+
+---
+
+## 3. System Architecture & State Management
+
+ExpenCircle uses a **layered MVVM + Provider** architecture designed for offline resilience and platform abstraction (`Mobile` vs `Web`).
 
 ```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                         PRESENTATION LAYER (SCREENS & WIDGETS)            │
+│  AppRoot -> MainScreen (Home | Analytics | + | Split | Budgets)           │
+│  DashboardScreen • AnalyticsScreen • SplitScreen • SplitGroupDetailScreen │
+│  BudgetScreen • PaymentRemindersScreen • SearchScreen • SettingsScreen    │
+└────────────────────────────────────┬──────────────────────────────────────┘
+                                     │ context.watch / Provider / Consumer
+                                     ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                       STATE LAYER (5 ChangeNotifier Providers)            │
+│  ExpenseProvider • BudgetProvider • SplitProvider                         │
+│  ReminderProvider • TripPhotoProvider                                     │
+└────────────────────────────────────┬──────────────────────────────────────┘
+                                     │
+                                     ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                               SERVICE LAYER                               │
+│  AuthService • DatabaseService • SplitService • PushNotificationService   │
+│  CloudflareR2Service • PixabayService • GoogleSheetsService               │
+│  DataExportService • StoragePreferenceService • SmsParser                 │
+│  TransactionDetectionService • TripPhotoService • AppPermissionService    │
+└───────────────────┬────────────────────────────────────┬──────────────────┘
+                    │                                    │
+                    ▼                                    ▼
+   ┌─────────────────────────────────┐  ┌───────────────────────────────────┐
+   │      LOCAL DATA SOURCES         │  │        CLOUD / EXTERNAL APIs      │
+   │  • SQLite (`expenses.db`)       │  │  • Supabase Postgres + Auth + RLS │
+   │  • SharedPreferences            │  │  • Supabase Edge Function (Deno)  │
+   │  • Web in-memory fallback lists │  │  • Firebase Cloud Messaging (v1)  │
+   │                                 │  │  • Cloudflare R2 (SigV4 S3 API)   │
+   │                                 │  │  • Pixabay API & Google Sheets    │
+   └─────────────────────────────────┘  └───────────────────────────────────┘
+```
+
+### 3.1 Bootstrap & Root Navigation (`lib/main.dart`)
+On startup, `main()` initializes:
+1. `WidgetsFlutterBinding.ensureInitialized()`
+2. `CategoryIcons.init()` (loads persisted custom category icons from `SharedPreferences`)
+3. `Supabase.initialize(url: AppConfig.supabaseUrl, publishableKey: AppConfig.supabaseAnonKey)`
+4. `AuthService.instance.initUserCache()` (loads cached name/avatar into `ValueNotifier`s)
+5. `PushNotificationService.instance.initialize(navigatorKey: appNavigatorKey)`
+6. Web invite code capture: if `kIsWeb` and URL contains `?code=...`, saves `pending_invite_code` in `SharedPreferences` and marks onboarding completed.
+7. Mounts `MultiProvider` registering `ExpenseProvider`, `BudgetProvider`, `SplitProvider`, `ReminderProvider..loadReminders()`, and `TripPhotoProvider`.
+
+`_AppRootState` subscribes to `Supabase.instance.client.auth.onAuthStateChange` and resolves the root screen:
+- Not completed onboarding (`!_hasSeenOnboarding`) -> `OnboardingScreen`
+- Not authenticated and not guest (`!_isAuthenticatedOrGuest`) -> `LoginScreen`
+- Otherwise -> `MainScreen(navigatorKey: appNavigatorKey)` (if authenticated, forces `StorageMode.cloud` and calls `PushNotificationService.instance.syncDeviceToken()`).
+
+### 3.2 Providers Overview
+| Provider | File | Core Responsibilities |
+|---|---|---|
+| `ExpenseProvider` | `lib/providers/expense_provider.dart` | Fast-path instant local SQLite read (<5ms) followed by cloud reconciliation; manages personal expenses & incomes, usage-sorted `categories`, `incomeCategories`, `paymentMethods`, stats & filters, Local<->Cloud sync triggers, Google Sheets auto-sync hook |
+| `BudgetProvider` | `lib/providers/budget_provider.dart` | Monthly category spending caps (`Budget`), computes `BudgetProgress` (`spentThisMonth`, `remaining`, `percentage`, `isNearLimit` >=80%, `isOverspent`), drives `recentOverspendWarning` for `BudgetAlertBanner` |
+| `SplitProvider` | `lib/providers/split_provider.dart` | Caches group lists per `user_id` (`split_group_ids_<uid>`), fetches members/expenses/settlements/shares/expense groups/settlement groups, computes net balances & debt lists (`simplifyDebts` toggle per group), tracks offline queue indicator (`hasPendingSync`), manages **Trip Mode** (`activeTripGroupId`), triggers `sendSettlementReminder` push notifications |
+| `ReminderProvider` | `lib/providers/reminder_provider.dart` | Manages `PaymentReminder` lifecycle (`activeReminders`, `overdueReminders`, `dueTodayReminders`, `dashboardActionableReminders`, `completedReminders`, `pausedReminders`), normalized `totalMonthlyCommittedAmount`, 1-tap `markAsPaid` across personal + split ledgers, session banner dismissal persisted per date (`reminder_banner_dismissed_date`), and Day -1 / Day 0 notification rate limiting |
+| `TripPhotoProvider` | `lib/providers/trip_photo_provider.dart` | Loads active unexpired photos (`expires_at > now`) and local private likes, supports filters (`all`, `liked`, contributor `uploaderId`), calculates storage metrics (`1.0 GB` default capacity gauge), bulk batch upload, owner-only deletion, and multi-photo liked downloads |
+
+---
+
+## 4. Feature Modules & Core Business Logic
+
+### 4.1 Onboarding, Authentication & Session Lifecycle
+- **`OnboardingScreen` (`lib/screens/auth/onboarding_screen.dart`):** 3-step swipeable intro highlighting ownership/offline storage, SMS capture, and group splitting with `screen/onboarding_*.png` illustrations. Completing or skipping saves `has_completed_onboarding_v1`.
+- **`LoginScreen` (`lib/screens/auth/login_screen.dart`):** Clean, streamlined login with Email/Password (`AuthService.signInWithEmail`), Password Reset (`AuthService.resetPassword`), **"Continue with Google"** (`GoogleLogoIcon` + `AuthService.signInWithGoogle`), and Sign Up link to `RegisterScreen`.
+  - *Note on Guest Mode:* `AuthService` still retains internal `isGuest()` / `setGuestMode()` helpers for offline state & backwards compatibility, while `LoginScreen` focuses on Email/Password and Google Sign-In.
+- **Google Sign-In Flow (`AuthService.signInWithGoogle`):**
+  - **Web:** Uses `Supabase.auth.signInWithOAuth(OAuthProvider.google, redirectTo: Uri.base.origin)` while preserving pending invite codes.
+  - **Android / iOS:** Uses `google_sign_in` (`GoogleSignIn(serverClientId: _webClientId, clientId: ...)`), retrieves `idToken` + `accessToken`, signs into Supabase via `_client.auth.signInWithIdToken(...)`, caches display name/avatar, sets `StorageMode.cloud`, and syncs FCM token.
+- **`RegisterScreen` (`lib/screens/auth/register_screen.dart`):** Validates Full Name, Email, Password, Confirm Password, renders a 4-segment strength meter, and requires legal checkbox acceptance with modal Privacy Policy & Terms (`LegalSheets`).
+- **Sign Out (`AuthService.signOut`):**
+  1. Removes current device's FCM token from `user_device_tokens` (`removeCurrentDeviceToken()`).
+  2. Signs out of Supabase Auth & native `GoogleSignIn`.
+  3. Clears cached profile `SharedPreferences` (`user_display_name_cached`, `user_photo_url_cached`).
+  4. Wipes **only** local SQLite caches (`DatabaseService.clearLocalDatabaseOnly()` & `SplitService.clearLocalDatabaseOnly()`) so cloud rows remain intact while another user signing in on the same phone sees a clean slate.
+
+### 4.2 Hybrid Storage Mode (Local SQLite vs Supabase Cloud)
+Managed by `StoragePreferenceService` (`storage_mode_v1`, `storage_mode_has_chosen_v1`) and `StorageChoiceDialog`:
+- **Local Mode (`StorageMode.local`):** Personal `expenses`, `budgets`, `categories`, `income_categories`, `payment_methods`, and `payment_reminders` live purely on-device in SQLite (`expenses.db`) or Web in-memory lists (`_webExpenses`, etc.).
+- **Cloud Mode (`StorageMode.cloud`):** Personal expenses read/write from Supabase `user_expenses` filtered by `auth.uid()`, mirrored locally in SQLite so app launches stay instantaneous (`fetchExpenses` fast path).
+- **Authenticated Default:** Signing in automatically enables `StorageMode.cloud`; users can inspect or switch personal storage mode in **Settings -> Personal Expense Storage** (`_StorageModeTile`), and perform 1-click Local->Cloud (`syncLocalToCloud()`) or Cloud->Local (`syncCloudToLocal()`) transfers.
+
+### 4.3 Personal Income & Expense Tracking Engine
+- **Unified `Expense` Model (`lib/models/expense.dart`):** Supports `TransactionType.expense` and `TransactionType.income` via the `type` column (`'expense'` / `'income'`). Safe deserialization handles `num`->`double` conversions (`(map['amount'] as num).toDouble()`) and missing timestamps.
+- **Category & Payment Management (`CategoryPaymentManagerSheet` + `DatabaseService`):**
+  - Separate default lists for Expense categories (`Food & Dining`, `Shopping`, `Transport`, `Bills & Utilities`, `Entertainment`, `Health & Wellness`, `Investment`, `General`) and Income categories (`Salary`, `Freelance`, `Investments`, `Refund / Cashback`, `Rental Income`, `Gifts`, `Other Income`), plus Payment Methods (`UPI`, `Card`, `Cash`, `Transfer`).
+  - Usage-based ordering & Display-name formatting (`ExpenseProvider.formatDisplayName` preserves acronyms like `UPI` and `EMI`).
+  - Custom icons mapped & persisted per category via `CategoryIcons` (`lib/utils/category_icons.dart`).
+- **Add / Edit Flow (`AddExpenseSheet`):** Supports Expense/Income toggle, numeric amount input, searchable category & payment selectors (`SearchableSelectionSheet`), receipt attachment via `ReceiptAttachmentSheet` (uploads to Cloudflare R2; auto-deletes orphaned upload if save fails), and optional Trip Mode group routing.
+
+### 4.4 Home Dashboard & Spend Trajectory
+Built inside `DashboardScreen` (`lib/screens/dashboard_screen.dart`):
+1. **Top App Bar (`MainScreen`):** Brand logo + `ExpenCircle PRO` badge (or active tab subtitle), Search shortcut (`SearchScreen`), Notification bell with live urgent-reminder badge (`notificationBadgeCount`), and interactive `UserProfileAvatar` (`SettingsScreen`).
+2. **Active Trip Mode Banner (`_buildTripModeBanner`):** Shown when `SplitProvider.isTripModeActive` is true, offering instant navigation to the active group.
+3. **Greeting Row (`_buildGreetingRow`):** Simple single-row header showing `Good morning` / `Good afternoon` / `Good evening` on the left (without user name) and the current-month date range pill (`Nov 1 – Nov 30`) on the right.
+4. **Minimal Reminder Banner (`ReminderCarouselBanner`):** Auto-rotating (`4s`) swipeable white card with a `5px` left emerald accent bar (`#00B16A`), circular mint category icon, displaying **only** the reminder `title`, formatted `amount` (`₹...`), **`Mark Paid`** button, and **`Snooze`** button. Tapping the card opens `PaymentRemindersScreen`; **`Snooze`** calls `provider.dismissBannerForSession()` to snooze the banner for the current date.
+5. **Monthly Budget Snapshot (`_buildBudgetSnapshotCard`):** Displays monthly spent vs total budgeted cap, utilization bar, and quick link to `BudgetScreen`.
+6. **Category Donut & Spend Trajectory (`_buildCategoryDonutCard`, `_buildTrajectoryCard`):** `fl_chart` donut breakdown and smooth cumulative spend trajectory curve across month milestones.
+7. **Recent Verified Ledger (`_buildVerifiedLedgerSection`):** Latest transactions with tap-to-edit support.
+
+### 4.5 Analytics & Financial Ledger
+Implemented in `AnalyticsScreen` (`lib/screens/analytics_screen.dart`):
+- **Timeframe Controls:** Presets (`This Month`, `Last Month`, `Last 30 Days`, `This Year`, `Custom`), month/year picker (`_showMonthYearPicker`), and previous/next stepper controls. `DateRangePreset` end bounds carefully extend to `23:59:59.999` so same-day entries are never missed.
+- **Pine-Tinted Period Summary Hero Card + Mini Bar Sparkline:** Summarizes total outflows, inflows, net flow, daily average, and transaction count.
+- **3 View Switcher Modes (`_viewMode`):**
+  1. **`list` (Ledger):** Live search input, quick category filter chips, active filter banner, and grouped chronological transaction timeline with category/merchant avatars.
+  2. **`calendar` (Heatmap Calendar):** Monthly grid color-coded by daily outflow intensity + single-day drill-down ledger (`_buildSelectedDayOutflows`).
+  3. **`chart` (Breakdown):** Collapsible category breakdown cards strictly separating **Expenses** (`_isExpenseBreakdownExpanded`) and **Income** (`_isIncomeBreakdownExpanded`).
+
+### 4.6 Category Budgets & Guardrail Alerts
+Implemented in `BudgetScreen`, `SetBudgetSheet`, `BudgetProvider`, and `BudgetAlertBanner`:
+- Monthly spending cap per category (case-insensitive & whitespace-trimmed matching).
+- Real-time utilization strictly considers `e.isExpense` within the current calendar month (incomes do not reduce spent amounts or trigger overspend warnings).
+- **Guardrail States:**
+  - `< 80%`: Safe (Pine Green)
+  - `80% – 99.9%`: `isNearLimit` Caution
+  - `>= 100%` (or spent > 0 when limit = 0): `isOverspent` Critical Alert; triggers persistent dismissible `BudgetAlertBanner` across `MainScreen`.
+
+### 4.7 Payment Reminders & Cycle Roll-Forward Engine
+Implemented in `PaymentReminder`, `ReminderProvider`, `PaymentRemindersScreen`, `AddEditReminderSheet`, and `ReminderCarouselBanner`:
+- **Supported Frequencies (`ReminderFrequency`):** `oneTime` (`One-Time`), `weekly`, `monthly`, `quarterly`, `yearly`, and `customDays` (custom `N` days).
+- **Smart Month-End Clamping:** `calculateNextCycleDate()` clamps `dueDay` (e.g. day `31`) to `DateTime(year, month + 1, 0).day` so February/30-day months never drift to wrong dates.
+- **Calendar-Day Calculations (`daysUntilDue`):** Uses normalized `DateTime.utc(year, month, day)` dates so DST/time-of-day shifts never distort `Due Today`, `Due Tomorrow`, or `Overdue` status.
+- **Monthly Committed Calculation (`totalMonthlyCommittedAmount`):** Normalizes Weekly (`amount * 4.33`), Quarterly (`amount / 3`), Yearly (`amount / 12`), Custom Days (`amount / days * 30`), and includes One-Time bills only when due in the current calendar month.
+- **1-Tap "Mark as Paid" Flow (`ReminderProvider.markAsPaid`):**
+  1. Auto-logs a personal `Expense` (`Auto-logged from reminder: <title>`) into `ExpenseProvider`.
+  2. If `splitGroupId` is attached:
+     - `ReminderSplitType.settlement`: records a group `Settlement` with `splitTargetMemberId`.
+     - `ReminderSplitType.splitExpense`: splits the bill equally across current group members (assigning remainder cents to the last member) and creates a `SplitExpense`.
+  3. Advances `nextDueDate` via `calculateNextCycleDate` and clears `notifiedDayBeforeAt` / `notifiedDueDayAt` for the next cycle (or sets `isCompleted = true` for `oneTime`).
+- **Strict 2-Notification Rate Limiting (`checkAndTriggerDueAlerts`):** Guarantees at most **1 alert at Day -1** (`notifiedDayBeforeAt`) and **1 alert at Day 0+** (`notifiedDueDayAt`) per billing cycle.
+
+### 4.8 Splitwise-Style Group Expense Engine & Combined Settlements
+The collaborative Split module (`lib/screens/split/*`, `lib/models/split_models.dart`, `lib/services/split_service.dart`, `lib/providers/split_provider.dart`) is one of the deepest parts of the codebase:
+- **Group Detail Architecture (`SplitGroupDetailScreen` + `SplitBottomNavBar`):**
+  4 tabs plus centered elevated **`Add Expense`** button:
+  - Tab `0`: **Expenses** (`SplitExpensesView`) — total spend card, Trip Mode toggle, itemized ledger, edit/delete/receipt preview.
+  - Tab `1`: **Settle** (`SplitSettleView`) — CheQ-wallet-inspired balance overview, **Simplify Debts** toggle + explanation modal, Direct vs Simplified debt cards, **Remind** push notification trigger, draggable `SlideToPayTrack` 1-swipe settlement, and `SettlementCelebrationModal` confetti/celebration dialog.
+  - Tab `2`: **Members** (`SplitMembersView`) — mint-washed top trip info card (`Created on <d MMM> • Active`), `Add Member`, `Group QR` invite modal, shareable invite link (`SharePlus.instance.share`), member search & filter (`All Members` vs `Combined`), inline member editing, Module A `Expense Member Groups`, and Module B `Combined Settlement Groups`.
+  - Tab `3`: **Photos** (`TripPhotoVaultTab`) — 48-hour ephemeral trip album.
+- **Split Algorithms & Financial Precision:**
+  - **Remainder-Cent Safe Equal Split:** Divides in integer paise/cents and allocates any odd paisa to the final participant so shares always sum strictly to `totalAmount`.
+  - **Module A (`SplitExpenseGroup`):** Reusable participant subsets (e.g., "Roommates", "Car #1") for fast expense entry.
+  - **Module B (`SplitSettlementGroup`):** Virtual coupled entities (e.g., Couples / Families settling together via `sg_<id>` keys). A member can belong to at most one settlement group per split group (enforced client-side and in SQL via `UNIQUE(group_id, member_id)`).
+  - **`simplifyDebts(balances)` / `simplifyDebtsWithGroups(...)`:** Greedy creditor-debtor matching in integer cents to minimize total transfers.
+  - **`calculateDirectDebts(...)` / `calculateDirectDebtsWithGroups(...)`:** Preserves pairwise who-paid-for-whom relationships without routing through intermediaries, canceling internal debts inside the same settlement group.
+  - **`eliminateDebtCycles(inputDebts)`:** Iteratively runs DFS over the directed debt graph and subtracts minimum edge flow along any cycle (`A -> B -> C -> A`), eliminating circular debts.
+- **Offline Queue & Batching:** Offline inserts/updates enqueue into SQLite `split_sync_queue` and replay in order via `SplitService.syncPendingData()`. Cloud share loading avoids N+1 queries by invoking the `get_group_shares(p_group_id)` PostgreSQL RPC.
+
+### 4.9 Trip Mode (Direct Expense Routing)
+- Users can toggle **Trip Mode** on any active split group inside `SplitGroupDetailScreen` / `SplitExpensesView` (`SplitProvider.enableTripMode(groupId)` / `disableTripMode()`, persisted via `active_trip_mode_group_id`).
+- While active, `DashboardScreen` surfaces a prominent emerald **Trip Mode** banner and `AddExpenseSheet` displays a toggle allowing new expenses to automatically route straight into that trip group's shared ledger.
+
+### 4.10 48-Hour Ephemeral Trip Photo Vault
+Implemented across `TripPhoto`, `TripPhotoProvider`, `TripPhotoService`, `TripPhotoLocalLikesService`, and `lib/screens/split/trip_photo_vault_*`:
+- **Purpose:** Lets trip members drop raw trip photos into a shared group vault that automatically expires after **48 hours** (`expires_at = NOW() + 48h`).
+- **Storage Hierarchy:** Uploads via `CloudflareR2Service.uploadBytes()` first (`vaults/{group_id}/{uploader_id}/{timestamp}_{uuid}.{ext}`), falling back to Supabase Storage bucket `trip-vault-photos` when R2 isn't configured, then performs a single bulk `INSERT` into `split_group_photos`.
+- **100% Private Local Likes:** Likes are stored solely in `SharedPreferences` via `TripPhotoLocalLikesService` — zero server writes/table bloat and completely private to the user's phone, with a 1-click **"Download All Liked"** helper (`PhotoDownloadHelper` supporting both Web download and Mobile share/save).
+- **Group Isolation & Ownership:** Enforced by RLS policies (`is_group_member(group_id)` for read/insert, `uploader_id = auth.uid()` for delete).
+
+### 4.11 On-Device Bank SMS Auto-Detection
+Implemented across `SmsParser` (`lib/services/sms_parser.dart`), `TransactionDetectionService` (`lib/services/transaction_detection_service.dart`), native `SmsReceiver.kt`, and `SmsTesterSheet`:
+- **Privacy Design:** Raw SMS bodies are processed entirely on-device and discarded immediately — never stored in SQLite or sent over HTTP.
+- **2-Stage Noise Filtering:**
+  - Rejects OTP / 2FA alerts (`otp`, `verification code`, `security code`, `do not share`, `valid for`, etc.).
+  - Rejects marketing/loan promos (`flat rs`, `cashback`, `off on`, `pre-approved`, `loan`, `coupon`, etc.).
+- **Anti-Collision Amount Regex:** Prioritizes transaction verbs (`debited`, `credited`, `spent`, `paid`, `withdrawn`, etc.) and ignores amounts preceded by balance keywords (`bal`, `avl`, `available`, `limit`).
+- **Store Policy Compliance:** Permissions are **never** requested on cold start; Flutter displays an in-app prominent disclosure (`AppPermissionService`) before requesting Android `RECEIVE_SMS` / `READ_SMS` permissions.
+
+### 4.12 Push Notifications (FCM + Supabase Edge Function)
+End-to-end free-tier push notifications (zero Blaze billing required) connecting Android FCM with Supabase:
+1. **Token Registration (`PushNotificationService`):** Requests runtime notification permission (`POST_NOTIFICATIONS` on Android 13+), obtains the device's FCM registration token, listens to `onTokenRefresh`, and upserts `(user_id, fcm_token, platform)` into `public.user_device_tokens`. On sign-out, `removeCurrentDeviceToken()` deletes that token.
+2. **Triggering Reminders (`SplitSettleView` -> `SplitProvider.sendSettlementReminder` -> `SplitService`):** Clicking **Remind** next to a debtor invokes Supabase Edge Function `send-settlement-reminder` (never copies reminder text to clipboard; returns typed status: `sent`, `noLinkedAccount`, `noDeviceTokens`, `notConfigured`, `failed`).
+3. **Edge Function Execution (`supabase/functions/send-settlement-reminder/index.ts`):**
+   - Verifies caller's Supabase JWT via `auth.getUser()`.
+   - Confirms caller is a verified creator or member of `group_id`.
+   - Reads `recipient_user_id`'s tokens from `user_device_tokens` using `SUPABASE_SERVICE_ROLE_KEY`.
+   - Signs a short-lived RS256 JWT using `FIREBASE_SERVICE_ACCOUNT_JSON` (pure WebCrypto `crypto.subtle` — no heavy Firebase Admin SDK dependency), exchanges it at `oauth2.googleapis.com/token`, sends to **FCM HTTP v1** (`messages:send`) targeting Android channel `expencircle_push_reminders`, and prunes any `UNREGISTERED` / `NOT_FOUND` stale tokens.
+4. **Foreground & Tap Handling:** When the app is foregrounded, `PushNotificationService._handleForegroundMessage` calls native Android `MethodChannel('com.manav.expense/push_notifications')` (`showForegroundNotification`) to display a heads-up system notification (falling back to a SnackBar elsewhere). Tapping the notification opens `SplitGroupDetailScreen` directly on the **Settle** tab (`initialTabIndex: 1`).
+
+### 4.13 Media Pipeline (Cloudflare R2 & Pixabay)
+- **`CloudflareR2Service` (`lib/services/cloudflare_r2_service.dart`):** Implements pure-Dart **AWS Signature Version 4 (HMAC-SHA256)** `PUT` uploads and `DELETE` cleanup against `https://<accountId>.r2.cloudflarestorage.com/<bucket>/<key>`, returning public CDN URLs (`AppConfig.r2PublicBaseUrl`). Used for receipts, profile avatars, custom group covers, and trip vault photos. Includes `deleteByUrl()` cleanup if saving the associated record fails.
+- **`PixabayService` (`lib/services/pixabay_service.dart`):** Powers `GroupBannerPickerSheet` to search contextual group cover photos with curated local fallback visuals when offline or unconfigured.
+
+### 4.14 Data Export (CSV, JSON & Google Sheets Sync)
+- **`DataExportService` (`lib/services/data_export_service.dart`):** Generates CSV and pretty JSON exports containing `Expense` type (`Expense`/`Income`), date, time, category, signed amount, payment method, and note. CSV generation prevents **Formula Injection (OWASP CWE-1236)** by prefixing leading `=`, `+`, `-`, `@`, `\t`, `\r` characters with `'`. Uses conditional imports (`export_helper_web.dart` / `export_helper_io.dart`) for Web browser downloads and mobile share/save.
+- **`GoogleSheetsService` (`lib/services/google_sheets_service.dart`):** Supports both live single-transaction `autoSync` (`syncExpenseIfEnabled`) and full batch export to a configurable Google Apps Script Web App webhook URL.
+
+---
+
+## 5. Native Android Architecture (Kotlin Modules & Platform Channels)
+
+Application ID: `com.manav.expense.expense_tracker` (`android/app/build.gradle.kts`, `minSdk = 24` required by `firebase_messaging`, compile/targetSdk inherited from Flutter Gradle plugin, NDK `27.0.12077973`, Java 11, Google Services plugin enabled). `android/gradle.properties` sets `kotlin.incremental=false` to avoid Kotlin daemon cross-drive cache errors when the Pub cache resides on `C:` and the workspace on `D:`.
+
+### Platform Channels (`MainActivity.kt`)
+1. `com.manav.expense/widget`: `updateWidget` triggers `ExpenseWidgetProvider.sendUpdateBroadcast(context)`.
+2. `com.manav.expense/permissions`: `hasSmsPermission` checks `RECEIVE_SMS` & `READ_SMS`; `requestSmsPermission` requests SMS + Android 13+ `POST_NOTIFICATIONS` on user action.
+3. `com.manav.expense/transaction_detection`: Pushes `onTransactionDetected` payloads (`amount`, `category`, `paymentMethod`, `comment`, `type`, `isExpense`) from Kotlin to Flutter.
+4. `com.manav.expense/push_notifications`: Creates notification channel `expencircle_push_reminders` (`IMPORTANCE_HIGH`) and displays foreground notifications via `showForegroundNotification`.
+
+### Native Kotlin Components (`android/app/src/main/kotlin/com/manav/expense/expense_tracker/`)
+| Class | Purpose |
+|---|---|
+| `MainActivity.kt` | Hosts `FlutterActivity`, manages all 4 MethodChannels and `expencircle_push_reminders` notification channel |
+| `QuickAddActivity.kt` | Transparent modal activity (`Theme.TransparentDialog`, `showWhenLocked=true`) for rapid Expense/Income logging directly from home widget, Quick Settings tile, or app shortcuts |
+| `QuickAddTileService.kt` | Android Quick Settings panel tile (`"Add Expense"`) launching `QuickAddActivity` |
+| `ExpenseWidgetProvider.kt` | Home-screen Glance AppWidget (`R.layout.widget_expense`) reading today total, month total, and recent 2 transactions directly from SQLite `expenses.db` via `DatabaseHelper` |
+| `SmsReceiver.kt` | Background `TELEPHONY.SMS_RECEIVED` `BroadcastReceiver` running Kotlin-side OTP/promo filtering, verb-priority amount extraction, debit/credit disambiguation, and launching transaction notifications |
+| `DatabaseHelper.kt` | Native `SQLiteOpenHelper` (`expenses.db`, version `1`) matching Flutter's schema (`expenses`, `categories`, `income_categories`, `payment_methods`) so background widgets & Quick Add stay in sync |
+| `NotificationDismissReceiver.kt` | Handles dismissal actions from native transaction notifications |
+
+---
+
+## 6. iOS & Web Platform Specifics
+
+### 6.1 Web (`web/index.html`, `vercel.json`)
+- **OAuth:** `<meta name="google-signin-client_id" ...>` in `web/index.html` enables Google Sign-In redirect flow.
+- **Cache-Busting Service Worker Cleanup:** `web/index.html` includes an inline script unregistering stale service workers / clearing browser caches on load so SPA updates roll out immediately; `vercel.json` sets `Cache-Control: no-cache` on `/flutter_service_worker.js` and rewrites `/(.*)` to `/index.html`.
+- **Web Fallbacks:** Because `sqflite` does not run on Web, `DatabaseService` uses `_webExpenses`, `_webCategories`, `_webIncomeCategories`, `_webPaymentMethods`, `_webBudgets`, and `_webReminders` (plus `Cloud` mode via Supabase), and file pick/download/export swap cleanly via conditional imports (`*_web.dart` vs `*_io.dart` / `*_stub.dart`).
+
+### 6.2 iOS (`ios/Runner/Info.plist`)
+- Camera and Photo Library usage descriptions (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`) are configured for receipts, avatars, and Trip Photo Vault.
+- On-device SMS detection (`SmsReceiver`) and Quick Settings Tile / Glance widget are **Android-only**; `PushNotificationService` guards platform checks cleanly (`TargetPlatform.android || TargetPlatform.iOS`).
+- **Remaining iOS Requirements (if shipping iOS push notifications):** Because iOS requires Xcode + Apple Developer APNs setup (`.p8` APNs Auth Key uploaded to Firebase Cloud Messaging + `GoogleService-Info.plist` + Push Notifications capability & `aps-environment` in Xcode), building/configuring iOS push requires a **Mac / macOS runner**.
+
+---
+
+## 7. Database Architecture & Schemas
+
+### 7.1 Local SQLite Schema (`expenses.db`)
+Managed by `DatabaseService` (Flutter `sqflite`) and `DatabaseHelper` (Kotlin Android native), with runtime idempotent `ALTER TABLE` and `CREATE TABLE IF NOT EXISTS` migrations in `_ensureMetaTables`:
+
+| Table | Purpose | Key Columns & Indexes |
+|---|---|---|
+| `expenses` | Personal expenses & incomes | `id` (PK), `user_id`, `amount`, `category`, `payment_method`, `comment`, `receipt_url`, `expense_date`, `created_at`, `updated_at`, `type` (`'expense'`/`'income'`). Indexes: `idx_expense_date`, `idx_category`, `idx_payment_method`, `idx_expense_type` |
+| `categories` | Expense categories | `id` (PK), `name` (UNIQUE) |
+| `income_categories` | Income categories | `id` (PK), `name` (UNIQUE) |
+| `payment_methods` | Payment channels | `id` (PK), `name` (UNIQUE) |
+| `budgets` | Monthly category caps | `id` (PK), `category` (UNIQUE), `monthly_limit`, `created_at`, `updated_at` |
+| `payment_reminders` | Scheduled & one-time bills | `id` (PK), `user_id`, `title`, `amount`, `category`, `payment_method`, `frequency`, `custom_interval_days`, `due_day`, `due_date`, `next_due_date`, `last_paid_date`, `notified_day_before_at`, `notified_due_day_at`, `is_active`, `is_completed`, `split_group_id`, `split_type`, `split_target_member_id`, `notes`, `created_at`, `updated_at`. Indexes: `idx_reminders_dashboard`, `idx_reminders_split` |
+| `split_groups` | Cached split groups | `id` (PK), `user_id`, `name`, `description`, `image_url`, `created_by`, `invite_code`, `created_at` |
+| `split_members` | Cached group members | `id` (PK), `group_id`, `user_id`, `name`, `phone`, `joined_at` |
+| `split_expenses` | Cached shared bills | `id` (PK), `group_id`, `title`, `total_amount`, `paid_by_member_id`, `split_type`, `category`, `note`, `receipt_url`, `added_by_member_id`, `created_at` |
+| `split_shares` | Member bill shares | `id` (PK), `expense_id`, `member_id`, `share_amount`, `is_settled` |
+| `settlements` | Group payments | `id` (PK), `group_id`, `from_member_id`, `to_member_id`, `amount`, `settled_at`, `note`, `from_settlement_group_id`, `to_settlement_group_id` |
+| `split_expense_groups` | Module A subgroups | `id` (PK), `group_id`, `name`, `description`, `icon`, `created_by`, `created_at`, `updated_at` |
+| `split_expense_group_members` | Module A mappings | `id` (PK), `expense_group_id`, `member_id`, `created_at`, `UNIQUE(expense_group_id, member_id)` |
+| `split_settlement_groups` | Module B combined entities | `id` (PK), `group_id`, `name`, `created_by`, `created_at`, `updated_at` |
+| `split_settlement_group_members` | Module B mappings | `id` (PK), `group_id`, `settlement_group_id`, `member_id`, `created_at`, `UNIQUE(settlement_group_id, member_id)`, `UNIQUE(group_id, member_id)` |
+| `split_sync_queue` | Offline mutation log | `id` (PK), `action`, `table_name`, `record_id`, `payload`, `created_at` |
+
+### 7.2 Cloud PostgreSQL Schema (`supabase_schema.sql`)
+Contains **12 tables** with composite production indexes and RLS enabled on every table:
+1. `public.split_groups`
+2. `public.split_members`
+3. `public.split_expenses`
+4. `public.split_shares`
+5. `public.settlements`
+6. `public.split_expense_groups`
+7. `public.split_expense_group_members`
+8. `public.split_settlement_groups`
+9. `public.split_settlement_group_members` (`UNIQUE(group_id, member_id)`)
+10. `public.user_expenses` (with `type CHECK (type IN ('expense', 'income'))`)
+11. `public.payment_reminders` (with partial index `idx_payment_reminders_active_due WHERE is_active = TRUE AND is_completed = FALSE`)
+12. `public.user_device_tokens` (`UNIQUE(user_id, fcm_token)`, indexed on `user_id`)
+
+### 7.3 Ephemeral Photo Vault Schema (`supabase_trip_photo_vault.sql`)
+- Table: `public.split_group_photos` (`expires_at DEFAULT NOW() + INTERVAL '48 HOURS'`, indexed on `(group_id, created_at DESC)`, `expires_at`, `uploader_id`).
+- Storage Bucket: `trip-vault-photos` (public read URLs, `50 MB` file limit, allowed MIME types `image/jpeg`, `image/png`, `image/webp`, `image/heic`).
+
+### 7.4 Row-Level Security (RLS) & Security Definer RPCs
+To enforce strict multi-tenant group isolation without recursive RLS deadlocks, `supabase_schema.sql` provides `SECURITY DEFINER` PostgreSQL functions (`SET search_path = public`):
+- `is_group_member(p_group_id TEXT)` — Verifies `auth.uid()` against `split_members.user_id` or `split_groups.user_id` (with legacy claim fallback for pre-migration groups).
+- `is_group_creator(p_group_id TEXT)` — Restricts creator-only deletes/updates.
+- `is_expense_member(p_expense_id TEXT)` & `is_expense_group_member(p_expense_group_id TEXT)` — Transitive group membership checks.
+- `get_group_by_invite_code(p_code TEXT)` — Looks up **only** the single group matching an exact invite code, blocking bulk group enumeration.
+- `join_group_by_invite_code(p_code TEXT, p_name TEXT, p_phone TEXT)` — Atomically joins a group, claims matching unowned manual member records (`user_id IS NULL`), or inserts a linked member row (`user_id = auth.uid()`).
+- `claim_user_groups(p_group_ids TEXT[])` — Safely claims unowned historical groups stored on the user's device.
+- `get_group_shares(p_group_id TEXT)` — Batch-fetches all `split_shares` for a group in a single authenticated query.
+
+Personal tables (`user_expenses`, `payment_reminders`, `user_device_tokens`) enforce strict `auth.uid() = user_id` RLS policies.
+
+---
+
+## 8. Security, Error Handling & Store Compliance
+
+- **Zero Vendor Leak Policy (`lib/core/errors/error_handler.dart`):** `ErrorHandler.getUserMessage()` strips technical keywords (`supabase`, `pgrst`, `schema cache`, `cloudflare`, `r2`, `s3`, `pixabay`, `jwt`) before showing SnackBars or dialogs, returning clean user-friendly messages instead.
+- **CSV Formula Injection Defense (OWASP CWE-1236):** `DataExportService._escapeCsv()` neutralizes spreadsheet formula execution (`=`, `+`, `-`, `@`, `\t`, `\r`).
+- **Store Compliance (`lib/services/app_permission_service.dart` & `MainActivity.kt`):**
+  - Never requests sensitive permissions (`RECEIVE_SMS`, `READ_SMS`, `CAMERA`, `PHOTOS`) on cold app launch.
+  - Always presents clear in-app rationale bottom sheets before invoking OS prompts, plus Settings navigation links when permanently denied.
+- **Secrets Hygiene:** `.gitignore` ignores `lib/config/api_keys.dart`, build artifacts, and local metadata. Production keys should be supplied via `--dart-define`, GitHub Actions Secrets, and Supabase Edge Function Secrets rather than hardcoded into docs or client files.
+
+---
+
+## 9. Design System & Visual Tokens
+
+Centralized in `lib/core/theme/app_colors.dart` and `lib/core/theme/app_theme.dart` using Material 3 (`useMaterial3: true`) and **Plus Jakarta Sans** (`google_fonts`):
+
+| Token (`AppColors.*`) | Hex Value | Usage |
+|---|---|---|
+| `primary` | `#006948` | Imperial Pine Green: primary CTAs, active tabs, positive ("You are owed") balances |
+| `primaryDark` / `primaryDeep` | `#004D34` / `#003825` | Hero gradient headers, Trip Mode banner |
+| `primaryContainer` | `#00855D` | Prominent accents, gradient highlights |
+| `primaryLight` / `primaryFill` / `primaryBorder` | `#E8F5E9` / `#F0FDF4` / `#A7F3D0` | Soft mint icon badges, card surfaces, borders |
+| `accentMint` / `onAccentMint` | `#85F8C4` / `#002114` | `PRO` badge, celebratory pills |
+| `secondary` / `secondaryContainer` | `#4B41E1` / `#645EFB` | Electric Indigo: secondary chart/setting accents |
+| `tertiary` / `tertiaryContainer` | `#008096` / `#00A2BE` | Ocean Teal: analytics metrics, calendar date accents |
+| `background` | `#FAF8FF` | Soft tinted app canvas |
+| `surface` / `surfaceSubtle` | `#FFFFFF` / `#F4F6F9` | Elevated cards (`20px` radius, `1px` `borderSubtle`), sheets |
+| `textPrimary` / `textSecondary` / `textMuted` | `#131B2E` / `#3D4A42` / `#6D7A72` | Midnight Slate headings, neutral slate subtitles & timestamps |
+| `warning` / `warningLight` | `#D97706` / `#FEF3C7` | Budget >= 80% warnings |
+| `error` / `errorContainer` | `#BA1A1A` / `#FFDAD6` | Overspend alerts, destructive actions, debt indicators |
+
+---
+
+## 10. Complete Codebase Directory Inventory
+
+```text
 expence tracker/
-├── android/                           # Native Android build configurations
-│   └── app/src/main/AndroidManifest.xml # Deep link intent filters & SMS permissions
-├── web/                               # Web build configurations
-│   └── index.html                     # Google OAuth meta client-id injection
-├── screen/                            # Screen UI mockup & illustration assets
-│   ├── onboarding_1_illustration.png  # Onboarding Step 1 graphic
-│   ├── onboarding_2_illus.png         # Onboarding Step 2 graphic
-│   ├── onboarding_3_illust.png        # Onboarding Step 3 graphic
-│   ├── reg_login_illus.png            # Auth hero graphic
-│   ├── login.png                      # Login design specification
-│   ├── register.png                   # Register design specification
-│   └── expenses.png                   # Expenses design specification
+├── .github/workflows/deploy.yml              # CI/CD: Flutter Web build & deploy to Vercel
+├── .env.example                              # Template for --dart-define environment keys
+├── analysis_options.yaml                     # Linter & analyzer exclusions (flutter_lints)
+├── pubspec.yaml                              # App metadata (1.0.3+4), dependencies & asset bundles
+├── shorebird.yaml                            # Shorebird OTA updater app_id configuration
+├── supabase_schema.sql                       # PostgreSQL 12 tables, composite indexes, RPCs & RLS
+├── supabase_trip_photo_vault.sql             # 48h ephemeral trip photo vault schema & storage bucket
+├── vercel.json                               # SPA rewrites & service worker no-cache headers
+├── supabase/functions/send-settlement-reminder/
+│   └── index.ts                              # Deno Edge Function calling FCM HTTP v1 API
+├── android/                                  # Android native config, FCM, Widget, QuickAdd & SMS
+│   ├── settings.gradle.kts                   # Configures com.google.gms.google-services
+│   └── app/
+│       ├── build.gradle.kts                  # Package ID com.manav.expense.expense_tracker
+│       ├── google-services.json              # Firebase Android app config (local/project)
+│       └── src/main/
+│           ├── AndroidManifest.xml           # Deep links, SMS receiver, QuickAdd, FCM channel
+│           └── kotlin/com/manav/expense/expense_tracker/
+│               ├── MainActivity.kt
+│               ├── QuickAddActivity.kt
+│               ├── QuickAddTileService.kt
+│               ├── ExpenseWidgetProvider.kt
+│               ├── SmsReceiver.kt
+│               ├── DatabaseHelper.kt
+│               └── NotificationDismissReceiver.kt
+├── ios/Runner/Info.plist                     # Camera/Photo permission descriptions
+├── web/index.html                            # Google Sign-In client ID meta & SW cache reset
 ├── lib/
-│   ├── main.dart                      # AppRoot, route management, live auth listener, theme
+│   ├── main.dart                             # App initialization, MultiProvider, AppRoot auth router
+│   ├── config/                               # api_keys.example.dart (+ gitignored api_keys.dart)
+│   ├── core/
+│   │   ├── config/app_config.dart            # Central --dart-define environment reader
+│   │   ├── constants/                        # app_assets.dart, app_constants.dart
+│   │   ├── errors/                           # app_exception.dart, error_handler.dart
+│   │   ├── network/                          # api_client.dart, api_response.dart
+│   │   ├── theme/                            # app_colors.dart, app_theme.dart
+│   │   ├── utils/                            # category_icons.dart, currency/date formatters, invite parser, validators
+│   │   └── core.dart                         # Core barrel exports
 │   ├── models/
-│   │   ├── expense.dart               # Personal Expense data model
-│   │   ├── budget.dart                # Monthly Category Budget model
-│   │   └── split_models.dart          # SplitGroup, SplitMember, SplitExpense, Settlement models
-│   ├── providers/
-│   │   ├── expense_provider.dart      # Personal expense state, filter queries, aggregation logic
-│   │   ├── budget_provider.dart       # Budget limits & overspend alert notifications
-│   │   └── split_provider.dart        # Group ledger, equal/unequal splitting, net balances
+│   │   ├── expense.dart                      # Expense + TransactionType
+│   │   ├── budget.dart                       # Budget
+│   │   ├── payment_reminder.dart             # PaymentReminder + frequency & cycle logic
+│   │   ├── search_filter.dart                # ExpenseSortOption, DateRangePreset, SearchFilter
+│   │   ├── split_models.dart                 # Split entities + debt & combined group algorithms
+│   │   └── trip_photo.dart                   # Ephemeral 48h TripPhoto model
+│   ├── providers/                            # 5 ChangeNotifier providers
 │   ├── screens/
-│   │   ├── dashboard_screen.dart      # Home dashboard, spend trajectory curve, storage badge
-│   │   ├── analytics_screen.dart      # Option A: Date Range, Donut, Rhythm Bars, Calendar, Ledger
-│   │   ├── budget_screen.dart         # Category budget configuration & alert banners
-│   │   ├── history_screen.dart        # Chronological transaction history ledger
-│   │   ├── search_screen.dart         # Multi-parameter advanced transaction search
-│   │   ├── category_detail_screen.dart# Deep-dive spend breakdown per category
-│   │   ├── settings_screen.dart       # Storage switch, Google Sheets, legal sheets, sign out
-│   │   ├── auth/
-│   │   │   ├── onboarding_screen.dart # 3-step feature introduction carousel
-│   │   │   ├── login_screen.dart      # Email/Password, Google OAuth, Guest offline button
-│   │   │   └── register_screen.dart   # Register form, password strength meter, legal checkbox
-│   │   └── split/
-│   │       ├── split_screen.dart      # Group list, net debt balance hero
-│   │       ├── split_group_detail_screen.dart # Group ledger, split engine, settle-up
-│   │       └── join_group_screen.dart # Invite code entry & deep link receiver
-│   ├── services/
-│   │   ├── auth_service.dart          # Supabase Auth, Google OAuth, guest session manager
-│   │   ├── database_service.dart      # SQLite CRUD operations & Supabase cloud sync
-│   │   ├── split_service.dart         # Group splitting cloud database operations
-│   │   ├── storage_preference_service.dart # Local vs Cloud preference persistence
-│   │   ├── transaction_detection_service.dart # On-device bank SMS regex parser
-│   │   └── google_sheets_service.dart # Direct export/sync to Google Sheets
-│   ├── utils/
-│   │   └── category_icons.dart        # Icon mapping & custom category icons
-│   └── widgets/
-│       ├── storage_choice_dialog.dart # Immediate Cloud vs Local prompt modal
-│       ├── legal_sheets.dart          # Privacy Policy & Terms of Service sheets
-│       ├── add_expense_sheet.dart     # Manual expense entry & editing bottom sheet
-│       ├── set_budget_sheet.dart      # Category budget configuration sheet
-│       ├── budget_alert_banner.dart   # Overspend caution and alert banners
-│       ├── sms_tester_sheet.dart      # Interactive SMS test simulator
-│       └── export_data_sheet.dart     # CSV / JSON export modal
-├── test/                              # Automated test suites (50 passing tests)
-│   ├── auth_flow_test.dart            # Onboarding & Auth navigation verification
-│   ├── analytics_screen_test.dart     # Option A date range, donut, calendar verification
-│   ├── splitwise_test.dart            # Equal/unequal splitting & net balance math tests
-│   ├── budget_provider_test.dart      # Budget overspend calculation tests
-│   ├── trajectory_chart_test.dart     # Spend trajectory curve math tests
-│   └── category_sorting_and_icons_test.dart # Category reordering tests
-├── supabase_schema.sql                # Complete PostgreSQL 17 schema for Supabase
-├── pubspec.yaml                       # Dependencies, fonts, and asset declarations
-└── KNOWLEDGE.md                       # This Master Knowledge Base document
+│   │   ├── main_screen.dart                  # 4-tab dock, center +, deep links, top bar & alerts
+│   │   ├── dashboard_screen.dart             # Home dashboard
+│   │   ├── analytics_screen.dart             # List / Calendar / Breakdown analytics
+│   │   ├── budget_screen.dart                # Category budget manager
+│   │   ├── history_screen.dart               # Full transaction list
+│   │   ├── search_screen.dart                # Multi-filter search UI
+│   │   ├── category_detail_screen.dart       # Per-category spend breakdown
+│   │   ├── payment_reminders_screen.dart     # Upcoming / Completed / Paused bills manager
+│   │   ├── settings_screen.dart              # Profile photo edit, storage switch, export, legal, logout
+│   │   ├── auth/                             # onboarding_screen, login_screen, register_screen
+│   │   └── split/                            # split_screen, create/join/settle/detail, views/, widgets/, photo vault
+│   ├── services/                             # Data, Auth, Split, FCM Push, R2, Pixabay, SMS, Sheets, Export, Permissions
+│   ├── utils/category_icons.dart             # Category icon persistence helper
+│   └── widgets/                              # Bottom sheets, dialogs, banners, common UI kit
+└── test/                                     # 28 automated test files (189 total tests)
 ```
 
 ---
 
-## 9. Deployment, Configuration & Verification Runbook
+## 11. Testing & Quality Assurance Guide
 
-### 9.1 Database Deployment (Supabase Mumbai)
-1. Open the Supabase project dashboard:  
-   `https://supabase.com/dashboard/project/kqchjyfnvzfcxvhaonqz/sql`
-2. Open [`supabase_schema.sql`](file:///d:/Manav/website/expence%20tracker/supabase_schema.sql).
-3. Paste the complete SQL code into the SQL Editor and click **Run**.
-4. Confirm that all 6 tables (`split_groups`, `split_members`, `split_expenses`, `split_shares`, `settlements`, `user_expenses`) and indexes are created successfully.
-
-### 9.2 Google OAuth Configuration
-1. Open [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Select your project and navigate to **Credentials**.
-3. Under **OAuth 2.0 Client IDs**:
-   - Web Client ID: `399080992633-83vkmq76bgerotmks2ol10bniofcjq4t.apps.googleusercontent.com`
-   - Authorized JavaScript origins:  
-     `https://kqchjyfnvzfcxvhaonqz.supabase.co`  
-     `http://localhost:3000` (for local web testing)
-   - Authorized redirect URIs:  
-     `https://kqchjyfnvzfcxvhaonqz.supabase.co/auth/v1/callback`
-4. In Supabase Dashboard: Navigate to **Authentication → Providers → Google**.
-   - Enable Google.
-   - Paste the Client ID and Client Secret.
-   - Save changes.
-
-### 9.3 Code Quality & Test Verification
-Run static analysis and automated test suites from the root directory:
-
+### Running Verification Commands
 ```powershell
-# 1. Run Flutter static analyzer (Must pass with 0 issues)
-flutter analyze
+# Static analyzer (must report 0 issues)
+flutter analyze --no-pub
 
-# 2. Run the complete test suite (Must pass all 50 tests)
-flutter test
+# Run full automated suite (currently 189 passing tests across 28 files)
+flutter test --no-pub
+
+# Run a targeted test file
+flutter test --no-pub test/splitwise_test.dart
 ```
 
-### 9.4 Release Builds
+> **Note on Console Output During Widget Tests:** When instantiating `ExpenseProvider`, `BudgetProvider`, or `SplitProvider` in widget tests without initializing `sqflite_common_ffi` or `Supabase.initialize(...)`, caught debug logs (`Bad state: databaseFactory not initialized` / `You must initialize the supabase instance...`) print harmlessly to stdout while the tests run offline against seeded in-memory test state. Use `ExpenseProvider(autoFetch: false)` / `BudgetProvider(autoFetch: false)` or `set*ForTesting(...)` when adding new tests.
+
+### Complete Test Suite Inventory (28 Files, 189 Tests)
+| Test File | Coverage Focus |
+|---|---|
+| `all_bugfixes_regression_test.dart` | 24-bug audit regressions (`Expense.fromMap`, cent remainder distribution, negative shares, SMS balance/OTP/promo guards, case-insensitive budgets, `DateRangePreset`, CSV injection) |
+| `analytics_screen_test.dart` | Analytics screen presets, calendar heatmap, ledger rendering, strict separation of Income vs Expense cards |
+| `app_permission_service_test.dart` | Store-compliant permission request rationale flows |
+| `auth_flow_test.dart` | `LoginScreen` fields, Google button, absence of guest/welcome copy, `RegisterScreen` strength meter & legal terms |
+| `budget_provider_test.dart` | Monthly utilization percentage calculation, near-limit & overspend state |
+| `budget_screen_test.dart` | Empty/populated budget UI, decimal % display, `BudgetAlertBanner` dismiss flow |
+| `category_detail_and_sms_cancel_test.dart` | `ExpenseProvider` category helpers & SMS dialog cancellation |
+| `category_sorting_and_icons_test.dart` | Frequency-based category sorting & `CategoryIcons` |
+| `client_side_security_fixes_test.dart` | `ErrorHandler` sanitization & `InviteCodeParser` |
+| `combined_settlement_test.dart` | Module B `SplitSettlementGroup` combined net balance & transfer algorithms |
+| `dynamic_greeting_and_name_test.dart` | `AuthService.updateDisplayName` cache/notifier & nameless simple `DashboardScreen` greeting |
+| `income_categories_test.dart` | Custom income category sync & local persistence |
+| `notification_expense_and_instant_load_test.dart` | SMS notification expense injection & instant local load fast path |
+| `payment_reminder_test.dart` | Cycle roll-forward (`calculateNextCycleDate`, leap/month-end clamping), UTC day math, normalized committed sum |
+| `qa_edge_cases_and_calculation_breakdown_test.dart` | Edge-case financial rounding & multi-group breakdowns |
+| `qa_math_and_calculations_stress_test.dart` | High-volume floating-point & debt-simplification stress checks |
+| `reminder_flow_widget_test.dart` | Minimal `ReminderCarouselBanner` UI (title, amount, Mark Paid, Snooze), `PaymentRemindersScreen` tabs, `AddEditReminderSheet` |
+| `search_filter_test.dart` | `SearchFilter` presets, amount/category/payment/type predicates & sorting |
+| `settings_and_profile_test.dart` | Profile updates, avatar notifier & Settings tiles |
+| `slide_to_pay_and_self_settlement_test.dart` | `SlideToPayTrack` gesture & self-settlement guards |
+| `sms_parser_test.dart` | Multi-bank SMS debit/credit regex extraction & channel classification |
+| `splitwise_test.dart` | Equal/Unequal/Percentage split math, `simplifyDebts`, `calculateDirectDebts`, `eliminateDebtCycles` |
+| `split_members_and_settlement_regression_test.dart` | Split Members top trip card buttons (`Add Member`, `Group QR`, invite share), `Remind` button without clipboard side-effects |
+| `trajectory_chart_test.dart` | Cumulative month spend curve computation |
+| `transaction_type_and_credit_test.dart` | `TransactionType.expense` vs `TransactionType.income` segregation |
+| `trip_mode_test.dart` | Active Trip Mode toggle, Dashboard banner & `AddExpenseSheet` group routing |
+| `trip_photo_vault_test.dart` | `TripPhoto` TTL expiration, local private likes, contributor filtering & capacity calculations |
+| `widget_test.dart` | Core smoke tests |
+
+---
+
+## 12. CI/CD, OTA Updates & Release Runbook
+
+### 12.1 Web Deployment (`.github/workflows/deploy.yml` -> Vercel)
+- Automatically triggers on every `push` to `main` (or manual `workflow_dispatch`).
+- Generates `lib/config/api_keys.dart`, installs Flutter dependencies, compiles `flutter build web --release --base-href /` passing Cloudflare R2 `--dart-define`s, copies `vercel.json`, and deploys `./build/web` to production via Vercel CLI (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`).
+
+### 12.2 Android Release & In-Place Upgrade Safety
 ```powershell
-# Build optimized Android release APK
 flutter build apk --release
-
-# Build production Web application
-flutter build web --release
+# Output: build/app/outputs/flutter-apk/app-release.apk
 ```
-The output APK is generated at:  
-`build/app/outputs/flutter-apk/app-release.apk`
+To preserve users' local SQLite `expenses.db` and `SharedPreferences` across updates (Android leaves `/data/data/com.manav.expense.expense_tracker/` untouched during updates):
+1. Keep identical `applicationId` (`com.manav.expense.expense_tracker`).
+2. Sign every release with the **exact same keystore certificate** (changing keystore causes `INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+3. Increment `versionCode` in `pubspec.yaml` (`version: X.Y.Z+N` -> bump `+N`).
+
+### 12.3 Shorebird OTA Updates (`shorebird.yaml`)
+- Configured with `app_id: 54bbcf43-cb62-4ffe-808c-677820f47e3d` (auto-updates enabled on launch unless overridden).
+- Enables shipping Dart-code patches to existing release builds without forcing a full store reinstall.
+
+### 12.4 Edge Function & Push Updates
+```powershell
+# Re-deploy push notification function when modifying supabase/functions/send-settlement-reminder/index.ts
+supabase functions deploy send-settlement-reminder
+```
+Ensure `FIREBASE_SERVICE_ACCOUNT_JSON` remains set in Supabase Edge Function Secrets.

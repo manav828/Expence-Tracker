@@ -885,15 +885,14 @@ void _showSettlementGroupModal(
   final selectedIds = Set<String>.from(existing?.memberIds ?? []);
   final sp = context.read<SplitProvider>();
 
-  // Map of memberId -> settlement group name where they are already assigned (excluding current existing group)
+  // Only list individual members not already assigned to another combined settlement group
   final allSettlementGroups = sp.getSettlementGroupsForGroup(group.id);
-  final takenMemberMap = <String, String>{};
+  final takenMemberIds = <String>{};
   for (final sg in allSettlementGroups) {
     if (existing != null && sg.id == existing.id) continue;
-    for (final mid in sg.memberIds) {
-      takenMemberMap[mid] = sg.name;
-    }
+    takenMemberIds.addAll(sg.memberIds);
   }
+  final availableMembers = members.where((m) => !takenMemberIds.contains(m.id)).toList();
 
   showModalBottomSheet(
     context: context,
@@ -1001,35 +1000,38 @@ void _showSettlementGroupModal(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: members.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                    itemBuilder: (ctx, i) {
-                      final m = members[i];
-                      final isTaken = takenMemberMap.containsKey(m.id);
-                      final takenBy = takenMemberMap[m.id];
-                      final isSelected = selectedIds.contains(m.id);
-
-                      return CheckboxListTile(
-                        value: isSelected,
-                        dense: true,
-                        activeColor: const Color(0xFF4F46E5),
-                        enabled: !isTaken,
-                        title: Text(
-                          m.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: isTaken ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                  child: availableMembers.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                            child: Text(
+                              'No individual members available. All members are already combined into groups.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                            ),
                           ),
-                        ),
-                        subtitle: isTaken
-                            ? Text('Already combined in "$takenBy"', style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444)))
-                            : null,
-                        onChanged: isTaken
-                            ? null
-                            : (val) {
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: availableMembers.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                          itemBuilder: (ctx, i) {
+                            final m = availableMembers[i];
+                            final isSelected = selectedIds.contains(m.id);
+
+                            return CheckboxListTile(
+                              value: isSelected,
+                              dense: true,
+                              activeColor: const Color(0xFF4F46E5),
+                              title: Text(
+                                m.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              onChanged: (val) {
                                 setState(() {
                                   if (val == true) {
                                     selectedIds.add(m.id);
@@ -1038,9 +1040,9 @@ void _showSettlementGroupModal(
                                   }
                                 });
                               },
-                      );
-                    },
-                  ),
+                            );
+                          },
+                        ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(

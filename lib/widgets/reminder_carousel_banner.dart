@@ -10,7 +10,9 @@ import '../screens/payment_reminders_screen.dart';
 import '../utils/category_icons.dart';
 
 class ReminderCarouselBanner extends StatefulWidget {
-  const ReminderCarouselBanner({super.key});
+  final EdgeInsetsGeometry? margin;
+
+  const ReminderCarouselBanner({super.key, this.margin});
 
   @override
   State<ReminderCarouselBanner> createState() => _ReminderCarouselBannerState();
@@ -76,7 +78,7 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
     const accentGreen = Color(0xFF00B16A);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: widget.margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       height: hasMultiple ? 128 : 118,
       decoration: BoxDecoration(
         color: Colors.white,

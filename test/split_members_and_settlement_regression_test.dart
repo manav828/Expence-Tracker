@@ -323,5 +323,38 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('Combine Members button opens Combine Settlement showing only individual members', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      splitProvider.setGroupDetailForTesting(
+        groupId: 'grp_goa_123',
+        members: [me, bob, charlie, david, eve],
+        settlementGroups: [sg1, sg2],
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Members'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Combine Members'), findsOneWidget);
+      expect(find.text('Combine'), findsOneWidget);
+
+      await tester.tap(find.text('Combine Members'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Combine Settlement'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('Already combined'), findsNothing);
+      expect(find.descendant(of: find.byType(CheckboxListTile), matching: find.text('Alex')), findsOneWidget);
+      expect(find.descendant(of: find.byType(CheckboxListTile), matching: find.text('Bob')), findsNothing);
+      expect(find.descendant(of: find.byType(CheckboxListTile), matching: find.text('Charlie')), findsNothing);
+      expect(find.descendant(of: find.byType(CheckboxListTile), matching: find.text('David')), findsNothing);
+      expect(find.descendant(of: find.byType(CheckboxListTile), matching: find.text('Eve')), findsNothing);
+    });
   });
 }

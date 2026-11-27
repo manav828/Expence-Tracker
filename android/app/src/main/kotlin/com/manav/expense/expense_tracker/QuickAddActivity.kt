@@ -5,10 +5,13 @@ import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -16,11 +19,13 @@ import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -44,10 +49,10 @@ class QuickAddActivity : Activity() {
     private var selectedPaymentMethod = "UPI"
     private var selectedType = "expense"
 
-    private val categoryViews = mutableListOf<TextView>()
     private val paymentViews = mutableListOf<TextView>()
 
-    private lateinit var categoryContainer: LinearLayout
+    private lateinit var layoutCategorySelector: LinearLayout
+    private lateinit var textSelectedCategory: TextView
     private lateinit var paymentContainer: LinearLayout
     private lateinit var btnTypeExpense: TextView
     private lateinit var btnTypeIncome: TextView
@@ -63,6 +68,14 @@ class QuickAddActivity : Activity() {
     private var incomingCategory: String? = null
     private var incomingPaymentMethod: String? = null
     private var incomingComment: String? = null
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent != null) {
+            setIntent(intent)
+            recreate()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,7 +161,8 @@ class QuickAddActivity : Activity() {
         btnSave = findViewById(R.id.btnSave)
         val btnCancel = findViewById<Button>(R.id.btnCancel)
         val btnClose = findViewById<ImageButton>(R.id.btnClose)
-        categoryContainer = findViewById(R.id.categoryChipsContainer)
+        layoutCategorySelector = findViewById(R.id.layoutCategorySelector)
+        textSelectedCategory = findViewById(R.id.textSelectedCategory)
         paymentContainer = findViewById(R.id.paymentMethodContainer)
         btnTypeExpense = findViewById(R.id.btnTypeExpense)
         btnTypeIncome = findViewById(R.id.btnTypeIncome)
@@ -160,7 +174,7 @@ class QuickAddActivity : Activity() {
                 selectedType = "expense"
                 val match = expenseCategories.firstOrNull { it.equals(selectedCategory, ignoreCase = true) }
                 selectedCategory = match ?: expenseCategories.firstOrNull() ?: "Food & Dining"
-                setupCategoryChips(categoryContainer)
+                updateCategoryDisplay()
                 updateTypeUI()
             }
         }
@@ -170,7 +184,7 @@ class QuickAddActivity : Activity() {
                 selectedType = "income"
                 val match = incomeCategories.firstOrNull { it.equals(selectedCategory, ignoreCase = true) }
                 selectedCategory = match ?: incomeCategories.firstOrNull() ?: "Salary"
-                setupCategoryChips(categoryContainer)
+                updateCategoryDisplay()
                 updateTypeUI()
             }
         }
@@ -197,8 +211,11 @@ class QuickAddActivity : Activity() {
             editComment.setText(incomingComment)
         }
 
-        // Setup Category Chips
-        setupCategoryChips(categoryContainer)
+        // Setup Category Dropdown Selector
+        updateCategoryDisplay()
+        layoutCategorySelector.setOnClickListener {
+            showCategoryPickerDialog()
+        }
 
         // Setup Payment Method Chips
         setupPaymentChips(paymentContainer)
@@ -421,73 +438,108 @@ class QuickAddActivity : Activity() {
         } ?: FrameLayout.LayoutParams(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
     }
 
-    private fun setupCategoryChips(container: LinearLayout) {
-        container.removeAllViews()
-        categoryViews.clear()
-
-        val density = resources.displayMetrics.density
-
-        for (cat in currentCategories) {
-            val chip = TextView(this).apply {
-                text = cat
-                textSize = 12f
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding((14 * density).toInt(), (8 * density).toInt(), (14 * density).toInt(), (8 * density).toInt())
-                gravity = Gravity.CENTER
-
-                val params = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, 0, (8 * density).toInt(), 0)
-                }
-                layoutParams = params
-
-                setOnClickListener {
-                    selectedCategory = cat
-                    updateCategorySelection()
-                }
-            }
-            categoryViews.add(chip)
-            container.addView(chip)
-        }
-
-        // Dedicated + Add Chip
-        val addChip = TextView(this).apply {
-            text = "+ Add"
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding((14 * density).toInt(), (8 * density).toInt(), (14 * density).toInt(), (8 * density).toInt())
-            gravity = Gravity.CENTER
-            setBackgroundResource(R.drawable.chip_unselected)
-            setTextColor(Color.parseColor("#006948"))
-
-            val params = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            layoutParams = params
-
-            setOnClickListener {
-                showAddDialog(isCategory = true, container = container)
-            }
-        }
-        container.addView(addChip)
-
-        updateCategorySelection()
+    private fun updateCategoryDisplay() {
+        textSelectedCategory.text = selectedCategory
     }
 
-    private fun updateCategorySelection() {
-        for (chip in categoryViews) {
-            val isSelected = chip.text.toString().equals(selectedCategory, ignoreCase = true)
-            if (isSelected) {
-                chip.setBackgroundResource(R.drawable.chip_selected)
-                chip.setTextColor(Color.WHITE)
-            } else {
-                chip.setBackgroundResource(R.drawable.chip_unselected)
-                chip.setTextColor(Color.parseColor("#3D4A42"))
+    private fun showCategoryPickerDialog() {
+        val density = resources.displayMetrics.density
+        val isIncome = selectedType == "income"
+        val allItems = currentCategories.toList()
+        val filteredItems = allItems.toMutableList()
+
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val hPad = (16 * density).toInt()
+            setPadding(hPad, (10 * density).toInt(), hPad, (4 * density).toInt())
+        }
+
+        val searchInput = EditText(this).apply {
+            hint = "Search category..."
+            textSize = 14f
+            setTextColor(Color.parseColor("#131B2E"))
+            setHintTextColor(Color.parseColor("#9AA49E"))
+            setBackgroundResource(R.drawable.input_field_bg)
+            val padH = (12 * density).toInt()
+            val padV = (10 * density).toInt()
+            setPadding(padH, padV, padH, padV)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (8 * density).toInt()
             }
         }
+
+        val listView = ListView(this).apply {
+            dividerHeight = 1
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (280 * density).toInt()
+            )
+        }
+
+        val adapter = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_list_item_1,
+            filteredItems
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val tv = super.getView(position, convertView, parent) as TextView
+                val item = filteredItems[position]
+                val isSelected = item.equals(selectedCategory, ignoreCase = true)
+                tv.text = if (isSelected) "$item   ✓" else item
+                tv.textSize = 14f
+                tv.typeface = if (isSelected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                tv.setTextColor(
+                    if (isSelected) Color.parseColor("#006948") else Color.parseColor("#131B2E")
+                )
+                val vPad = (12 * density).toInt()
+                tv.setPadding((8 * density).toInt(), vPad, (8 * density).toInt(), vPad)
+                return tv
+            }
+        }
+        listView.adapter = adapter
+
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString()?.trim()?.lowercase(Locale.getDefault()) ?: ""
+                filteredItems.clear()
+                if (query.isEmpty()) {
+                    filteredItems.addAll(allItems)
+                } else {
+                    filteredItems.addAll(
+                        allItems.filter { it.lowercase(Locale.getDefault()).contains(query) }
+                    )
+                }
+                adapter.notifyDataSetChanged()
+            }
+        })
+
+        rootLayout.addView(searchInput)
+        rootLayout.addView(listView)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(if (isIncome) "Select Income Category" else "Select Expense Category")
+            .setView(rootLayout)
+            .setPositiveButton("+ Add New") { d, _ ->
+                d.dismiss()
+                showAddDialog(isCategory = true, container = null)
+            }
+            .setNegativeButton("Cancel") { d, _ ->
+                d.dismiss()
+            }
+            .create()
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            selectedCategory = filteredItems[position]
+            updateCategoryDisplay()
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun setupPaymentChips(container: LinearLayout) {
@@ -559,7 +611,7 @@ class QuickAddActivity : Activity() {
         }
     }
 
-    private fun showAddDialog(isCategory: Boolean, container: LinearLayout) {
+    private fun showAddDialog(isCategory: Boolean, container: LinearLayout? = null) {
         val isIncome = selectedType == "income"
         val title = if (isCategory) {
             if (isIncome) "Add Income Category" else "Add Expense Category"
@@ -600,18 +652,26 @@ class QuickAddActivity : Activity() {
                     if (isCategory) {
                         if (isIncome) {
                             dbHelper.addIncomeCategory(name)
-                            if (!incomeCategories.contains(name)) incomeCategories.add(name)
+                            if (incomeCategories.none { it.equals(name, ignoreCase = true) }) {
+                                incomeCategories.add(name)
+                            }
                         } else {
                             dbHelper.addCategory(name)
-                            if (!expenseCategories.contains(name)) expenseCategories.add(name)
+                            if (expenseCategories.none { it.equals(name, ignoreCase = true) }) {
+                                expenseCategories.add(name)
+                            }
                         }
                         selectedCategory = name
-                        setupCategoryChips(container)
+                        updateCategoryDisplay()
                     } else {
                         dbHelper.addPaymentMethod(name)
-                        if (!paymentMethods.contains(name)) paymentMethods.add(name)
+                        if (paymentMethods.none { it.equals(name, ignoreCase = true) }) {
+                            paymentMethods.add(name)
+                        }
                         selectedPaymentMethod = name
-                        setupPaymentChips(container)
+                        if (container != null) {
+                            setupPaymentChips(container)
+                        }
                     }
                 }
                 d.dismiss()

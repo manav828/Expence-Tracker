@@ -38,11 +38,19 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  final ValueNotifier<String> _analyticsViewMode = ValueNotifier<String>('list');
+  late final List<Widget> _screens;
   static String? _handledWebDeepLinkCode;
 
   @override
   void initState() {
     super.initState();
+    _screens = [
+      DashboardScreen(onOpenAnalytics: _openAnalyticsTab),
+      AnalyticsScreen(viewModeNotifier: _analyticsViewMode),
+      const SplitScreen(),
+      const BudgetScreen(),
+    ];
     WidgetsBinding.instance.addObserver(this);
 
     if (widget.navigatorKey != null) {
@@ -125,6 +133,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _analyticsViewMode.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -138,12 +147,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    AnalyticsScreen(),
-    SplitScreen(),
-    BudgetScreen(),
-  ];
+  void _openAnalyticsTab(String mode) {
+    _analyticsViewMode.value = mode;
+    setState(() => _currentIndex = 1);
+  }
 
   void _openAddExpenseSheet(BuildContext context) {
     showModalBottomSheet(

@@ -9,7 +9,14 @@ import '../widgets/add_expense_sheet.dart';
 import '../utils/category_icons.dart';
 
 class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key});
+  final String initialViewMode;
+  final ValueNotifier<String>? viewModeNotifier;
+
+  const AnalyticsScreen({
+    super.key,
+    this.initialViewMode = 'list',
+    this.viewModeNotifier,
+  });
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
@@ -17,7 +24,7 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   // --- View Mode: 'list' (Ledger), 'calendar' (Calendar Grid), or 'chart' (Breakdown) ---
-  String _viewMode = 'list';
+  late String _viewMode;
 
   // --- Date Range State ---
   String _activePreset = 'This Month';
@@ -75,12 +82,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
+    _viewMode = widget.viewModeNotifier?.value ?? widget.initialViewMode;
+    widget.viewModeNotifier?.addListener(_onExternalViewModeChanged);
     _setDateRangePreset('This Month', notify: false);
     _selectedCalendarDay = DateTime.now().day;
   }
 
+  void _onExternalViewModeChanged() {
+    final nextMode = widget.viewModeNotifier?.value;
+    if (nextMode != null && nextMode != _viewMode && mounted) {
+      setState(() => _viewMode = nextMode);
+    }
+  }
+
+  void _setViewMode(String mode) {
+    setState(() => _viewMode = mode);
+    if (widget.viewModeNotifier != null && widget.viewModeNotifier!.value != mode) {
+      widget.viewModeNotifier!.value = mode;
+    }
+  }
+
   @override
   void dispose() {
+    widget.viewModeNotifier?.removeListener(_onExternalViewModeChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -1016,7 +1040,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildViewTab(String mode, IconData icon, String label) {
     final isSelected = _viewMode == mode;
     return InkWell(
-      onTap: () => setState(() => _viewMode = mode),
+      onTap: () => _setViewMode(mode),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -2540,10 +2564,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             return InkWell(
               onTap: () {
-                setState(() {
-                  _selectedCategoryFilter = entry.key;
-                  _viewMode = 'list';
-                });
+                _selectedCategoryFilter = entry.key;
+                _setViewMode('list');
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(

@@ -1,13 +1,16 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/receipt_attachment_sheet.dart';
 import '../providers/budget_provider.dart';
 import 'budget_screen.dart';
+import 'analytics_screen.dart';
 import 'category_detail_screen.dart';
 import '../utils/category_icons.dart';
 import '../widgets/reminder_carousel_banner.dart';
@@ -19,7 +22,9 @@ import '../core/theme/app_colors.dart';
 
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final void Function(String analyticsMode)? onOpenAnalytics;
+
+  const DashboardScreen({super.key, this.onOpenAnalytics});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -27,6 +32,26 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isSafeguardsDismissed = false;
+
+  void _openAnalytics(BuildContext context, String mode) {
+    if (widget.onOpenAnalytics != null) {
+      widget.onOpenAnalytics!(mode);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(mode == 'chart' ? 'Breakdown' : 'Ledger'),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF131B2E),
+            elevation: 0,
+          ),
+          body: AnalyticsScreen(initialViewMode: mode),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -107,7 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               // 1. Executive Header & Greeting Pill
               _buildGreetingRow(context),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
               // Active Trip Mode Banner
               Builder(
@@ -124,22 +149,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
 
-              // Payment Reminders & Upcoming Bills Carousel Banner
-              const ReminderCarouselBanner(),
-              const SizedBox(height: 8),
+              // 2. Top Spend Summary & Trend Graph Hero Card
+              _buildTopSpendHeroCard(context, provider),
+              const SizedBox(height: 10),
 
-              // 2. Monthly Category Budget Snapshot Card
+              // 3. Payment Reminders & Upcoming Bills Carousel Banner
+              const ReminderCarouselBanner(margin: EdgeInsets.only(bottom: 10)),
+
+              // 4. Monthly Category Budget Snapshot Card
               _buildBudgetSnapshotCard(context, provider),
 
-              // 3. Category Expense Allocation Donut Card
-              _buildCategoryDonutCard(context, provider),
-              const SizedBox(height: 20),
+              // 5. Compact "Where you spend" Segmented Category Card
+              _buildWhereYouSpendCard(context, provider),
+              const SizedBox(height: 16),
 
-              // 4. Cumulative Day-by-Day Escalation Trajectory Spline
-              _buildTrajectoryCard(context, provider),
-              const SizedBox(height: 20),
-
-              // 5. Recent Verified Ledger
+              // 6. Recent Transactions Ledger
               _buildVerifiedLedgerSection(context, provider),
             ],
           ),
@@ -491,528 +515,193 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Palette for dynamic category donut slices
-  static const List<Color> _palette = [
-    Color(0xFF6366F1),
-    Color(0xFF10B981),
-    Color(0xFF06B6D4),
-    Color(0xFFF43F5E),
-    Color(0xFFF59E0B),
-    Color(0xFF8B5CF6),
-    Color(0xFF008096),
-    Color(0xFF645EFB),
+  // Palette for compact "Where you spend" segmented bar (matches mockup)
+  static const List<Color> _spendSegmentPalette = [
+    Color(0xFF4B41E1), // Indigo
+    Color(0xFF0099B8), // Ocean Cyan
+    Color(0xFFF59E0B), // Warm Amber
+    Color(0xFF8B5CF6), // Violet
   ];
+  static const Color _othersSegmentColor = Color(0xFFE2E8F0);
 
-  // --- 4. Category Allocation Donut Card ---
-  Widget _buildCategoryDonutCard(BuildContext context, ExpenseProvider provider) {
-    final double totalOutflow = provider.expensesThisMonth;
-    final categoryMap = provider.categoryTotalsThisMonth;
+  // --- 2. Top Spend Summary & Trend Graph Hero Card ---
+  Widget _buildTopSpendHeroCard(BuildContext context, ExpenseProvider provider) {
     final now = DateTime.now();
-    final monthStr = DateFormat('MMM yyyy').format(now);
+    final double thisMonthSpend = provider.expensesThisMonth;
+    final prevMonthDate = DateTime(now.year, now.month - 1, 1);
+    final double prevMonthSpend = provider
+        .getExpensesForMonth(prevMonthDate.year, prevMonthDate.month)
+        .where((e) => e.isExpense && e.amount > 0)
+        .fold(0.0, (sum, e) => sum + e.amount);
 
-    final List<PieChartSectionData> sections = [];
-    final List<Map<String, dynamic>> legendItems = [];
-
-    if (categoryMap.isEmpty || totalOutflow == 0) {
-      // Clean placeholder ring
-      sections.add(
-        PieChartSectionData(
-          color: const Color(0xFFEAEDFF),
-          value: 100,
-          title: '',
-          radius: 20,
-        ),
-      );
-    } else {
-      int idx = 0;
-      categoryMap.forEach((category, amount) {
-        final color = _palette[idx % _palette.length];
-        final pct = (amount / totalOutflow) * 100;
-        sections.add(
-          PieChartSectionData(
-            color: color,
-            value: amount,
-            title: '',
-            radius: 22,
-          ),
-        );
-        legendItems.add({
-          'category': category,
-          'amount': '₹${amount.toStringAsFixed(2)}',
-          'pct': '${pct.toStringAsFixed(1)}%',
-          'color': color,
-        });
-        idx++;
-      });
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x0D000000), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08131B2E),
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.pie_chart, size: 18, color: AppColors.primary),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Category Allocation',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF131B2E),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Text(
-                    'Breakdown of current monthly outflow',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAEDFF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${categoryMap.length} Segments',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF3D4A42),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Donut Chart with Center Core
-          SizedBox(
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 65,
-                    startDegreeOffset: -90,
-                    sections: sections,
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'TOTAL OUTFLOW',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                        color: Color(0xFF3D4A42),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '₹${totalOutflow.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF131B2E),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEAEDFF),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        monthStr,
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFF3D4A42)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Micro Legend Pills Grid
-          if (legendItems.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F3FF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Text(
-                  'No expenses recorded yet. Tap + to add an expense.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
-                ),
-              ),
-            )
-          else
-            GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 2.8,
-              ),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: legendItems.length,
-              itemBuilder: (context, i) {
-                final item = legendItems[i];
-                final categoryName = item['category'] as String;
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CategoryDetailScreen(initialCategory: categoryName),
-                      ),
-                    );
-                  },
-                  child: _buildLegendTile(
-                    categoryName,
-                    item['amount'] as String,
-                    item['pct'] as String,
-                    item['color'] as Color,
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegendTile(String title, String amount, String pct, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F3FF).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF131B2E)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                amount,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
-              ),
-              Text(
-                pct,
-                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500, color: Color(0xFF3D4A42)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 5. Cumulative Day-by-Day Escalation Trajectory Spline ---
-  Widget _buildTrajectoryCard(BuildContext context, ExpenseProvider provider) {
-    final double totalOutflow = provider.totalExpenses;
-    final now = DateTime.now();
-    final todayLabel = DateFormat('MMM d').format(now);
     final inrFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
     final inrFmtDecimal = NumberFormat.currency(symbol: '₹', decimalDigits: 2, locale: 'en_IN');
 
-    // Build timeline points grouped by calendar day based on current month
-    final List<_TrajectoryDataPoint> points = [];
     final monthlyExpenses = provider.getExpensesForMonth(now.year, now.month);
-    final validExpenses = monthlyExpenses.where((e) => e.isExpense && e.amount > 0).toList();
+    final validExpenses =
+        monthlyExpenses.where((e) => e.isExpense && e.amount > 0).toList()
+          ..sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
 
-    if (validExpenses.isNotEmpty) {
-      validExpenses.sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
+    final points = _buildMonthTrajectoryPoints(validExpenses);
+    final List<FlSpot> spots = points.isEmpty
+        ? const [
+            FlSpot(0, 0),
+            FlSpot(1, 0),
+            FlSpot(2, 0),
+            FlSpot(3, 0),
+          ]
+        : List.generate(
+            points.length,
+            (i) => FlSpot(i.toDouble(), points[i].cumulativeAmount),
+          );
 
-      // Group spending by calendar day
-      final Map<DateTime, double> dailySpendMap = {};
-      for (final exp in validExpenses) {
-        if (exp.isExpense) {
-          final dt = exp.dateTime;
-          final dayKey = DateTime(dt.year, dt.month, dt.day);
-          dailySpendMap[dayKey] = (dailySpendMap[dayKey] ?? 0.0) + exp.amount;
-        }
-      }
+    final double maxTrendY = points.isEmpty
+        ? 100.0
+        : math.max(1.0, points.last.cumulativeAmount * 1.25);
 
-      final sortedDays = dailySpendMap.keys.toList()..sort();
-      final firstDay = sortedDays.first;
-      final lastDay = sortedDays.last;
-      final totalCalendarDays = lastDay.difference(firstDay).inDays + 1;
-
-      double runningTotal = 0.0;
-
-      if (sortedDays.length == 1 || totalCalendarDays <= 1) {
-        // Single day: start from 0 at start of day, step to total
-        points.add(_TrajectoryDataPoint(
-          date: firstDay,
-          cumulativeAmount: 0.0,
-          daySpend: 0.0,
-        ));
-        points.add(_TrajectoryDataPoint(
-          date: firstDay,
-          cumulativeAmount: dailySpendMap[firstDay] ?? 0.0,
-          daySpend: dailySpendMap[firstDay] ?? 0.0,
-        ));
-      } else if (totalCalendarDays <= 60) {
-        // Up to 2 months: continuous day-by-day progression
-        for (int i = 0; i < totalCalendarDays; i++) {
-          final currentDay = firstDay.add(Duration(days: i));
-          final spend = dailySpendMap[currentDay] ?? 0.0;
-          runningTotal += spend;
-          points.add(_TrajectoryDataPoint(
-            date: currentDay,
-            cumulativeAmount: runningTotal,
-            daySpend: spend,
-          ));
-        }
+    // Comparison badge text
+    final String comparisonText;
+    final IconData comparisonIcon;
+    if (prevMonthSpend > 0) {
+      final pctChange = (((thisMonthSpend - prevMonthSpend) / prevMonthSpend) * 100).round();
+      if (pctChange < 0) {
+        comparisonText = '${pctChange.abs()}% vs last month';
+        comparisonIcon = Icons.arrow_downward_rounded;
+      } else if (pctChange > 0) {
+        comparisonText = '$pctChange% vs last month';
+        comparisonIcon = Icons.arrow_upward_rounded;
       } else {
-        // For larger timeframes (> 60 days): sample ~40 points across the range
-        const int maxSamplePoints = 40;
-        final double stepDays = (totalCalendarDays - 1) / (maxSamplePoints - 1);
-        final Set<DateTime> sampledDates = {};
-        for (int i = 0; i < maxSamplePoints; i++) {
-          final dayOffset = (i * stepDays).round();
-          sampledDates.add(firstDay.add(Duration(days: dayOffset)));
-        }
-        sampledDates.add(lastDay);
-
-        final sampledList = sampledDates.toList()..sort();
-        for (final sampleDate in sampledList) {
-          double sumUntil = 0.0;
-          for (final entry in dailySpendMap.entries) {
-            if (!entry.key.isAfter(sampleDate)) {
-              sumUntil += entry.value;
-            }
-          }
-          points.add(_TrajectoryDataPoint(
-            date: sampleDate,
-            cumulativeAmount: sumUntil,
-            daySpend: dailySpendMap[sampleDate] ?? 0.0,
-          ));
-        }
+        comparisonText = '0% vs last month';
+        comparisonIcon = Icons.remove_rounded;
       }
-    }
-
-    // Spots for fl_chart
-    List<FlSpot> spots = [];
-    if (points.isEmpty) {
-      spots = const [
-        FlSpot(0, 0),
-        FlSpot(1, 0),
-        FlSpot(2, 0),
-        FlSpot(3, 0),
-      ];
+    } else if (validExpenses.isNotEmpty) {
+      comparisonText = '${validExpenses.length} ${validExpenses.length == 1 ? "entry" : "entries"} this month';
+      comparisonIcon = Icons.trending_up_rounded;
     } else {
-      spots = List.generate(
-        points.length,
-        (i) => FlSpot(i.toDouble(), points[i].cumulativeAmount),
-      );
-    }
-
-    // Determine target ceiling and range
-    final double maxCeiling = totalOutflow > 5000 ? totalOutflow * 1.2 : 5000.0;
-    final double chartMaxY = totalOutflow > 0 ? (totalOutflow * 1.15) : 5000.0;
-
-    // Milestone indices for X-axis: Pick at most 4 evenly spaced date labels so text NEVER overlaps
-    final List<int> milestoneIndices = [];
-    if (points.isNotEmpty) {
-      if (points.length <= 4) {
-        milestoneIndices.addAll(List.generate(points.length, (i) => i));
-      } else {
-        const int labelCount = 4;
-        for (int i = 0; i < labelCount; i++) {
-          final idx = ((points.length - 1) * i / (labelCount - 1)).round();
-          if (!milestoneIndices.contains(idx)) {
-            milestoneIndices.add(idx);
-          }
-        }
-      }
+      comparisonText = 'No spend this month';
+      comparisonIcon = Icons.check_circle_outline_rounded;
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x0D000000), width: 1),
-        boxShadow: const [
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF004D34),
+            AppColors.primary,
+            Color(0xFF00855D),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x08131B2E),
-            blurRadius: 16,
-            offset: Offset(0, 4),
+            color: AppColors.primary.withValues(alpha: 0.24),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.show_chart, size: 20, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Spend Escalation Trajectory',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF131B2E),
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryBorder, width: 1),
-                ),
-                child: Text(
-                  todayLabel,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primaryDark,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            totalOutflow > 0
-                ? 'Cumulative spend to date: ${inrFmtDecimal.format(totalOutflow)}'
-                : 'No spend accrued yet this period',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF3D4A42)),
-          ),
-          const SizedBox(height: 14),
-          // Interactive Glowing Milestone Card (Responsive, clean spacing)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Left: Total Spend + Comparison Pill
+          Expanded(
+            flex: 11,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$todayLabel Status',
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-                    ),
-                  ],
+                Text(
+                  "THIS MONTH'S SPEND",
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 2,
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    inrFmtDecimal.format(thisMonthSpend),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFA7F3D0),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Accrued: ${inrFmt.format(totalOutflow)}',
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.primary),
+                      Icon(
+                        comparisonIcon,
+                        size: 13,
+                        color: const Color(0xFF003825),
                       ),
-                      if (maxCeiling > totalOutflow)
-                        Text(
-                          'Target: ${inrFmt.format(maxCeiling)}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6D7A72)),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          comparisonText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF003825),
+                          ),
                         ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          // Spline Line Chart (Zero dots blob, zero date overlap, silky smooth)
-          SizedBox(
-            height: 155,
-            child: points.isEmpty
-                ? Center(
-                    child: Text(
-                      'Record transactions to view spending trajectory curve',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
-                  )
-                : LineChart(
+          const SizedBox(width: 12),
+
+          // Right: Compact "Spending trend" Curve
+          Expanded(
+            flex: 10,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Spending trend',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 76,
+                  child: LineChart(
                     LineChartData(
-                      maxY: chartMaxY,
                       minY: 0,
+                      maxY: maxTrendY,
+                      gridData: const FlGridData(show: false),
+                      titlesData: const FlTitlesData(show: false),
+                      borderData: FlBorderData(show: false),
                       lineTouchData: LineTouchData(
+                        enabled: points.isNotEmpty,
                         handleBuiltInTouches: true,
                         touchTooltipData: LineTouchTooltipData(
-                          tooltipRoundedRadius: 10,
+                          tooltipRoundedRadius: 8,
                           fitInsideHorizontally: true,
                           fitInsideVertically: true,
                           getTooltipItems: (touchedSpots) {
@@ -1020,125 +709,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               final idx = spot.x.toInt();
                               if (idx < 0 || idx >= points.length) return null;
                               final pt = points[idx];
-                              final dateStr = DateFormat('d MMM yyyy').format(pt.date);
-                              final accStr = inrFmt.format(pt.cumulativeAmount);
-                              final dayStr = pt.daySpend > 0
-                                  ? '\nDay Outflow: +${inrFmt.format(pt.daySpend)}'
-                                  : '';
                               return LineTooltipItem(
-                                '$dateStr\nCumulative: $accStr$dayStr',
+                                '${DateFormat('d MMM').format(pt.date)}\n${inrFmt.format(pt.cumulativeAmount)}',
                                 const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               );
                             }).toList();
                           },
                         ),
-                        getTouchedSpotIndicator: (barData, spotIndexes) {
-                          return spotIndexes.map((index) {
-                            return TouchedSpotIndicatorData(
-                              FlLine(
-                                color: AppColors.primary.withValues(alpha: 0.35),
-                                strokeWidth: 1.5,
-                                dashArray: [4, 4],
-                              ),
-                              FlDotData(
-                                show: true,
-                                getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
-                                  radius: 5,
-                                  color: AppColors.primary,
-                                  strokeWidth: 2.5,
-                                  strokeColor: Colors.white,
-                                ),
-                              ),
-                            );
-                          }).toList();
-                        },
                       ),
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        getDrawingHorizontalLine: (value) {
-                          return FlLine(
-                            color: const Color(0xFFBCCAC0).withValues(alpha: 0.25),
-                            strokeWidth: 1,
-                            dashArray: [4, 4],
-                          );
-                        },
-                      ),
-                      titlesData: FlTitlesData(
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 26,
-                            interval: 1,
-                            getTitlesWidget: (val, meta) {
-                              final idx = val.toInt();
-                              if (!milestoneIndices.contains(idx) || idx < 0 || idx >= points.length) {
-                                return const SizedBox.shrink();
-                              }
-                              final pt = points[idx];
-                              final isLast = idx == points.length - 1;
-                              final isToday = pt.date.year == now.year &&
-                                  pt.date.month == now.month &&
-                                  pt.date.day == now.day;
-                              final label = (isLast && isToday)
-                                  ? 'Today'
-                                  : DateFormat('d MMM').format(pt.date);
-
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  label,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF6D7A72),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
                       lineBarsData: [
                         LineChartBarData(
                           spots: spots,
                           isCurved: true,
-                          curveSmoothness: 0.2,
-                          color: AppColors.primary,
+                          curveSmoothness: 0.28,
+                          color: points.isEmpty
+                              ? Colors.white.withValues(alpha: 0.35)
+                              : const Color(0xFFB5FCE0),
                           barWidth: 2.5,
                           isStrokeCapRound: true,
                           dotData: FlDotData(
-                            show: true,
-                            checkToShowDot: (spot, barData) {
-                              // Only show single terminal milestone dot, no ugly blob of dots
-                              if (points.length <= 4) return true;
-                              return spot.x.toInt() == points.length - 1;
-                            },
-                            getDotPainter: (spot, percent, barData, index) {
-                              final isLast = spot.x.toInt() == points.length - 1;
-                              return FlDotCirclePainter(
-                                radius: isLast ? 4.5 : 2.5,
-                                color: AppColors.primary,
-                                strokeWidth: 2,
-                                strokeColor: Colors.white,
-                              );
-                            },
+                            show: points.isNotEmpty,
+                            checkToShowDot: (spot, barData) =>
+                                spot.x.toInt() == spots.length - 1,
+                            getDotPainter: (spot, percent, barData, index) =>
+                                FlDotCirclePainter(
+                              radius: 4.5,
+                              color: Colors.white,
+                              strokeWidth: 3,
+                              strokeColor: const Color(0x5585F8C4),
+                            ),
                           ),
                           belowBarData: BarAreaData(
                             show: true,
                             gradient: LinearGradient(
                               colors: [
-                                AppColors.primary.withValues(alpha: 0.22),
-                                AppColors.primary.withValues(alpha: 0.0),
+                                const Color(0xFF85F8C4).withValues(alpha: 0.32),
+                                const Color(0xFF85F8C4).withValues(alpha: 0.0),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -1148,303 +758,533 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-          ),
-          const SizedBox(height: 10),
-          // Progress Chips
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _MilestoneChip('Entries: ${monthlyExpenses.length}'),
-              _MilestoneChip(points.length > 1 ? '${points.length} Days' : 'Currency: INR (₹)'),
-              _MilestoneChip('Total: ${inrFmt.format(totalOutflow)}', isPrimary: true),
-            ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- 6. Recent Verified Ledger (Real User Expenses) ---
-  Widget _buildVerifiedLedgerSection(BuildContext context, ExpenseProvider provider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Recent Verified Ledger',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF131B2E),
-                  ),
-                ),
-                Text(
-                  'Tap any entry to edit details or change date',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72)),
-                ),
-              ],
-            ),
-            if (provider.expenses.isNotEmpty)
-              Text(
-                '${provider.expenses.length} Entries',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
+  List<_TrajectoryDataPoint> _buildMonthTrajectoryPoints(List<Expense> validExpenses) {
+    final List<_TrajectoryDataPoint> points = [];
+    if (validExpenses.isEmpty) return points;
 
-        if (provider.expenses.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0x0A000000), width: 1),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x06000000),
-                  blurRadius: 6,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF2F3FF),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.receipt_long_outlined, size: 26, color: AppColors.primary),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Ledger is Clear',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF131B2E)),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'No transactions recorded yet.\nTap + or Guard / SMS to add your first expense.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
-                ),
-              ],
-            ),
-          )
-        else
-          ...provider.expenses.take(6).map((expense) {
-            final dateStr = DateFormat('MMM dd, hh:mm a').format(expense.dateTime);
-            final title = expense.comment != null && expense.comment!.isNotEmpty
-                ? expense.comment!
-                : expense.category;
-            final isInc = expense.isIncome;
+    final Map<DateTime, double> dailySpendMap = {};
+    for (final exp in validExpenses) {
+      if (exp.isExpense) {
+        final dt = exp.dateTime;
+        final dayKey = DateTime(dt.year, dt.month, dt.day);
+        dailySpendMap[dayKey] = (dailySpendMap[dayKey] ?? 0.0) + exp.amount;
+      }
+    }
+    if (dailySpendMap.isEmpty) return points;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: _buildLedgerItem(
-                icon: CategoryIcons.get(expense.category),
-                color: isInc ? AppColors.primary : AppColors.primary,
-                title: title,
-                category: expense.category,
-                categoryBg: isInc ? AppColors.primaryLight : const Color(0xFFE2DFFF),
-                categoryColor: isInc ? AppColors.primaryDark : const Color(0xFF3323CC),
-                time: '$dateStr • ${expense.paymentMethod}',
-                amount: isInc ? '+₹${expense.amount.toStringAsFixed(2)}' : '-₹${expense.amount.toStringAsFixed(2)}',
-                amountColor: isInc ? AppColors.primary : const Color(0xFF131B2E),
-                status: isInc ? 'Inflow' : 'Cleared',
-                receiptUrl: expense.receiptUrl,
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => AddExpenseSheet(expenseToEdit: expense),
-                  );
-                },
-              ),
-            );
-          }),
-      ],
-    );
+    final sortedDays = dailySpendMap.keys.toList()..sort();
+    final firstDay = sortedDays.first;
+    final lastDay = sortedDays.last;
+    final totalCalendarDays = lastDay.difference(firstDay).inDays + 1;
+
+    if (sortedDays.length == 1 || totalCalendarDays <= 1) {
+      points.add(_TrajectoryDataPoint(
+        date: firstDay,
+        cumulativeAmount: 0.0,
+        daySpend: 0.0,
+      ));
+      points.add(_TrajectoryDataPoint(
+        date: firstDay,
+        cumulativeAmount: dailySpendMap[firstDay] ?? 0.0,
+        daySpend: dailySpendMap[firstDay] ?? 0.0,
+      ));
+      return points;
+    }
+
+    double runningTotal = 0.0;
+    for (int i = 0; i < totalCalendarDays; i++) {
+      final currentDay = firstDay.add(Duration(days: i));
+      final spend = dailySpendMap[currentDay] ?? 0.0;
+      runningTotal += spend;
+      points.add(_TrajectoryDataPoint(
+        date: currentDay,
+        cumulativeAmount: runningTotal,
+        daySpend: spend,
+      ));
+    }
+    return points;
   }
 
-  Widget _buildLedgerItem({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String category,
-    required Color categoryBg,
-    required Color categoryColor,
-    required String time,
-    required String amount,
-    Color? amountColor,
-    required String status,
-    String? receiptUrl,
-    VoidCallback? onTap,
-  }) {
+  // --- 3. Compact "Where you spend" Horizontal Segmented Card ---
+  Widget _buildWhereYouSpendCard(BuildContext context, ExpenseProvider provider) {
+    final double totalOutflow = provider.expensesThisMonth;
+    final categoryMap = provider.categoryTotalsThisMonth;
+    final sortedEntries = categoryMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final List<_CategorySpendSegment> segments = [];
+    if (totalOutflow > 0 && sortedEntries.isNotEmpty) {
+      final topCount = math.min(4, sortedEntries.length);
+      for (int i = 0; i < topCount; i++) {
+        final entry = sortedEntries[i];
+        segments.add(_CategorySpendSegment(
+          label: entry.key,
+          amount: entry.value,
+          color: _spendSegmentPalette[i % _spendSegmentPalette.length],
+          isOthers: false,
+        ));
+      }
+      if (sortedEntries.length > 4) {
+        final othersAmount = sortedEntries
+            .skip(4)
+            .fold(0.0, (sum, e) => sum + e.value);
+        if (othersAmount > 0) {
+          segments.add(_CategorySpendSegment(
+            label: 'Others',
+            amount: othersAmount,
+            color: _othersSegmentColor,
+            isOthers: true,
+          ));
+        }
+      }
+    }
+
+    final inrFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+
     return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x0A000000), width: 1),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x0D000000), width: 1),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 6,
-            offset: Offset(0, 1),
+            color: Color(0x08131B2E),
+            blurRadius: 14,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF131B2E),
-                              ),
-                            ),
-                          ),
-                          if (onTap != null) ...[
-                            const SizedBox(width: 4),
-                            const Icon(Icons.edit_outlined, size: 14, color: AppColors.primary),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: categoryBg,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              category,
-                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: categoryColor),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              time,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF6D7A72)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (receiptUrl != null && receiptUrl.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        GestureDetector(
-                          onTap: () => FullScreenReceiptViewer.show(
-                            context,
-                            imageUrl: receiptUrl,
-                            title: '$title Receipt',
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.receipt_long, size: 11, color: AppColors.primary),
-                                SizedBox(width: 3),
-                                Text(
-                                  'Bill Attached',
-                                  style: TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                SizedBox(width: 2),
-                                Icon(Icons.zoom_in, size: 11, color: AppColors.primary),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const Row(
                   children: [
+                    Icon(Icons.pie_chart, size: 18, color: AppColors.primary),
+                    SizedBox(width: 8),
                     Text(
-                      amount,
+                      'Where you spend',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: amountColor ?? const Color(0xFF131B2E),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        status,
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                        color: Color(0xFF131B2E),
                       ),
                     ),
                   ],
                 ),
+              InkWell(
+                onTap: () => _openAnalytics(context, 'chart'),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3D4A42),
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF3D4A42)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (segments.isEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 16,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'No expenses recorded this month. Tap + to add one.',
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF6D7A72)),
+                ),
+              ],
+            )
+          else ...[
+            // Horizontal Proportional Segmented Bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                height: 16,
+                child: Row(
+                  children: [
+                    for (int i = 0; i < segments.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 2),
+                      Expanded(
+                        flex: math.max(
+                          1,
+                          ((segments[i].amount / totalOutflow) * 1000).round(),
+                        ),
+                        child: Container(color: segments[i].color),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Compact Horizontal Breakdown Columns
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int i = 0; i < segments.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        if (segments[i].isOthers) {
+                          _openAnalytics(context, 'chart');
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CategoryDetailScreen(
+                                initialCategory: segments[i].label,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: segments[i].color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  segments[i].label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF3D4A42),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${((segments[i].amount / totalOutflow) * 100).round()}%',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF6D7A72),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              inrFmt.format(segments[i].amount),
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF131B2E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
+          ],
+        ],
         ),
       ),
     );
   }
+
+  // --- 4. Recent Transactions Ledger ---
+  Widget _buildVerifiedLedgerSection(BuildContext context, ExpenseProvider provider) {
+    final recentItems = provider.expenses.take(5).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x0D000000), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08131B2E),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.swap_horiz_rounded, size: 20, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text(
+                      'Recent transactions',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF131B2E),
+                      ),
+                    ),
+                  ],
+                ),
+              InkWell(
+                onTap: () => _openAnalytics(context, 'list'),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3D4A42),
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF3D4A42)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          if (provider.expenses.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF2F3FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.receipt_long_outlined, size: 24, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'No transactions yet',
+                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF131B2E)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Tap + to log your first expense or income.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            for (int i = 0; i < recentItems.length; i++) ...[
+              if (i > 0)
+                const Divider(height: 16, thickness: 0.7, color: Color(0xFFF1F5F9)),
+              _buildTransactionRow(context, recentItems[i]),
+            ],
+          ],
+        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionRow(BuildContext context, Expense expense) {
+    final dateStr = DateFormat('MMM d, hh:mm a').format(expense.dateTime);
+    final title = expense.comment != null && expense.comment!.isNotEmpty
+        ? expense.comment!
+        : expense.category;
+    final isInc = expense.isIncome;
+    final iconColor = isInc ? AppColors.primary : _colorForCategory(expense.category);
+    final amountStr = isInc
+        ? '+₹${expense.amount.toStringAsFixed(2)}'
+        : '₹${expense.amount.toStringAsFixed(2)}';
+
+    return InkWell(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => AddExpenseSheet(expenseToEdit: expense),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(CategoryIcons.get(expense.category), color: iconColor, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF131B2E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$dateStr • ${expense.paymentMethod}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF6D7A72)),
+                  ),
+                  if (expense.receiptUrl != null && expense.receiptUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () => FullScreenReceiptViewer.show(
+                        context,
+                        imageUrl: expense.receiptUrl!,
+                        title: '$title Receipt',
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.receipt_long, size: 12, color: AppColors.primary),
+                          SizedBox(width: 3),
+                          Text(
+                            'Bill Attached',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              amountStr,
+              style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                color: isInc ? AppColors.primary : const Color(0xFF131B2E),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _colorForCategory(String category) {
+    final lower = category.toLowerCase();
+    if (lower.contains('food') || lower.contains('dining')) {
+      return const Color(0xFF0099B8);
+    }
+    if (lower.contains('bill') || lower.contains('utilit')) {
+      return const Color(0xFF4B41E1);
+    }
+    if (lower.contains('transport') || lower.contains('travel')) {
+      return const Color(0xFF8B5CF6);
+    }
+    if (lower.contains('rent') || lower.contains('home')) {
+      return const Color(0xFFF59E0B);
+    }
+    return AppColors.primary;
+  }
+}
+
+class _CategorySpendSegment {
+  final String label;
+  final double amount;
+  final Color color;
+  final bool isOthers;
+
+  const _CategorySpendSegment({
+    required this.label,
+    required this.amount,
+    required this.color,
+    required this.isOthers,
+  });
 }
 
 class _TrajectoryDataPoint {
@@ -1457,35 +1297,4 @@ class _TrajectoryDataPoint {
     required this.cumulativeAmount,
     required this.daySpend,
   });
-}
-
-class _MilestoneChip extends StatelessWidget {
-  final String label;
-  final bool isPrimary;
-  const _MilestoneChip(this.label, {this.isPrimary = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(
-            color: isPrimary ? AppColors.primary : const Color(0xFF6D7A72),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: isPrimary ? FontWeight.w800 : FontWeight.w500,
-            color: isPrimary ? AppColors.primary : const Color(0xFF3D4A42),
-          ),
-        ),
-      ],
-    );
-  }
 }

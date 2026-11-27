@@ -423,15 +423,36 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                         _buildSmartSplitPromoBanner(context),
                         const SizedBox(height: 14),
 
-                        // D. Section Title
-                        const Text(
-                          'ALL MEMBERS & GROUPS',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF64748B),
-                            letterSpacing: 0.8,
-                          ),
+                        // D. Section Title + Explicit Combine Action
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'ALL MEMBERS & GROUPS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF64748B),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: _primaryDark,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                backgroundColor: const Color(0xFFECFDF5),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () => widget.onCombineGroupTap(null),
+                              icon: const Icon(Icons.call_merge_rounded, size: 14),
+                              label: const Text(
+                                'Combine',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 10),
 
@@ -758,92 +779,112 @@ class _SplitMembersViewState extends State<SplitMembersView> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // C. SMART SPLIT PROMO BANNER
+  // C. SMART SPLIT CARD WITH EXPLICIT COMBINE BUTTON
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildSmartSplitPromoBanner(BuildContext context) {
-    return InkWell(
-      onTap: () => widget.onCombineGroupTap(null),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFEAF7EE), Color(0xFFDFF2E6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFC8EBD2)),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEAF7EE), Color(0xFFDFF2E6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFC8EBD2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.hub_rounded, size: 12, color: _primaryDark),
+                          SizedBox(width: 4),
+                          Text(
+                            'Smart Split',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _primaryDark),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.hub_rounded, size: 12, color: _primaryDark),
-                        SizedBox(width: 4),
-                        Text(
-                          'Smart Split',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _primaryDark),
-                        ),
-                      ],
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Travel Together, Settle Easy',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF191C1E),
+                        letterSpacing: -0.2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Travel Together, Settle Easy',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF191C1E),
-                      letterSpacing: -0.2,
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Combine family members into a single unit for simplified settlements.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF475569),
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Combine family members into a single unit for simplified settlements.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF475569),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                'screen/split/member/illustration.png',
-                width: 76,
-                height: 76,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.diversity_3_rounded, color: _primaryDark, size: 30),
+                  ],
                 ),
               ),
+              const SizedBox(width: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'screen/split/member/illustration.png',
+                  width: 76,
+                  height: 76,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.diversity_3_rounded, color: _primaryDark, size: 30),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryDark,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => widget.onCombineGroupTap(null),
+              icon: const Icon(Icons.call_merge_rounded, size: 17),
+              label: const Text(
+                'Combine Members',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
