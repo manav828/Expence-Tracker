@@ -498,6 +498,13 @@ class CombinedBalancesResult {
   double getGroupBalance(String settlementGroupId) {
     return entityBalances['sg_$settlementGroupId'] ?? 0.0;
   }
+
+  double getSettlementBalanceForMember(String memberId) {
+    final group = memberToGroupMap[memberId];
+    return group == null
+        ? entityBalances[memberId] ?? 0.0
+        : getGroupBalance(group.id);
+  }
 }
 
 /// Aggregates individual balances into combined settlement group balances.

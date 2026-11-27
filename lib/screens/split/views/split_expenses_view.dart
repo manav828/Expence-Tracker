@@ -41,14 +41,21 @@ class SplitExpensesView extends StatelessWidget {
         final expenses = sp.getExpensesForGroup(group.id);
         final members = sp.getMembersForGroup(group.id);
         final memberMap = {for (final m in members) m.id: m.name};
-        final balances = sp.getBalancesForGroup(group.id);
         final currentMemberName = sp.currentMemberName ?? '';
         final currentMember = members.firstWhere(
           (m) => m.name.toLowerCase().trim() == currentMemberName.toLowerCase().trim(),
           orElse: () => members.isNotEmpty ? members.first : SplitMember(id: '', groupId: group.id, name: 'You', joinedAt: DateTime.now()),
         );
 
-        final userNet = currentMember.id.isNotEmpty ? (balances[currentMember.id] ?? 0.0) : 0.0;
+        final combinedResult = sp.getCombinedBalancesResult(group.id);
+        final isHousehold = combinedResult.memberToGroupMap.containsKey(currentMember.id);
+        final netBalance = combinedResult.getSettlementBalanceForMember(currentMember.id);
+        final statusAmount = '₹${netBalance.abs().toStringAsFixed(2)}';
+        final netStatus = switch (netBalance) {
+          > 0 => isHousehold ? 'Household is owed $statusAmount' : 'You are owed $statusAmount',
+          < 0 => isHousehold ? 'Household owes $statusAmount' : 'You owe $statusAmount',
+          _ => isHousehold ? 'Household net balance: ₹0.00' : 'All settled up!',
+        };
         final totalSpend = expenses.fold(0.0, (sum, exp) => sum + exp.totalAmount);
         final fmt = NumberFormat('#,##,##0.00');
 
@@ -352,19 +359,15 @@ class SplitExpensesView extends StatelessWidget {
                                                   width: 7,
                                                   height: 7,
                                                   decoration: BoxDecoration(
-                                                    color: userNet > 0.01
+                                                    color: netBalance > 0
                                                         ? const Color(0xFF00E07A)
-                                                        : (userNet < -0.01 ? const Color(0xFFEF4444) : const Color(0xFF94A3B8)),
+                                                        : (netBalance < 0 ? const Color(0xFFEF4444) : const Color(0xFF94A3B8)),
                                                     shape: BoxShape.circle,
                                                   ),
                                                 ),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  userNet > 0.01
-                                                      ? 'Net status: You are owed ₹${userNet.toStringAsFixed(2)}'
-                                                      : (userNet < -0.01
-                                                          ? 'Net status: You owe ₹${userNet.abs().toStringAsFixed(2)}'
-                                                          : 'Net status: All settled up!'),
+                                                  'Net status: $netStatus',
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 11,

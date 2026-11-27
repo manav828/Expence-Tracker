@@ -192,6 +192,58 @@ void main() {
       expect(find.text('Family • 2 members'), findsNWidgets(2));
     });
 
+    testWidgets('Expenses and Settle show the household balance for each partner', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+      await splitProvider.setCurrentMemberName('Bob');
+
+      void seedBalances(Map<String, double> balances) {
+        splitProvider.setGroupDetailForTesting(
+          groupId: group.id,
+          members: [me, bob, charlie],
+          settlementGroups: [sg1],
+          balances: balances,
+        );
+      }
+
+      // Bob skipped the boat ride, but Charlie's share is owed by their couple.
+      seedBalances({me.id: 900, bob.id: 0, charlie.id: -900});
+      await tester.pump();
+      expect(find.text('Net status: Household owes ₹900.00'), findsOneWidget);
+
+      await tester.tap(find.text('Settle'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('HOUSEHOLD NET BALANCE'), findsOneWidget);
+      expect(find.text('Your household owes overall'), findsOneWidget);
+      expect(find.text('-₹900.00'), findsAtLeastNWidgets(1));
+      expect(find.text('You are all settled up'), findsNothing);
+
+      // The non-representative gets the same household summary.
+      await splitProvider.setCurrentMemberName('Charlie');
+      await tester.pump();
+      expect(find.text('Your household owes overall'), findsOneWidget);
+      final owesTile = find.ancestor(
+        of: find.text('Household owes'),
+        matching: find.byType(Column),
+      ).first;
+      expect(find.descendant(of: owesTile, matching: find.text('₹900.00')), findsOneWidget);
+
+      // Reimbursing the household can leave offsetting individual balances.
+      seedBalances({me.id: 0, bob.id: 550, charlie.id: -550});
+      await tester.pump();
+      expect(find.text('Your household is settled'), findsOneWidget);
+
+      await tester.tap(find.text('Expenses'));
+      await tester.pumpAndSettle();
+      expect(find.text('Net status: Household net balance: ₹0.00'), findsOneWidget);
+    });
+
     testWidgets('Settlement History displays with redesigned card matching reference image', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;

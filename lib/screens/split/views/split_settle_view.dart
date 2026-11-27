@@ -216,16 +216,22 @@ class _SplitSettleViewState extends State<SplitSettleView> {
           orElse: () => members.isNotEmpty ? members.first : SplitMember(id: '', groupId: widget.group.id, name: 'You', joinedAt: DateTime.now()),
         );
 
-        final userNet = currentMember.id.isNotEmpty ? (balances[currentMember.id] ?? 0.0) : 0.0;
+        final household = combinedResult.memberToGroupMap[currentMember.id];
+        final netBalance = combinedResult.getSettlementBalanceForMember(currentMember.id);
         final fmt = NumberFormat('#,##,##0.00');
 
-        // Calculate total amount user is owed and user owes others
         double userOwed = 0.0;
         double userOwes = 0.0;
         for (final d in debts) {
-          if (d.toMemberId == currentMember.id) {
+          final receives = household == null
+              ? d.toMemberId == currentMember.id
+              : d.toSettlementGroupId == household.id;
+          final pays = household == null
+              ? d.fromMemberId == currentMember.id
+              : d.fromSettlementGroupId == household.id;
+          if (receives) {
             userOwed += d.amount;
-          } else if (d.fromMemberId == currentMember.id) {
+          } else if (pays) {
             userOwes += d.amount;
           }
         }
@@ -338,9 +344,10 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                         // CHEQ WALLET HERO CARD
                         _buildWalletHeroCard(
                           context,
-                          userNet: userNet,
+                          netBalance: netBalance,
                           userOwed: userOwed,
                           userOwes: userOwes,
+                          isHousehold: household != null,
                           isSimplified: isSimplified,
                           fmt: fmt,
                         ),
@@ -470,16 +477,24 @@ class _SplitSettleViewState extends State<SplitSettleView> {
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildWalletHeroCard(
     BuildContext context, {
-    required double userNet,
+    required double netBalance,
     required double userOwed,
     required double userOwes,
+    required bool isHousehold,
     required bool isSimplified,
     required NumberFormat fmt,
   }) {
-    final isPositive = userNet >= 0.01;
-    final isNegative = userNet <= -0.01;
+    final isPositive = netBalance >= 0.01;
+    final isNegative = netBalance <= -0.01;
     final sign = isPositive ? '+' : (isNegative ? '-' : '');
-    final absNet = userNet.abs();
+    final status = switch ((isPositive, isNegative)) {
+      (true, _) => isHousehold ? 'Your household receives overall' : 'You receive overall',
+      (_, true) => isHousehold ? 'Your household owes overall' : 'You owe overall',
+      _ when userOwed > 0 || userOwes > 0 => isHousehold
+          ? 'Your household has pending settlements'
+          : 'You have pending settlements',
+      _ => isHousehold ? 'Your household is settled' : 'You are all settled up',
+    };
 
     return Stack(
       clipBehavior: Clip.none,
@@ -534,9 +549,9 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                       children: [
                         Row(
                           children: [
-                            const Text(
-                              'YOUR NET BALANCE',
-                              style: TextStyle(
+                            Text(
+                              isHousehold ? 'HOUSEHOLD NET BALANCE' : 'YOUR NET BALANCE',
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 color: Color(0xFFD1FAE5),
@@ -596,7 +611,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
 
                     // Main Hero Balance Number
                     Text(
-                      '$sign₹${fmt.format(absNet)}',
+                      '$sign₹${fmt.format(netBalance.abs())}',
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
@@ -625,9 +640,7 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          isPositive
-                              ? 'You receive overall'
-                              : (isNegative ? 'You owe overall' : 'You are all settled up'),
+                          status,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -653,9 +666,9 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'You are owed',
-                                  style: TextStyle(
+                                Text(
+                                  isHousehold ? 'Household is owed' : 'You are owed',
+                                  style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFFA7F3D0),
@@ -689,9 +702,9 @@ class _SplitSettleViewState extends State<SplitSettleView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'You owe others',
-                                  style: TextStyle(
+                                Text(
+                                  isHousehold ? 'Household owes' : 'You owe others',
+                                  style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFFA7F3D0),
