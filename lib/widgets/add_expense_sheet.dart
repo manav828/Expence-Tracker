@@ -10,6 +10,7 @@ import '../services/cloudflare_r2_service.dart';
 import 'searchable_selection_sheet.dart';
 import 'category_icon_picker_dialog.dart';
 import 'receipt_attachment_sheet.dart';
+import 'multiple_entries_form.dart';
 import '../core/theme/app_colors.dart';
 
 
@@ -35,6 +36,15 @@ class AddExpenseSheet extends StatefulWidget {
     this.initialType,
   });
 
+  static Future<void> showForNewEntry(BuildContext context) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        enableDrag: false,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const AddExpenseSheet(),
+      );
+
   @override
   State<AddExpenseSheet> createState() => _AddExpenseSheetState();
 }
@@ -50,6 +60,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String? _newlyUploadedReceiptUrl;
   bool _isSaved = false;
   bool _routeToActiveTrip = true;
+  Expense? _firstBatchEntry;
   late DateTime _selectedDate;
   late TransactionType _type;
 
@@ -151,9 +162,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     bool isCategory, {
     bool isIncome = false,
     String? initialText,
+    bool updateSelection = true,
   }) async {
     final controller = TextEditingController(text: initialText ?? '');
-    final isInc = isIncome || _type == TransactionType.income;
+    final isInc = isIncome;
     String? selectedIconKey;
 
     return await showDialog<String>(
@@ -270,10 +282,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                     } else {
                       await provider.addCategory(text);
                     }
-                    if (mounted) setState(() => _category = text);
+                    if (mounted && updateSelection) setState(() => _category = text);
                   } else {
                     await provider.addPaymentMethod(text);
-                    if (mounted) setState(() => _paymentMethod = text);
+                    if (mounted && updateSelection) setState(() => _paymentMethod = text);
                   }
                   if (dialogCtx.mounted) {
                     Navigator.pop(dialogCtx, text);
@@ -489,6 +501,22 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final firstBatchEntry = _firstBatchEntry;
+    if (firstBatchEntry != null) {
+      return MultipleEntriesForm(
+        firstEntry: firstBatchEntry,
+        firstAmountText: _amountController.text,
+        addCustomOption: (kind, isIncome, query) => _promptAddCustom(
+          context,
+          kind,
+          isIncome: isIncome,
+          initialText: query,
+          updateSelection: false,
+        ),
+        onReceiptSaved: () => _isSaved = true,
+      );
+    }
+
     final provider = Provider.of<ExpenseProvider>(context);
     final categories = _type == TransactionType.income
         ? provider.incomeCategories
@@ -501,6 +529,10 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
     final effectiveCategory = categories.contains(_category) ? _category! : categories.first;
     final effectivePayment = paymentMethods.contains(_paymentMethod) ? _paymentMethod! : paymentMethods.first;
+    final split = context.watch<SplitProvider?>();
+    final routingToTrip = _routeToActiveTrip &&
+        split?.isTripModeActive == true && split?.activeTripGroup != null;
+    final canAddAnother = !isEditing && !widget.isAutoDetected && !routingToTrip;
 
     return PopScope(
       canPop: true,
@@ -546,33 +578,35 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isEditing
-                              ? (_type == TransactionType.income ? 'Edit Income' : 'Edit Expense')
-                              : widget.isAutoDetected
-                                  ? (_type == TransactionType.income ? 'Income Detected' : 'Spend Detected')
-                                  : (_type == TransactionType.income ? 'Add Income' : 'Add Spend'),
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF131B2E),
-                            letterSpacing: -0.4,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEditing
+                                ? (_type == TransactionType.income ? 'Edit Income' : 'Edit Expense')
+                                : widget.isAutoDetected
+                                    ? (_type == TransactionType.income ? 'Income Detected' : 'Spend Detected')
+                                    : (_type == TransactionType.income ? 'Add Income' : 'Add Spend'),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF131B2E),
+                              letterSpacing: -0.4,
+                            ),
                           ),
-                        ),
-                        Text(
-                          isEditing
-                              ? 'Modify or update transaction details'
-                              : widget.isAutoDetected
-                                  ? (_type == TransactionType.income ? 'Auto-filled from credit SMS' : 'Auto-filled from debit SMS')
-                                  : (_type == TransactionType.income
-                                      ? 'Record an inflow into your personal ledger'
-                                      : 'Record an outflow into your personal ledger'),
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
-                        ),
-                      ],
+                          Text(
+                            isEditing
+                                ? 'Modify or update transaction details'
+                                : widget.isAutoDetected
+                                    ? (_type == TransactionType.income ? 'Auto-filled from credit SMS' : 'Auto-filled from debit SMS')
+                                    : (_type == TransactionType.income
+                                        ? 'Record an inflow into your personal ledger'
+                                        : 'Record an outflow into your personal ledger'),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
+                          ),
+                        ],
+                      ),
                     ),
                   if (isEditing)
                     IconButton(
@@ -580,7 +614,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       tooltip: 'Delete transaction',
                       onPressed: _confirmDelete,
                     ),
-                  if (widget.isAutoDetected)
+                  if (!isEditing)
                     IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(4),
@@ -749,12 +783,14 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                 color: _type == TransactionType.expense ? const Color(0xFFBA1A1A) : const Color(0xFF6D7A72),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                'Expense (Debit)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: _type == TransactionType.expense ? const Color(0xFFBA1A1A) : const Color(0xFF6D7A72),
+                              Flexible(
+                                child: Text(
+                                  'Expense (Debit)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: _type == TransactionType.expense ? const Color(0xFFBA1A1A) : const Color(0xFF6D7A72),
+                                  ),
                                 ),
                               ),
                             ],
@@ -798,12 +834,14 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                 color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF6D7A72),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                'Income (Credit)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF6D7A72),
+                              Flexible(
+                                child: Text(
+                                  'Income (Credit)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: _type == TransactionType.income ? AppColors.primary : const Color(0xFF6D7A72),
+                                  ),
                                 ),
                               ),
                             ],
@@ -873,33 +911,38 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
                             ),
-                            child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Transaction Date',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72), fontWeight: FontWeight.w600),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Transaction Date',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF6D7A72), fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _formatDisplayDate(_selectedDate),
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _formatDisplayDate(_selectedDate),
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF131B2E)),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
@@ -1108,6 +1151,29 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               // Bill & Receipt Attachment
               _buildReceiptSection(),
               const SizedBox(height: 24),
+
+              if (canAddAnother) ...[
+                AddAnotherEntryButton(
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    final now = DateTime.now().millisecondsSinceEpoch;
+                    setState(() {
+                      _firstBatchEntry = Expense(
+                        amount: 0,
+                        category: effectiveCategory,
+                        paymentMethod: effectivePayment,
+                        comment: _commentController.text,
+                        receiptUrl: _receiptUrl,
+                        expenseDate: _selectedDate.millisecondsSinceEpoch,
+                        createdAt: now,
+                        updatedAt: now,
+                        type: _type,
+                      );
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // Cancel + Submit Buttons
               if (widget.isAutoDetected) ...[

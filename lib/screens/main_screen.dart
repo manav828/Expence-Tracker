@@ -152,12 +152,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _openAddExpenseSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const AddExpenseSheet(),
-    );
+    AddExpenseSheet.showForNewEntry(context);
   }
 
   @override

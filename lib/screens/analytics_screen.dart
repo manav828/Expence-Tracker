@@ -2135,14 +2135,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const AddExpenseSheet(),
-                      );
-                    },
+                    onPressed: () => AddExpenseSheet.showForNewEntry(context),
                     icon: const Icon(Icons.add, size: 14),
                     label: const Text('Add Expense'),
                     style: ElevatedButton.styleFrom(

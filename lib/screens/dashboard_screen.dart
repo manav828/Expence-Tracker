@@ -530,70 +530,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // --- 2. Top Spend Summary & Trend Graph Hero Card ---
   Widget _buildTopSpendHeroCard(BuildContext context, ExpenseProvider provider) {
     final now = DateTime.now();
-    final double thisMonthSpend = provider.expensesThisMonth;
-    final prevMonthDate = DateTime(now.year, now.month - 1, 1);
-    final double prevMonthSpend = provider
-        .getExpensesForMonth(prevMonthDate.year, prevMonthDate.month)
-        .where((e) => e.isExpense && e.amount > 0)
-        .fold(0.0, (sum, e) => sum + e.amount);
+    final monthlyExpenses = provider
+        .getExpensesForMonth(now.year, now.month)
+        .where((expense) => expense.isExpense)
+        .toList();
+    final thisMonthSpend = provider.expensesThisMonth;
+    final prevMonth = DateTime(now.year, now.month - 1);
+    final prevMonthSpend = provider
+        .getExpensesForMonth(prevMonth.year, prevMonth.month)
+        .where((expense) => expense.isExpense)
+        .fold(0.0, (sum, expense) => sum + expense.amount);
+    final currency = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 2,
+    );
 
-    final inrFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
-    final inrFmtDecimal = NumberFormat.currency(symbol: '₹', decimalDigits: 2, locale: 'en_IN');
-
-    final monthlyExpenses = provider.getExpensesForMonth(now.year, now.month);
-    final validExpenses =
-        monthlyExpenses.where((e) => e.isExpense && e.amount > 0).toList()
-          ..sort((a, b) => a.expenseDate.compareTo(b.expenseDate));
-
-    final points = _buildMonthTrajectoryPoints(validExpenses);
-    final List<FlSpot> spots = points.isEmpty
-        ? const [
-            FlSpot(0, 0),
-            FlSpot(1, 0),
-            FlSpot(2, 0),
-            FlSpot(3, 0),
-          ]
-        : List.generate(
-            points.length,
-            (i) => FlSpot(i.toDouble(), points[i].cumulativeAmount),
-          );
-
-    final double maxTrendY = points.isEmpty
-        ? 100.0
-        : math.max(1.0, points.last.cumulativeAmount * 1.25);
-
-    // Comparison badge text
     final String comparisonText;
     final IconData comparisonIcon;
     if (prevMonthSpend > 0) {
-      final pctChange = (((thisMonthSpend - prevMonthSpend) / prevMonthSpend) * 100).round();
-      if (pctChange < 0) {
-        comparisonText = '${pctChange.abs()}% vs last month';
-        comparisonIcon = Icons.arrow_downward_rounded;
-      } else if (pctChange > 0) {
-        comparisonText = '$pctChange% vs last month';
-        comparisonIcon = Icons.arrow_upward_rounded;
-      } else {
-        comparisonText = '0% vs last month';
-        comparisonIcon = Icons.remove_rounded;
-      }
-    } else if (validExpenses.isNotEmpty) {
-      comparisonText = '${validExpenses.length} ${validExpenses.length == 1 ? "entry" : "entries"} this month';
-      comparisonIcon = Icons.trending_up_rounded;
+      final change = ((thisMonthSpend - prevMonthSpend) / prevMonthSpend * 100).round();
+      comparisonText = '${change.abs()}% vs last month total';
+      comparisonIcon = change == 0
+          ? Icons.remove_rounded
+          : change < 0
+              ? Icons.arrow_downward_rounded
+              : Icons.arrow_upward_rounded;
+    } else if (monthlyExpenses.isNotEmpty) {
+      final entry = monthlyExpenses.length == 1 ? 'expense' : 'expenses';
+      comparisonText = '${monthlyExpenses.length} $entry this month';
+      comparisonIcon = Icons.receipt_long_outlined;
     } else {
-      comparisonText = 'No spend this month';
+      comparisonText = 'No expenses this month';
       comparisonIcon = Icons.check_circle_outline_rounded;
     }
 
+    final summary = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          "THIS MONTH'S SPEND",
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+            color: AppColors.primaryLight,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          currency.format(thisMonthSpend),
+          style: const TextStyle(
+            fontSize: 29,
+            fontWeight: FontWeight.w800,
+            color: AppColors.onPrimary,
+            letterSpacing: -0.6,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.primaryBorder,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(comparisonIcon, size: 14, color: AppColors.primaryDeep),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  comparisonText,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDeep,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF004D34),
-            AppColors.primary,
-            Color(0xFF00855D),
-          ],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryContainer],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -606,215 +633,164 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Left: Total Spend + Comparison Pill
-          Expanded(
-            flex: 11,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (monthlyExpenses.isEmpty) return summary;
+          final chart = _buildCumulativeSpendChart(context, now, monthlyExpenses, currency);
+          if (constraints.maxWidth >= 620) {
+            return Row(
               children: [
-                Text(
-                  "THIS MONTH'S SPEND",
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.7,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    inrFmtDecimal.format(thisMonthSpend),
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFA7F3D0),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        comparisonIcon,
-                        size: 13,
-                        color: const Color(0xFF003825),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          comparisonText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF003825),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                Expanded(child: summary),
+                const SizedBox(width: 24),
+                Expanded(flex: 2, child: chart),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Right: Compact "Spending trend" Curve
-          Expanded(
-            flex: 10,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Spending trend',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 76,
-                  child: LineChart(
-                    LineChartData(
-                      minY: 0,
-                      maxY: maxTrendY,
-                      gridData: const FlGridData(show: false),
-                      titlesData: const FlTitlesData(show: false),
-                      borderData: FlBorderData(show: false),
-                      lineTouchData: LineTouchData(
-                        enabled: points.isNotEmpty,
-                        handleBuiltInTouches: true,
-                        touchTooltipData: LineTouchTooltipData(
-                          tooltipRoundedRadius: 8,
-                          fitInsideHorizontally: true,
-                          fitInsideVertically: true,
-                          getTooltipItems: (touchedSpots) {
-                            return touchedSpots.map((spot) {
-                              final idx = spot.x.toInt();
-                              if (idx < 0 || idx >= points.length) return null;
-                              final pt = points[idx];
-                              return LineTooltipItem(
-                                '${DateFormat('d MMM').format(pt.date)}\n${inrFmt.format(pt.cumulativeAmount)}',
-                                const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              );
-                            }).toList();
-                          },
-                        ),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: spots,
-                          isCurved: true,
-                          curveSmoothness: 0.28,
-                          color: points.isEmpty
-                              ? Colors.white.withValues(alpha: 0.35)
-                              : const Color(0xFFB5FCE0),
-                          barWidth: 2.5,
-                          isStrokeCapRound: true,
-                          dotData: FlDotData(
-                            show: points.isNotEmpty,
-                            checkToShowDot: (spot, barData) =>
-                                spot.x.toInt() == spots.length - 1,
-                            getDotPainter: (spot, percent, barData, index) =>
-                                FlDotCirclePainter(
-                              radius: 4.5,
-                              color: Colors.white,
-                              strokeWidth: 3,
-                              strokeColor: const Color(0x5585F8C4),
-                            ),
-                          ),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            gradient: LinearGradient(
-                              colors: [
-                                const Color(0xFF85F8C4).withValues(alpha: 0.32),
-                                const Color(0xFF85F8C4).withValues(alpha: 0.0),
-                              ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [summary, const SizedBox(height: 16), chart],
+          );
+        },
       ),
     );
   }
 
-  List<_TrajectoryDataPoint> _buildMonthTrajectoryPoints(List<Expense> validExpenses) {
-    final List<_TrajectoryDataPoint> points = [];
-    if (validExpenses.isEmpty) return points;
-
-    final Map<DateTime, double> dailySpendMap = {};
-    for (final exp in validExpenses) {
-      if (exp.isExpense) {
-        final dt = exp.dateTime;
-        final dayKey = DateTime(dt.year, dt.month, dt.day);
-        dailySpendMap[dayKey] = (dailySpendMap[dayKey] ?? 0.0) + exp.amount;
-      }
-    }
-    if (dailySpendMap.isEmpty) return points;
-
-    final sortedDays = dailySpendMap.keys.toList()..sort();
-    final firstDay = sortedDays.first;
-    final lastDay = sortedDays.last;
-    final totalCalendarDays = lastDay.difference(firstDay).inDays + 1;
-
-    if (sortedDays.length == 1 || totalCalendarDays <= 1) {
-      points.add(_TrajectoryDataPoint(
-        date: firstDay,
-        cumulativeAmount: 0.0,
-        daySpend: 0.0,
-      ));
-      points.add(_TrajectoryDataPoint(
-        date: firstDay,
-        cumulativeAmount: dailySpendMap[firstDay] ?? 0.0,
-        daySpend: dailySpendMap[firstDay] ?? 0.0,
-      ));
-      return points;
+  Widget _buildCumulativeSpendChart(
+    BuildContext context,
+    DateTime now,
+    List<Expense> expenses,
+    NumberFormat currency,
+  ) {
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+    final spendByDay = List<double>.filled(lastDay + 1, 0);
+    var lastRecordedDay = now.day;
+    for (final expense in expenses) {
+      final day = expense.dateTime.day;
+      spendByDay[day] += expense.amount;
+      lastRecordedDay = math.max(lastRecordedDay, day);
     }
 
-    double runningTotal = 0.0;
-    for (int i = 0; i < totalCalendarDays; i++) {
-      final currentDay = firstDay.add(Duration(days: i));
-      final spend = dailySpendMap[currentDay] ?? 0.0;
-      runningTotal += spend;
-      points.add(_TrajectoryDataPoint(
-        date: currentDay,
-        cumulativeAmount: runningTotal,
-        daySpend: spend,
-      ));
+    var runningTotal = 0.0;
+    final spots = <FlSpot>[];
+    for (var day = 1; day <= lastRecordedDay; day++) {
+      runningTotal += spendByDay[day];
+      spots.add(FlSpot(day.toDouble(), runningTotal));
     }
-    return points;
+    final low = spots.fold(0.0, (lowest, spot) => math.min(lowest, spot.y));
+    final high = spots.fold(0.0, (highest, spot) => math.max(highest, spot.y));
+    final targetInterval = math.max(1.0, (high - low) / 2);
+    final power = math.pow(10, (math.log(targetInterval) / math.ln10).floor()).toDouble();
+    final interval = [power, power * 2, power * 5, power * 10]
+        .firstWhere((tick) => tick >= targetInterval);
+    final axisCurrency = NumberFormat.compactCurrency(locale: 'en_IN', symbol: '₹');
+    final dateFormat = DateFormat('d MMM');
+    const axisStyle = TextStyle(color: AppColors.primaryLight, fontSize: 10);
+    final scaledAxisWidth = MediaQuery.textScalerOf(context).scale(10) * 5.5;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Cumulative spending',
+          style: TextStyle(color: AppColors.onPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 2),
+        const Text(
+          'Running total of expenses by date',
+          style: TextStyle(color: AppColors.primaryLight, fontSize: 11),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 116 + MediaQuery.textScalerOf(context).scale(14),
+          child: LineChart(
+            LineChartData(
+              minX: 1,
+              maxX: lastDay.toDouble(),
+              minY: (low / interval).floor() * interval,
+              maxY: math.max(interval, (high / interval).ceil() * interval),
+              gridData: FlGridData(
+                drawVerticalLine: false,
+                horizontalInterval: interval,
+                getDrawingHorizontalLine: (_) => const FlLine(
+                  color: Color(0x40FFFFFF),
+                  strokeWidth: 1,
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(),
+                rightTitles: const AxisTitles(),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: scaledAxisWidth,
+                    interval: interval,
+                    getTitlesWidget: (value, meta) => SideTitleWidget(
+                      axisSide: meta.axisSide,
+                      space: 6,
+                      child: Text(axisCurrency.format(value), style: axisStyle),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(14) + 8,
+                    interval: 1,
+                    getTitlesWidget: (value, meta) {
+                      final day = value.toInt();
+                      if (day != 1 && day != 15 && day != lastDay) {
+                        return const SizedBox.shrink();
+                      }
+                      return SideTitleWidget(
+                        axisSide: meta.axisSide,
+                        space: 6,
+                        fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
+                        child: Text(
+                          dateFormat.format(DateTime(now.year, now.month, day)),
+                          style: axisStyle,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  fitInsideHorizontally: true,
+                  fitInsideVertically: true,
+                  getTooltipColor: (_) => AppColors.primaryDeep,
+                  getTooltipItems: (touched) => [
+                    for (final spot in touched)
+                      LineTooltipItem(
+                        '${dateFormat.format(DateTime(now.year, now.month, spot.x.toInt()))}\n'
+                        '${currency.format(spot.y)} total',
+                        const TextStyle(color: AppColors.onPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isStepLineChart: true,
+                  lineChartStepData: const LineChartStepData(
+                    stepDirection: LineChartStepData.stepDirectionForward,
+                  ),
+                  color: AppColors.accentMint,
+                  barWidth: 2.5,
+                  dotData: FlDotData(checkToShowDot: (spot, _) => spot == spots.last),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: AppColors.accentMint.withValues(alpha: 0.12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // --- 3. Compact "Where you spend" Horizontal Segmented Card ---
@@ -872,51 +848,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.pie_chart, size: 18, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Text(
-                      'Where you spend',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF131B2E),
-                      ),
-                    ),
-                  ],
-                ),
-              InkWell(
-                onTap: () => _openAnalytics(context, 'chart'),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF3D4A42),
-                        ),
-                      ),
-                      SizedBox(width: 2),
-                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF3D4A42)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            _buildSectionHeader(context, Icons.pie_chart, 'Where you spend', 'chart'),
           const SizedBox(height: 14),
           if (segments.isEmpty)
             Column(
@@ -1046,6 +978,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildSectionHeader(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String analyticsMode,
+  ) {
+    return Row(
+      children: [
+        Icon(icon, size: 19, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        InkWell(
+          onTap: () => _openAnalytics(context, analyticsMode),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(width: 2),
+                Icon(Icons.chevron_right_rounded, size: 15, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFirstTransactionCard(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
@@ -1077,12 +1060,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => const AddExpenseSheet(),
-            ),
+            onPressed: () => AddExpenseSheet.showForNewEntry(context),
             icon: const Icon(Icons.add_rounded),
             label: const Text('Add your first transaction'),
           ),
@@ -1114,51 +1092,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.swap_horiz_rounded, size: 20, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Text(
-                      'Recent transactions',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF131B2E),
-                      ),
-                    ),
-                  ],
-                ),
-              InkWell(
-                onTap: () => _openAnalytics(context, 'list'),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF3D4A42),
-                        ),
-                      ),
-                      SizedBox(width: 2),
-                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF3D4A42)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            _buildSectionHeader(context, Icons.swap_horiz_rounded, 'Recent transactions', 'list'),
           const SizedBox(height: 14),
 
           for (int i = 0; i < recentItems.length; i++) ...[
@@ -1300,17 +1234,5 @@ class _CategorySpendSegment {
     required this.amount,
     required this.color,
     required this.isOthers,
-  });
-}
-
-class _TrajectoryDataPoint {
-  final DateTime date;
-  final double cumulativeAmount;
-  final double daySpend;
-
-  const _TrajectoryDataPoint({
-    required this.date,
-    required this.cumulativeAmount,
-    required this.daySpend,
   });
 }

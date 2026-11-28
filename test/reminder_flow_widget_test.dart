@@ -32,8 +32,36 @@ void main() {
       budgetProvider.setBudgetsForTesting([]);
     });
 
-    testWidgets('Dashboard renders ReminderCarouselBanner when reminders exist', (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
+    test('Home dismissal survives reload and applies only to the current due date', () async {
+      final now = DateTime.now();
+      final bill = PaymentReminder(
+        id: 'recurring-bill',
+        title: 'Internet',
+        amount: 799,
+        category: 'Bills & Utilities',
+        paymentMethod: 'UPI',
+        nextDueDate: now.add(const Duration(days: 1)),
+      );
+      reminderProvider.setRemindersForTesting([bill]);
+      await reminderProvider.dismissFromHome(bill);
+
+      final reloaded = ReminderProvider();
+      addTearDown(reloaded.dispose);
+      await reloaded.loadReminders();
+      reloaded.setRemindersForTesting([bill]);
+      expect(reloaded.dashboardActionableReminders, isEmpty);
+      expect(reloaded.activeReminders, [bill]);
+      expect(reloaded.notificationBadgeCount, 1);
+
+      final nextOccurrence = bill.copyWith(
+        nextDueDate: now.add(const Duration(days: 4)),
+      );
+      reloaded.setRemindersForTesting([nextOccurrence]);
+      expect(reloaded.dashboardActionableReminders, [nextOccurrence]);
+    });
+
+    testWidgets('Home reminder slider hides only the selected reminder', (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -61,6 +89,14 @@ void main() {
           nextDueDate: now.add(const Duration(days: 4)),
           isActive: true,
         ),
+        PaymentReminder(
+          id: 'rem-3',
+          title: 'Electricity',
+          amount: 1234,
+          category: 'Bills & Utilities',
+          paymentMethod: 'UPI',
+          nextDueDate: now.add(const Duration(days: 6)),
+        ),
       ]);
 
       await tester.pumpWidget(
@@ -72,29 +108,53 @@ void main() {
             ChangeNotifierProvider.value(value: splitProvider),
           ],
           child: const MaterialApp(
-            home: DashboardScreen(),
+            home: Scaffold(body: DashboardScreen()),
           ),
         ),
       );
 
       await tester.pumpAndSettle();
 
-      // Check banner exists with only title, amount, Mark Paid, and Snooze
       expect(find.byType(ReminderCarouselBanner), findsOneWidget);
       expect(find.text('Flat Rent'), findsOneWidget);
       expect(find.text('₹15,000'), findsOneWidget);
-      expect(find.text('Mark Paid'), findsOneWidget);
-      expect(find.text('Snooze'), findsOneWidget);
-      expect(find.text('Monthly'), findsNothing);
-      expect(find.byIcon(Icons.close_rounded), findsNothing);
+      final paidButton = find.ancestor(
+        of: find.text('Mark Paid'),
+        matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+      );
+      final snoozeButton = find.ancestor(
+        of: find.text('Snooze'),
+        matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+      );
+      expect(tester.getSize(paidButton).height, greaterThanOrEqualTo(48));
+      expect(tester.getSize(snoozeButton).height, greaterThanOrEqualTo(48));
 
-      // Verify Snooze button dismisses the banner
+      await tester.drag(
+        find.byKey(const ValueKey('home-reminder-slides')),
+        const Offset(-200, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Wi-Fi Internet'), findsOneWidget);
+      expect(find.text('2 of 3 reminders'), findsOneWidget);
+      await tester.tap(find.byTooltip('Next reminder'));
+      await tester.pumpAndSettle();
+      expect(find.text('Electricity'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Hide reminder from Home'));
+      await tester.pumpAndSettle();
+      expect(find.text('Electricity'), findsNothing);
+      expect(find.text('Wi-Fi Internet'), findsOneWidget);
+      expect(find.text('2 of 2 reminders'), findsOneWidget);
+      expect(reminderProvider.activeReminders, hasLength(3));
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(reminderProvider.dashboardActionableReminders, hasLength(3));
+
       await tester.tap(find.text('Snooze'));
       await tester.pumpAndSettle();
-
-      // Banner should now be dismissed
-      expect(reminderProvider.isBannerDismissed, isTrue);
-      expect(find.text('Flat Rent'), findsNothing);
+      expect(reminderProvider.dashboardActionableReminders, hasLength(2));
+      expect(reminderProvider.activeReminders, hasLength(3));
     });
 
     testWidgets('PaymentRemindersScreen renders summary and tabs', (tester) async {

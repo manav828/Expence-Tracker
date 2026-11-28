@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,15 +14,14 @@ import 'expense_provider.dart';
 class ReminderProvider extends ChangeNotifier {
   List<PaymentReminder> _reminders = [];
   bool _isLoading = false;
-  bool _isBannerDismissedForSession = false;
+  final Map<String, String> _homeDismissals = {};
+  int _homeRevision = 0;
+  int _sessionRevision = 0;
   StreamSubscription<AuthState>? _authSub;
   String? _lastAuthUserId;
 
-  static const String _bannerDismissedKey = 'reminder_banner_dismissed_date';
-
   List<PaymentReminder> get reminders => _reminders;
   bool get isLoading => _isLoading;
-  bool get isBannerDismissed => _isBannerDismissedForSession;
 
   ReminderProvider({bool autoFetch = false}) {
     if (autoFetch) {
@@ -56,13 +56,17 @@ class ReminderProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _sessionRevision++;
+    _homeRevision++;
     _authSub?.cancel();
     super.dispose();
   }
 
   void clearStateOnLogout() {
+    _sessionRevision++;
+    _homeRevision++;
     _reminders = [];
-    _isBannerDismissedForSession = false;
+    _homeDismissals.clear();
     _isLoading = false;
     notifyListeners();
   }
@@ -92,14 +96,13 @@ class ReminderProvider extends ChangeNotifier {
 
   /// All actionable pending reminders for Dashboard carousel (overdue, due today, upcoming)
   List<PaymentReminder> get dashboardActionableReminders {
-    final list = activeReminders.where((r) => r.isOverdue || r.isDueToday || r.daysUntilDue <= 7).toList();
-    // Prioritize Overdue first, then Due Today, then chronological
-    list.sort((a, b) {
-      if (a.isOverdue && !b.isOverdue) return -1;
-      if (!a.isOverdue && b.isOverdue) return 1;
-      return a.nextDueDate.compareTo(b.nextDueDate);
-    });
-    return list;
+    final today = _todayKey;
+    return activeReminders.where((reminder) {
+      final dismissal = _homeDismissals[_occurrenceKey(reminder)];
+      return reminder.daysUntilDue <= 7 &&
+          dismissal != 'hidden' &&
+          dismissal != today;
+    }).toList();
   }
 
   /// Completed or archived reminders
@@ -152,33 +155,55 @@ class ReminderProvider extends ChangeNotifier {
     return total;
   }
 
-  // --- Session & Dismissal Management ---
+  String get _homePreferenceKey =>
+      'reminder_home_v1_${AuthService.instance.currentUser?.id ?? 'guest'}';
 
-  Future<void> initDismissalState() async {
+  String get _todayKey => DateTime.now().toIso8601String().substring(0, 10);
+
+  String _occurrenceKey(PaymentReminder reminder) =>
+      '${reminder.id}:${reminder.nextDueDate.millisecondsSinceEpoch}';
+
+  Future<void> _loadHomeDismissals() async {
+    final key = _homePreferenceKey;
+    final revision = _homeRevision;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastDate = prefs.getString(_bannerDismissedKey);
-      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-      if (lastDate == todayStr) {
-        _isBannerDismissedForSession = true;
-        notifyListeners();
-      }
+      if (revision != _homeRevision) return;
+      final stored = prefs.getString(key);
+      final decoded =
+          stored == null ? <String, String>{} : Map<String, String>.from(jsonDecode(stored) as Map);
+      _homeDismissals
+        ..clear()
+        ..addAll(decoded);
     } catch (_) {}
   }
 
-  Future<void> dismissBannerForSession() async {
-    _isBannerDismissedForSession = true;
+  Future<void> dismissFromHome(
+    PaymentReminder reminder, {
+    bool untilTomorrow = false,
+  }) {
+    _homeDismissals[_occurrenceKey(reminder)] = untilTomorrow ? _todayKey : 'hidden';
+    return _saveHomeDismissals();
+  }
+
+  Future<void> restoreOnHome(PaymentReminder reminder) {
+    _homeDismissals.remove(_occurrenceKey(reminder));
+    return _saveHomeDismissals();
+  }
+
+  Future<void> _saveHomeDismissals() async {
+    final key = _homePreferenceKey;
+    final today = _todayKey;
+    final activeKeys = activeReminders.map(_occurrenceKey).toSet();
+    _homeDismissals.removeWhere((key, value) =>
+        !activeKeys.contains(key) || (value != 'hidden' && value != today));
+    final stored = jsonEncode(_homeDismissals);
+    _homeRevision++;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-      await prefs.setString(_bannerDismissedKey, todayStr);
+      await prefs.setString(key, stored);
     } catch (_) {}
-  }
-
-  void restoreBanner() {
-    _isBannerDismissedForSession = false;
-    notifyListeners();
   }
 
   @visibleForTesting
@@ -190,18 +215,23 @@ class ReminderProvider extends ChangeNotifier {
   // --- Data Operations ---
 
   Future<void> loadReminders() async {
+    final session = _sessionRevision;
     _isLoading = true;
     notifyListeners();
     try {
-      await initDismissalState();
+      await _loadHomeDismissals();
+      if (session != _sessionRevision) return;
       final list = await DatabaseService.instance.getPaymentReminders();
+      if (session != _sessionRevision) return;
       _reminders = list;
       await checkAndTriggerDueAlerts();
     } catch (e) {
       debugPrint('Error loading reminders: $e');
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (session == _sessionRevision) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

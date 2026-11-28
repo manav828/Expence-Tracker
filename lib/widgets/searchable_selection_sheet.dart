@@ -114,15 +114,18 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  widget.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF131B2E),
-                    letterSpacing: -0.3,
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF131B2E),
+                      letterSpacing: -0.3,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 if (widget.onAddNew != null)
                   TextButton.icon(
                     onPressed: _triggerAddNew,
