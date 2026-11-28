@@ -904,3 +904,31 @@ FOR ALL
 TO authenticated
 USING (auth.uid()::text = user_id)
 WITH CHECK (auth.uid()::text = user_id);
+
+-- ==============================================================================
+-- 11. APP NOTIFICATIONS & PROMOTIONAL ANNOUNCEMENTS (Bell Notification Feed)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.app_notifications (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'promo' CHECK (category IN ('promo', 'update', 'tip')),
+    cta_label TEXT,
+    cta_route TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    starts_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_notifications_active
+ON public.app_notifications(is_active, starts_at DESC);
+
+ALTER TABLE public.app_notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone signed in or anon can read active notifications" ON public.app_notifications;
+CREATE POLICY "Anyone signed in or anon can read active notifications"
+ON public.app_notifications
+FOR SELECT
+TO anon, authenticated
+USING (is_active = TRUE AND starts_at <= NOW() AND (expires_at IS NULL OR expires_at > NOW()));

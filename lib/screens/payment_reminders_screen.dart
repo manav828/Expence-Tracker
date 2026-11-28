@@ -9,7 +9,9 @@ import '../utils/category_icons.dart';
 import '../widgets/add_edit_reminder_sheet.dart';
 
 class PaymentRemindersScreen extends StatefulWidget {
-  const PaymentRemindersScreen({super.key});
+  final bool embedded;
+
+  const PaymentRemindersScreen({super.key, this.embedded = false});
 
   @override
   State<PaymentRemindersScreen> createState() => _PaymentRemindersScreenState();
@@ -41,6 +43,29 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
     );
   }
 
+  Widget _buildTabBar(
+    List<PaymentReminder> activeReminders,
+    List<PaymentReminder> completedReminders,
+    List<PaymentReminder> pausedReminders,
+  ) {
+    return Container(
+      color: Colors.white,
+      child: TabBar(
+        controller: _tabController,
+        indicatorColor: AppColors.primary,
+        indicatorWeight: 3,
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textMuted,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        tabs: [
+          Tab(text: 'Upcoming (${activeReminders.length})'),
+          Tab(text: 'Completed (${completedReminders.length})'),
+          Tab(text: 'Paused (${pausedReminders.length})'),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ReminderProvider>(
@@ -49,6 +74,123 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
         final completedReminders = provider.completedReminders;
         final pausedReminders = provider.pausedReminders;
         final monthlyCommitted = provider.totalMonthlyCommittedAmount;
+
+        final bodyContent = Column(
+          children: [
+            if (widget.embedded) ...[
+              _buildTabBar(activeReminders, completedReminders, pausedReminders),
+            ],
+            // Monthly Fixed Commitments Header Card
+            Container(
+              margin: EdgeInsets.fromLTRB(16, widget.embedded ? 12 : 16, 16, 8),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, Color(0xFF00855D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1F00B865),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Monthly Fixed Bills Commitment',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _currencyFmt.format(monthlyCommitted),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${activeReminders.length} active recurring commitments',
+                          style: const TextStyle(color: Colors.white60, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.embedded) ...[
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _openAddSheet(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primaryDark,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text(
+                        'Add Bill',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // TabBar View
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 1: Active / Due / Upcoming
+                  _buildReminderList(activeReminders, provider, isCompletedTab: false),
+
+                  // Tab 2: Completed / History
+                  _buildReminderList(completedReminders, provider, isCompletedTab: true),
+
+                  // Tab 3: Paused
+                  _buildReminderList(pausedReminders, provider, isPausedTab: true),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        if (widget.embedded) {
+          return Container(
+            color: AppColors.background,
+            child: bodyContent,
+          );
+        }
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -62,22 +204,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
             elevation: 0,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
-              child: Container(
-                color: Colors.white,
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorColor: AppColors.primary,
-                  indicatorWeight: 3,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textMuted,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  tabs: [
-                    Tab(text: 'Upcoming (${activeReminders.length})'),
-                    Tab(text: 'Completed (${completedReminders.length})'),
-                    Tab(text: 'Paused (${pausedReminders.length})'),
-                  ],
-                ),
-              ),
+              child: _buildTabBar(activeReminders, completedReminders, pausedReminders),
             ),
           ),
           floatingActionButton: FloatingActionButton.extended(
@@ -87,90 +214,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
             icon: const Icon(Icons.add_rounded),
             label: const Text('Add Reminder', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
-          body: Column(
-            children: [
-              // Monthly Fixed Commitments Header Card
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, Color(0xFF00855D)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1F00B865),
-                      blurRadius: 16,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Monthly Fixed Bills Commitment',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _currencyFmt.format(monthlyCommitted),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${activeReminders.length} active recurring commitments',
-                            style: const TextStyle(color: Colors.white60, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // TabBar View
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // Tab 1: Active / Due / Upcoming
-                    _buildReminderList(activeReminders, provider, isCompletedTab: false),
-
-                    // Tab 2: Completed / History
-                    _buildReminderList(completedReminders, provider, isCompletedTab: true),
-
-                    // Tab 3: Paused
-                    _buildReminderList(pausedReminders, provider, isPausedTab: true),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          body: bodyContent,
         );
       },
     );
@@ -243,7 +287,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, widget.embedded ? 110 : 80),
       itemCount: list.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, idx) {
@@ -338,25 +382,31 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 reminder.frequency.label,
                                 style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                               ),
-                              if (reminder.splitGroupId != null) ...[
-                                const SizedBox(width: 6),
-                                const Icon(Icons.group_rounded, size: 14, color: AppColors.secondary),
-                                const SizedBox(width: 2),
-                                const Text(
-                                  'Split',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.secondary,
-                                  ),
+                              if (reminder.splitGroupId != null)
+                                const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.group_rounded, size: 14, color: AppColors.secondary),
+                                    SizedBox(width: 2),
+                                    Text(
+                                      'Split',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
                             ],
                           ),
                         ],

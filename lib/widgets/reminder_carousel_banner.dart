@@ -11,8 +11,9 @@ import '../utils/category_icons.dart';
 
 class ReminderCarouselBanner extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
+  final VoidCallback? onTapBanner;
 
-  const ReminderCarouselBanner({super.key, this.margin});
+  const ReminderCarouselBanner({super.key, this.margin, this.onTapBanner});
 
   @override
   Widget build(BuildContext context) {
@@ -32,18 +33,31 @@ class ReminderCarouselBanner extends StatelessWidget {
         color: AppColors.surface,
         child:
             reminders.length == 1
-                ? _ReminderCard(reminder: reminders.single, provider: provider)
-                : _ReminderSlider(reminders: reminders, provider: provider),
+                ? _ReminderCard(
+                    reminder: reminders.single,
+                    provider: provider,
+                    onTapBanner: onTapBanner,
+                  )
+                : _ReminderSlider(
+                    reminders: reminders,
+                    provider: provider,
+                    onTapBanner: onTapBanner,
+                  ),
       ),
     );
   }
 }
 
 class _ReminderSlider extends StatefulWidget {
-  const _ReminderSlider({required this.reminders, required this.provider});
+  const _ReminderSlider({
+    required this.reminders,
+    required this.provider,
+    this.onTapBanner,
+  });
 
   final List<PaymentReminder> reminders;
   final ReminderProvider provider;
+  final VoidCallback? onTapBanner;
 
   @override
   State<_ReminderSlider> createState() => _ReminderSliderState();
@@ -128,6 +142,7 @@ class _ReminderSliderState extends State<_ReminderSlider> {
                   key: ValueKey(reminder.id),
                   reminder: reminder,
                   provider: widget.provider,
+                  onTapBanner: widget.onTapBanner,
                 ),
               ),
             ),
@@ -169,10 +184,12 @@ class _ReminderCard extends StatelessWidget {
     super.key,
     required this.reminder,
     required this.provider,
+    this.onTapBanner,
   });
 
   final PaymentReminder reminder;
   final ReminderProvider provider;
+  final VoidCallback? onTapBanner;
 
   static bool stackActions(BuildContext context, double width) =>
       width < 270 || MediaQuery.textScalerOf(context).scale(14) > 19;
@@ -274,12 +291,17 @@ class _ReminderCard extends StatelessWidget {
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap:
-                          () => Navigator.of(context).push(
+                      onTap: () {
+                        if (onTapBanner != null) {
+                          onTapBanner!();
+                        } else {
+                          Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => const PaymentRemindersScreen(),
                             ),
-                          ),
+                          );
+                        }
+                      },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(

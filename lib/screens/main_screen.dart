@@ -11,16 +11,17 @@ import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/split_provider.dart';
 import '../providers/reminder_provider.dart';
+import '../services/announcement_service.dart';
 import '../services/split_service.dart';
 import '../services/transaction_detection_service.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/budget_alert_banner.dart';
+import '../widgets/notifications_sheet.dart';
 import '../widgets/storage_choice_dialog.dart';
 import '../widgets/user_profile_avatar.dart';
 import 'analytics_screen.dart';
-import 'budget_screen.dart';
 import 'dashboard_screen.dart';
-import 'payment_reminders_screen.dart';
+import 'plan_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 import 'split/join_group_screen.dart';
@@ -39,6 +40,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final ValueNotifier<String> _analyticsViewMode = ValueNotifier<String>('list');
+  final ValueNotifier<int> _planSubTab = ValueNotifier<int>(0);
   late final List<Widget> _screens;
   static String? _handledWebDeepLinkCode;
 
@@ -46,12 +48,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _screens = [
-      DashboardScreen(onOpenAnalytics: _openAnalyticsTab),
+      DashboardScreen(
+        onOpenAnalytics: _openAnalyticsTab,
+        onOpenReminders: () => _openPlanTab(1),
+        onOpenBudgets: () => _openPlanTab(0),
+      ),
       AnalyticsScreen(viewModeNotifier: _analyticsViewMode),
       const SplitScreen(),
-      const BudgetScreen(),
+      PlanScreen(subTabNotifier: _planSubTab),
     ];
     WidgetsBinding.instance.addObserver(this);
+    AnnouncementService.instance.refresh();
 
     if (widget.navigatorKey != null) {
       TransactionDetectionService.initialize(widget.navigatorKey!);
@@ -133,6 +140,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     _analyticsViewMode.dispose();
+    _planSubTab.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -141,7 +149,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       if (mounted) {
-        context.read<ExpenseProvider>().fetchExpenses(showLoading: false);
+        context.read<ExpenseProvider>().syncLocalOnResume();
       }
     }
   }
@@ -149,6 +157,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void _openAnalyticsTab(String mode) {
     _analyticsViewMode.value = mode;
     setState(() => _currentIndex = 1);
+  }
+
+  void _openPlanTab(int subTab) {
+    _planSubTab.value = subTab.clamp(0, 1);
+    setState(() => _currentIndex = 3);
+  }
+
+  void _handleNotificationRoute(String route) {
+    final normalized = route.trim().toLowerCase();
+    if (normalized == 'plan:1' || normalized == 'reminders') {
+      _openPlanTab(1);
+    } else if (normalized == 'plan:0' || normalized == 'budgets' || normalized == 'plan') {
+      _openPlanTab(0);
+    } else if (normalized == 'analytics' || normalized == 'analytics:list') {
+      _openAnalyticsTab('list');
+    } else if (normalized == 'analytics:chart' || normalized == 'breakdown') {
+      _openAnalyticsTab('chart');
+    } else if (normalized == 'split') {
+      setState(() => _currentIndex = 2);
+    } else if (normalized == 'settings') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      );
+    }
   }
 
   void _openAddExpenseSheet(BuildContext context) {
@@ -183,7 +215,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   onDismiss: () => budgetProv.clearRecentWarning(),
                   onViewBudgets: () {
                     budgetProv.clearRecentWarning();
-                    setState(() => _currentIndex = 3);
+                    _openPlanTab(0);
                   },
                 );
               },
@@ -214,99 +246,110 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.asset(
-                  'screen/logos/logo.png',
-                  width: 30,
-                  height: 30,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'ExpenCircle',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.4,
-                ),
-              ),
-              if (_currentIndex == 1) ...[
-                const SizedBox(width: 8),
-                Container(
-                  width: 1,
-                  height: 16,
-                  color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Analytics',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ] else if (_currentIndex == 2) ...[
-                const SizedBox(width: 8),
-                Container(
-                  width: 1,
-                  height: 16,
-                  color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Split',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ] else if (_currentIndex == 3) ...[
-                const SizedBox(width: 8),
-                Container(
-                  width: 1,
-                  height: 16,
-                  color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Budgets',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentMint,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'PRO',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.onAccentMint,
-                      letterSpacing: 0.5,
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.asset(
+                        'screen/logos/logo.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'ExpenCircle',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    if (_currentIndex == 1) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 16,
+                        color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Analytics',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ] else if (_currentIndex == 2) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 16,
+                        color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Split',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ] else if (_currentIndex == 3) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 16,
+                        color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Budgets & Bills',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ] else ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentMint,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'PRO',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onAccentMint,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
+          const SizedBox(width: 6),
           Row(
             children: [
               IconButton(
@@ -318,14 +361,25 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 icon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 24),
                 tooltip: 'Search & Filter',
               ),
-              Consumer<ReminderProvider>(
-                builder: (context, remProvider, _) {
-                  final badgeCount = remProvider.notificationBadgeCount;
+              ListenableBuilder(
+                listenable: AnnouncementService.instance,
+                builder: (context, _) {
+                  final remProvider = context.watch<ReminderProvider>();
+                  final budgetProvider = context.watch<BudgetProvider>();
+                  final expenseProvider = context.watch<ExpenseProvider>();
+                  final badgeCount = NotificationsSheet.computeBadgeCount(
+                    reminderProvider: remProvider,
+                    budgetProvider: budgetProvider,
+                    expenseProvider: expenseProvider,
+                    announcementService: AnnouncementService.instance,
+                  );
+
                   return IconButton(
-                    tooltip: 'Payment Reminders & Bills',
+                    tooltip: 'Notifications & Alerts',
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PaymentRemindersScreen()),
+                      NotificationsSheet.show(
+                        context,
+                        onNavigateRoute: _handleNotificationRoute,
                       );
                     },
                     icon: Stack(
@@ -405,7 +459,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 _buildNavItem(1, Icons.insert_chart_outlined_rounded, 'Analytics'),
                 const SizedBox(width: 54),
                 _buildNavItem(2, Icons.group_outlined, 'Split'),
-                _buildNavItem(3, Icons.account_balance_wallet_outlined, 'Budgets'),
+                _buildNavItem(3, Icons.account_balance_wallet_outlined, 'Plan'),
               ],
             ),
           ),
@@ -468,6 +522,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             const SizedBox(height: 2),
             Text(
               label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,

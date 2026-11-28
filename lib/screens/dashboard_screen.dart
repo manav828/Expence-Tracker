@@ -22,8 +22,15 @@ import '../core/theme/app_colors.dart';
 
 class DashboardScreen extends StatefulWidget {
   final void Function(String analyticsMode)? onOpenAnalytics;
+  final VoidCallback? onOpenReminders;
+  final VoidCallback? onOpenBudgets;
 
-  const DashboardScreen({super.key, this.onOpenAnalytics});
+  const DashboardScreen({
+    super.key,
+    this.onOpenAnalytics,
+    this.onOpenReminders,
+    this.onOpenBudgets,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -123,7 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         return RefreshIndicator(
-          onRefresh: () => provider.fetchExpenses(showLoading: false),
+          onRefresh: () => provider.refreshFromPull(),
           color: AppColors.primary,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -155,7 +162,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
 
               // 3. Payment Reminders & Upcoming Bills Carousel Banner
-              const ReminderCarouselBanner(margin: EdgeInsets.only(bottom: 10)),
+              ReminderCarouselBanner(
+                margin: const EdgeInsets.only(bottom: 10),
+                onTapBanner: widget.onOpenReminders,
+              ),
 
               // 4. Monthly Category Budget Snapshot Card
               _buildBudgetSnapshotCard(context, provider),
@@ -416,9 +426,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     InkWell(
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const BudgetScreen()),
-                        );
+                        if (widget.onOpenBudgets != null) {
+                          widget.onOpenBudgets!();
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const BudgetScreen()),
+                          );
+                        }
                       },
                       borderRadius: BorderRadius.circular(8),
                       child: const Padding(

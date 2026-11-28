@@ -6,6 +6,7 @@ import '../providers/expense_provider.dart';
 import '../providers/reminder_provider.dart';
 import '../providers/split_provider.dart';
 import '../providers/trip_photo_provider.dart';
+import '../services/announcement_service.dart';
 
 /// Coordinates clearing and reloading all user-scoped providers across
 /// sign-out, account switching, and session restoration in the same tab.
@@ -29,6 +30,7 @@ class SessionManager {
     try {
       context.read<TripPhotoProvider>().clearStateOnLogout();
     } catch (_) {}
+    AnnouncementService.instance.clearStateOnLogout();
   }
 
   /// Clears any stale state from the prior session and reloads fresh data for
@@ -61,12 +63,14 @@ class SessionManager {
     reminderProv?.clearStateOnLogout();
     splitProv?.clearStateOnLogout();
     photoProv?.clearStateOnLogout();
+    AnnouncementService.instance.clearStateOnLogout();
 
     await Future.wait([
       if (expenseProv != null) expenseProv.fetchExpenses(),
       if (budgetProv != null) budgetProv.fetchBudgets(),
       if (reminderProv != null) reminderProv.loadReminders(),
       if (splitProv != null) splitProv.loadGroups(),
+      AnnouncementService.instance.refresh(force: true),
     ]);
   }
 }
