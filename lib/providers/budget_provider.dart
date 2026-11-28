@@ -41,6 +41,7 @@ class BudgetProvider with ChangeNotifier {
   String? _recentOverspendWarning;
   StreamSubscription<AuthState>? _authSub;
   String? _lastAuthUserId;
+  int _sessionGeneration = 0;
 
   List<Budget> get budgets => _budgets;
   bool get isLoading => _isLoading;
@@ -85,11 +86,13 @@ class BudgetProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    _sessionGeneration++;
     _authSub?.cancel();
     super.dispose();
   }
 
   void clearStateOnLogout() {
+    _sessionGeneration++;
     _budgets = [];
     _recentOverspendWarning = null;
     _errorMessage = null;
@@ -109,23 +112,31 @@ class BudgetProvider with ChangeNotifier {
   }
 
   Future<void> fetchBudgets() async {
+    final generation = _sessionGeneration;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _budgets = await DatabaseService.instance.getBudgets();
+      final budgets = await DatabaseService.instance.getBudgets();
+      if (generation == _sessionGeneration) _budgets = budgets;
     } catch (e, st) {
       ErrorHandler.log('BudgetProvider.fetchBudgets', e, st);
-      _errorMessage = ErrorHandler.getUserMessage(e);
+      if (generation == _sessionGeneration) {
+        _errorMessage = ErrorHandler.getUserMessage(e);
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (generation == _sessionGeneration) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> setBudget(String category, double monthlyLimit) async {
+    final generation = _sessionGeneration;
     final updated = await DatabaseService.instance.setBudget(category, monthlyLimit);
+    if (generation != _sessionGeneration) return;
     final idx = _budgets.indexWhere((b) => b.category == category);
     if (idx != -1) {
       _budgets[idx] = updated;
@@ -137,14 +148,18 @@ class BudgetProvider with ChangeNotifier {
   }
 
   Future<void> deleteBudget(int id) async {
+    final generation = _sessionGeneration;
     await DatabaseService.instance.deleteBudget(id);
+    if (generation != _sessionGeneration) return;
     _budgets.removeWhere((b) => b.id == id);
     notifyListeners();
   }
 
   Future<void> deleteBudgetByCategory(String category) async {
+    final generation = _sessionGeneration;
     final target = category.trim().toLowerCase();
     await DatabaseService.instance.deleteBudgetByCategory(category);
+    if (generation != _sessionGeneration) return;
     _budgets.removeWhere((b) => b.category.trim().toLowerCase() == target);
     notifyListeners();
   }

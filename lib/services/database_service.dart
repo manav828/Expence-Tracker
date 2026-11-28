@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -46,8 +48,7 @@ class DatabaseService {
   final List<String> _webCategories = List<String>.from(defaultCategories);
   final List<String> _webIncomeCategories = List<String>.from(defaultIncomeCategories);
   final List<String> _webPaymentMethods = List<String>.from(defaultPaymentMethods);
-  final List<Budget> _webBudgets = [];
-  int _nextWebBudgetId = 1;
+  Future<void> _webBudgetOperation = Future.value();
   final List<PaymentReminder> _webReminders = [];
 
   SupabaseClient? get _supabaseClient {
@@ -69,8 +70,6 @@ class DatabaseService {
       _webExpenses.clear();
       _nextWebId = 1;
       _webReminders.clear();
-      _webBudgets.clear();
-      _nextWebBudgetId = 1;
       _webCategories
         ..clear()
         ..addAll(defaultCategories);
@@ -1469,11 +1468,41 @@ class DatabaseService {
   }
 
   // --- Budget Management ---
+  Future<T> _withWebBudgets<T>(
+    T Function(List<Budget>) operation, {
+    bool save = false,
+  }) {
+    final userId = _supabaseClient?.auth.currentUser?.id;
+    final key = 'web_budgets_${userId ?? 'guest'}';
+    final result = _webBudgetOperation.then((_) async {
+      final prefs = SharedPreferencesAsync();
+      final stored = await prefs.getString(key);
+      final budgets = stored == null
+          ? <Budget>[]
+          : (jsonDecode(stored) as List)
+                .map((value) => Budget.fromMap(value as Map<String, dynamic>))
+                .toList();
+      final value = operation(budgets);
+      if (save) {
+        await prefs.setString(
+          key,
+          jsonEncode(budgets.map((budget) => budget.toMap()).toList()),
+        );
+      }
+      return value;
+    });
+    _webBudgetOperation = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return result;
+  }
+
   Future<List<Budget>> getBudgets() async {
     if (kIsWeb) {
-      final list = List<Budget>.from(_webBudgets);
-      list.sort((a, b) => a.category.compareTo(b.category));
-      return list;
+      return _withWebBudgets(
+        (budgets) => budgets..sort((a, b) => a.category.compareTo(b.category)),
+      );
     }
     final db = await instance.database;
     final res = await db.query('budgets', orderBy: 'category ASC');
@@ -1485,25 +1514,30 @@ class DatabaseService {
     final trimmedCategory = category.trim();
 
     if (kIsWeb) {
-      final idx = _webBudgets.indexWhere((b) => b.category == trimmedCategory);
-      if (idx != -1) {
-        final updated = _webBudgets[idx].copyWith(
-          monthlyLimit: monthlyLimit,
-          updatedAt: now,
-        );
-        _webBudgets[idx] = updated;
-        return updated;
-      } else {
+      return _withWebBudgets((budgets) {
+        final idx = budgets.indexWhere((b) => b.category == trimmedCategory);
+        if (idx != -1) {
+          final updated = budgets[idx].copyWith(
+            monthlyLimit: monthlyLimit,
+            updatedAt: now,
+          );
+          budgets[idx] = updated;
+          return updated;
+        }
+        final id = budgets.fold(now - 1, (maxId, budget) {
+          final existingId = budget.id ?? 0;
+          return existingId > maxId ? existingId : maxId;
+        }) + 1;
         final newBudget = Budget(
-          id: _nextWebBudgetId++,
+          id: id,
           category: trimmedCategory,
           monthlyLimit: monthlyLimit,
           createdAt: now,
           updatedAt: now,
         );
-        _webBudgets.add(newBudget);
+        budgets.add(newBudget);
         return newBudget;
-      }
+      }, save: true);
     }
 
     final db = await instance.database;
@@ -1542,8 +1576,11 @@ class DatabaseService {
 
   Future<int> deleteBudget(int id) async {
     if (kIsWeb) {
-      _webBudgets.removeWhere((b) => b.id == id);
-      return 1;
+      return _withWebBudgets((budgets) {
+        final count = budgets.length;
+        budgets.removeWhere((b) => b.id == id);
+        return count - budgets.length;
+      }, save: true);
     }
     final db = await instance.database;
     return await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
@@ -1551,8 +1588,11 @@ class DatabaseService {
 
   Future<int> deleteBudgetByCategory(String category) async {
     if (kIsWeb) {
-      _webBudgets.removeWhere((b) => b.category == category);
-      return 1;
+      return _withWebBudgets((budgets) {
+        final count = budgets.length;
+        budgets.removeWhere((b) => b.category == category);
+        return count - budgets.length;
+      }, save: true);
     }
     final db = await instance.database;
     return await db.delete('budgets', where: 'category = ?', whereArgs: [category]);
