@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
@@ -12,6 +14,7 @@ class SearchableSelectionSheet extends StatefulWidget {
   final bool isCategory;
   final bool isIncomeCategory;
   final Function? onAddNew;
+  final bool compact;
 
   const SearchableSelectionSheet({
     super.key,
@@ -21,6 +24,7 @@ class SearchableSelectionSheet extends StatefulWidget {
     required this.isCategory,
     this.isIncomeCategory = false,
     this.onAddNew,
+    this.compact = false,
   });
 
   static Future<String?> show(
@@ -31,6 +35,7 @@ class SearchableSelectionSheet extends StatefulWidget {
     required bool isCategory,
     bool isIncomeCategory = false,
     Function? onAddNew,
+    bool compact = false,
   }) {
     return showModalBottomSheet<String>(
       context: context,
@@ -43,6 +48,7 @@ class SearchableSelectionSheet extends StatefulWidget {
         isCategory: isCategory,
         isIncomeCategory: isIncomeCategory,
         onAddNew: onAddNew,
+        compact: compact,
       ),
     );
   }
@@ -88,8 +94,11 @@ class _SearchableSelectionSheetState extends State<SearchableSelectionSheet> {
       return item.toLowerCase().contains(_query.toLowerCase().trim());
     }).toList();
 
+    final height = MediaQuery.sizeOf(context).height;
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
+      height: widget.compact
+          ? math.min(height, math.max(280.0, height * .54))
+          : height * .75,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),

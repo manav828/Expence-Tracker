@@ -1,6 +1,7 @@
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/providers/expense_provider.dart';
 import 'package:expense_tracker/widgets/add_expense_sheet.dart';
+import 'package:expense_tracker/widgets/searchable_selection_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
@@ -81,9 +82,14 @@ void main() {
     await _openEntrySheet(tester, provider);
 
     expect(find.text('Entries (1)'), findsOneWidget);
-    expect(find.text('Add Spend'), findsNothing);
+    expect(find.text('Add Spend'), findsOneWidget);
     expect(_input('Amount'), findsOneWidget);
     expect(find.text('₹0.00'), findsOneWidget);
+    final category = find.byTooltip('Category for entry 1');
+    expect(
+      tester.getSize(_input('Amount')).height,
+      tester.getSize(category).height,
+    );
     await _enterVisible(tester, _input('Amount'), '320');
     await _tapVisible(tester, find.text('Add Another Entry'));
     expect(find.byType(AddExpenseSheet), findsOneWidget);
@@ -102,6 +108,10 @@ void main() {
 
     await _enterVisible(tester, _input('Amount').at(1), '1,200.00');
     await _tapVisible(tester, find.byTooltip('Payment method for entry 2'));
+    expect(
+      tester.getSize(find.byType(SearchableSelectionSheet)).height,
+      lessThan(480),
+    );
     await tester.tap(find.text('Card'));
     await tester.pumpAndSettle();
     await _enterVisible(tester, _input('Note (optional)').at(1), 'Groceries');
@@ -183,7 +193,7 @@ void main() {
     await _openEntrySheet(tester, provider);
 
     expect(find.text('Entries (1)'), findsOneWidget);
-    expect(find.text('Attach receipt'), findsOneWidget);
+    expect(find.text('Attach Bill or Invoice'), findsOneWidget);
     await _enterVisible(tester, _input('Amount'), '450');
     await tester.tap(find.text('Save Entry'));
     await tester.pumpAndSettle();

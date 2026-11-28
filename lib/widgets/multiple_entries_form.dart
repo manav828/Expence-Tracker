@@ -12,6 +12,7 @@ import '../services/auth_service.dart';
 import '../services/cloudflare_r2_service.dart';
 import '../utils/category_icons.dart';
 import 'receipt_attachment_sheet.dart';
+import 'expense_receipt_section.dart';
 import 'searchable_selection_sheet.dart';
 
 class _AddAnotherEntryButton extends StatelessWidget {
@@ -169,6 +170,7 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
       selectedItem: isCategory ? entry.category : entry.paymentMethod,
       isCategory: isCategory,
       isIncomeCategory: isCategory && isIncome,
+      compact: true,
       onAddNew: (String? query) async {
         final created = await widget.addCustomOption(
           isCategory,
@@ -300,6 +302,63 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
     });
   }
 
+  void _changeType(_EntryDraft entry, TransactionType type) {
+    if (_saving || entry.type == type) return;
+    setState(() {
+      entry.type = type;
+      entry.category = _categories(context.read<ExpenseProvider>(), type).first;
+    });
+  }
+
+  Widget _typeToggle(_EntryDraft entry) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSubtle,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          for (final type in TransactionType.values)
+            Expanded(
+              child: TextButton.icon(
+                onPressed: _saving ? null : () => _changeType(entry, type),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  backgroundColor:
+                      entry.type == type
+                          ? AppColors.surface
+                          : Colors.transparent,
+                  foregroundColor:
+                      entry.type != type
+                          ? AppColors.textMuted
+                          : type == TransactionType.expense
+                          ? AppColors.error
+                          : AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: Icon(
+                  type == TransactionType.expense
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
+                  size: 16,
+                ),
+                label: Text(
+                  type == TransactionType.expense
+                      ? 'Expense (Debit)'
+                      : 'Income (Credit)',
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -333,19 +392,52 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 10),
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.black12,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
                         child: Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                'Entries (${_entries.length})',
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.titleLarge?.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _entries.length > 1
+                                        ? 'Add Transactions'
+                                        : _entries.single.type ==
+                                            TransactionType.income
+                                        ? 'Add Income'
+                                        : 'Add Spend',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -.4,
+                                    ),
+                                  ),
+                                  Text(
+                                    _entries.length > 1
+                                        ? 'Record transactions in your personal ledger'
+                                        : _entries.single.type ==
+                                            TransactionType.income
+                                        ? 'Record an inflow into your personal ledger'
+                                        : 'Record an outflow into your personal ledger',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             IconButton(
@@ -354,7 +446,15 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                                   _saving
                                       ? null
                                       : () => Navigator.of(context).pop(),
-                              icon: const Icon(Icons.close_rounded),
+                              icon: const CircleAvatar(
+                                radius: 12,
+                                backgroundColor: AppColors.surfaceSubtle,
+                                child: Icon(
+                                  Icons.close,
+                                  size: 18,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -375,19 +475,22 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                           spacing: 12,
                           runSpacing: 4,
                           children: [
-                            const Text(
-                              'Entry total',
-                              style: TextStyle(
+                            Text(
+                              'Entries (${_entries.length})',
+                              style: const TextStyle(
                                 color: AppColors.primaryDark,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            Text(
-                              _currency.format(total),
-                              style: const TextStyle(
-                                color: AppColors.primaryDark,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                            Semantics(
+                              label: 'Entry total',
+                              child: Text(
+                                _currency.format(total),
+                                style: const TextStyle(
+                                  color: AppColors.primaryDark,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ],
@@ -403,9 +506,29 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
+                                  if (_entries.length == 1)
+                                    _typeToggle(_entries.single),
                                   for (final (index, entry)
                                       in _entries.indexed) ...[
                                     _buildEntry(entry, index),
+                                    const SizedBox(height: 10),
+                                    ExpenseReceiptSection(
+                                      receiptUrl: entry.receiptUrl,
+                                      title:
+                                          entry.note.trim().isEmpty
+                                              ? '${entry.category} Bill'
+                                              : entry.note.trim(),
+                                      onAttach:
+                                          _saving
+                                              ? null
+                                              : () => _attachReceipt(entry),
+                                      onRemove:
+                                          _saving
+                                              ? null
+                                              : () => setState(
+                                                () => _discardReceipt(entry),
+                                              ),
+                                    ),
                                     const SizedBox(height: 8),
                                   ],
                                   _AddAnotherEntryButton(
@@ -472,7 +595,7 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
       onChanged: (value) => setState(() => entry.amount = value),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: TextInputAction.next,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
       decoration: _fieldDecoration('Amount', prefixText: '₹ '),
       validator:
           (_) => entry.parsedAmount == null ? 'Enter a valid amount' : null,
@@ -525,77 +648,73 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: AppColors.primaryLight,
-                    foregroundColor: AppColors.primaryDark,
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  const Spacer(),
-                  PopupMenuButton<TransactionType>(
-                    enabled: !_saving,
-                    tooltip: 'Transaction type for entry ${index + 1}',
-                    initialValue: entry.type,
-                    onSelected: (type) {
-                      if (entry.type == type) return;
-                      final provider = context.read<ExpenseProvider>();
-                      setState(() {
-                        entry.type = type;
-                        entry.category = _categories(provider, type).first;
-                      });
-                    },
-                    itemBuilder:
-                        (_) => const [
-                          PopupMenuItem(
-                            value: TransactionType.expense,
-                            child: Text('Expense'),
-                          ),
-                          PopupMenuItem(
-                            value: TransactionType.income,
-                            child: Text('Income'),
-                          ),
-                        ],
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            isIncome ? 'Income' : 'Expense',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const Icon(
-                            Icons.expand_more,
-                            size: 16,
-                            color: AppColors.primary,
-                          ),
-                        ],
+              if (_entries.length > 1)
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: AppColors.primaryLight,
+                      foregroundColor: AppColors.primaryDark,
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Remove entry ${index + 1}',
-                    onPressed:
-                        _saving || _entries.length == 1
-                            ? null
-                            : () {
-                              setState(() {
-                                _discardReceipt(entry);
-                                _entries.remove(entry);
-                              });
-                            },
-                    icon: const Icon(Icons.delete_outline_rounded, size: 19),
-                  ),
-                ],
-              ),
+                    const Spacer(),
+                    PopupMenuButton<TransactionType>(
+                      enabled: !_saving,
+                      tooltip: 'Transaction type for entry ${index + 1}',
+                      initialValue: entry.type,
+                      onSelected: (type) => _changeType(entry, type),
+                      itemBuilder:
+                          (_) => const [
+                            PopupMenuItem(
+                              value: TransactionType.expense,
+                              child: Text('Expense'),
+                            ),
+                            PopupMenuItem(
+                              value: TransactionType.income,
+                              child: Text('Income'),
+                            ),
+                          ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isIncome ? 'Income' : 'Expense',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Icon(
+                              Icons.expand_more,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove entry ${index + 1}',
+                      onPressed:
+                          _saving || _entries.length == 1
+                              ? null
+                              : () {
+                                setState(() {
+                                  _discardReceipt(entry);
+                                  _entries.remove(entry);
+                                });
+                              },
+                      icon: const Icon(Icons.delete_outline_rounded, size: 19),
+                    ),
+                  ],
+                ),
               if (!wide) ...[amount, const SizedBox(height: 6)],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,37 +742,6 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                 const SizedBox(height: 6),
                 note,
               ],
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed:
-                      _saving
-                          ? null
-                          : entry.receiptUrl == null
-                          ? () => _attachReceipt(entry)
-                          : () => FullScreenReceiptViewer.show(
-                            context,
-                            imageUrl: entry.receiptUrl!,
-                          ),
-                  icon: const Icon(Icons.receipt_long_outlined, size: 17),
-                  label: Text(
-                    entry.receiptUrl == null
-                        ? 'Attach receipt'
-                        : 'View receipt',
-                  ),
-                ),
-              ),
-              if (entry.receiptUrl != null)
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: TextButton(
-                    onPressed:
-                        _saving
-                            ? null
-                            : () => setState(() => _discardReceipt(entry)),
-                    child: const Text('Remove receipt'),
-                  ),
-                ),
             ],
           );
         },
@@ -668,6 +756,9 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
   }) {
     return InputDecoration(
       labelText: label,
+      floatingLabelBehavior: FloatingLabelBehavior.never,
+      isDense: true,
+      constraints: const BoxConstraints(minHeight: 48),
       prefixText: prefixText,
       prefixIcon:
           icon == null ? null : Icon(icon, size: 17, color: AppColors.primary),
