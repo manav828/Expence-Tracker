@@ -195,7 +195,6 @@ class AuthService {
       email: email.trim(),
       password: password,
     );
-    await StoragePreferenceService.setMode(StorageMode.cloud);
     userNameNotifier.value = userDisplayName;
     userAvatarNotifier.value = userAvatarUrl;
     await PushNotificationService.instance.syncDeviceToken();
@@ -215,7 +214,6 @@ class AuthService {
       data: {'full_name': fullName.trim()},
       emailRedirectTo: kIsWeb ? Uri.base.origin : null,
     );
-    await StoragePreferenceService.setMode(StorageMode.cloud);
     await PushNotificationService.instance.syncDeviceToken();
 
     try {
@@ -237,7 +235,6 @@ class AuthService {
       await setGuestMode(false);
 
       if (kIsWeb) {
-        await StoragePreferenceService.setMode(StorageMode.cloud);
         final code = InviteCodeParser.extractInviteCode(Uri.base);
         if (code != null && code.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
@@ -289,7 +286,6 @@ class AuthService {
         idToken: idToken,
         accessToken: accessToken,
       );
-      await StoragePreferenceService.setMode(StorageMode.cloud);
       userNameNotifier.value = userDisplayName;
       userAvatarNotifier.value = userAvatarUrl;
       await PushNotificationService.instance.syncDeviceToken();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_preference_service.dart';
 import '../services/auth_service.dart';
@@ -12,17 +13,8 @@ class StorageChoiceDialog extends StatefulWidget {
   const StorageChoiceDialog({super.key, this.isDismissible = false});
 
   static Future<void> showIfNeeded(BuildContext context) async {
-    // If user is already authenticated (existing account user):
-    // Never ask them for storage choice; automatically activate Cloud storage!
-    if (AuthService.instance.isAuthenticated) {
-      final mode = await StoragePreferenceService.getMode();
-      if (mode != StorageMode.cloud) {
-        await StoragePreferenceService.setMode(StorageMode.cloud);
-      }
-      return;
-    }
-
-    // Only ask new / guest users who haven't selected a storage mode yet:
+    // Ask users who haven't explicitly selected a personal-expense storage mode yet.
+    // Never auto-enable Cloud storage without explicit user consent.
     final hasChosen = await StoragePreferenceService.hasChosenMode();
     if (!hasChosen && context.mounted) {
       await showDialog(
@@ -46,7 +38,10 @@ class StorageChoiceDialog extends StatefulWidget {
 }
 
 class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
-  StorageMode _selectedMode = StorageMode.cloud;
+  StorageMode _selectedMode = StorageMode.local;
+  CloudBackupSchedule _selectedSchedule = CloudBackupSchedule.weekly;
+  DateTime? _lastBackupAt;
+  bool _isBackingUpNow = false;
   bool _isLoading = false;
 
   @override
@@ -57,7 +52,56 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
 
   Future<void> _loadCurrent() async {
     final mode = await StoragePreferenceService.getMode();
-    if (mounted) setState(() => _selectedMode = mode);
+    final schedule = await StoragePreferenceService.getBackupSchedule();
+    final uid = AuthService.instance.currentUser?.id;
+    final lastBackup = uid != null
+        ? await StoragePreferenceService.getLastBackupAt(uid)
+        : null;
+    if (mounted) {
+      setState(() {
+        _selectedMode = mode;
+        _selectedSchedule = schedule;
+        _lastBackupAt = lastBackup;
+      });
+    }
+  }
+
+  Future<void> _handleBackupNow() async {
+    if (!AuthService.instance.isAuthenticated) return;
+    setState(() => _isBackingUpNow = true);
+    try {
+      await StoragePreferenceService.setMode(StorageMode.cloud);
+      await StoragePreferenceService.setBackupSchedule(_selectedSchedule);
+      if (!mounted) return;
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      final synced = await provider.syncAndReconcileCloud();
+      final uid = AuthService.instance.currentUser?.id;
+      final updatedTime = uid != null
+          ? await StoragePreferenceService.getLastBackupAt(uid)
+          : DateTime.now();
+      if (mounted) {
+        setState(() {
+          _lastBackupAt = updatedTime ?? DateTime.now();
+          _isBackingUpNow = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              synced > 0
+                  ? 'Backup complete ($synced ${synced == 1 ? 'change' : 'changes'} synced)!'
+                  : 'Backup up to date!',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isBackingUpNow = false);
+      }
+    }
   }
 
   Future<void> _handleConfirm() async {
@@ -80,22 +124,25 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
     }
 
     await StoragePreferenceService.setMode(_selectedMode);
+    if (_selectedMode == StorageMode.cloud) {
+      await StoragePreferenceService.setBackupSchedule(_selectedSchedule);
+    }
 
     if (mounted) {
       final provider = Provider.of<ExpenseProvider>(context, listen: false);
       final navigator = Navigator.of(context);
       final messenger = ScaffoldMessenger.of(context);
       if (_selectedMode == StorageMode.cloud) {
-        // Automatically sync any offline records to cloud
-        await provider.syncLocalToCloud();
+        await provider.syncAndReconcileCloud();
+      } else {
+        await provider.reloadForStorageMode();
       }
-      await provider.reloadForStorageMode();
       navigator.pop();
       messenger.showSnackBar(
         SnackBar(
           content: Text(
             _selectedMode == StorageMode.cloud
-                ? 'Cloud storage & backup activated!'
+                ? 'Cloud backup activated (${_selectedSchedule.shortLabel})!'
                 : 'Device local storage activated!',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
@@ -112,7 +159,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -142,7 +189,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
                         ),
                       ),
                       Text(
-                        'Where should your expenses live?',
+                        'Where should your personal expenses live?',
                         style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
                       ),
                     ],
@@ -160,11 +207,104 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
             _buildOptionTile(
               mode: StorageMode.cloud,
               title: 'Cloud Storage',
-              subtitle: 'Encrypted sync & backup. Access your expenses seamlessly across all your devices.',
+              subtitle: 'Stored locally for speed with automatic cloud backup on your chosen schedule.',
               icon: Icons.cloud_upload_outlined,
               iconColor: AppColors.primary,
               badge: 'RECOMMENDED',
             ),
+            if (_selectedMode == StorageMode.cloud) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Backup Frequency',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF3D4A42),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: CloudBackupSchedule.values.map((sched) {
+                        final selected = _selectedSchedule == sched;
+                        return ChoiceChip(
+                          label: Text(
+                            sched.shortLabel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: selected ? Colors.white : const Color(0xFF3D4A42),
+                            ),
+                          ),
+                          selected: selected,
+                          selectedColor: AppColors.primary,
+                          backgroundColor: const Color(0xFFF2F4F7),
+                          side: BorderSide.none,
+                          showCheckmark: false,
+                          onSelected: (_) => setState(() => _selectedSchedule = sched),
+                        );
+                      }).toList(),
+                    ),
+                    if (widget.isDismissible && AuthService.instance.isAuthenticated) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _lastBackupAt != null
+                                    ? 'Last backup: ${DateFormat('MMM d, h:mm a').format(_lastBackupAt!)}'
+                                    : 'Not backed up yet',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: _isBackingUpNow || _isLoading ? null : _handleBackupNow,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: _isBackingUpNow
+                                  ? const SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                    )
+                                  : const Icon(Icons.sync_rounded, size: 15, color: AppColors.primary),
+                              label: const Text(
+                                'Back Up Now',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             // Option 2: Local Storage Only
             _buildOptionTile(
@@ -188,7 +328,7 @@ class _StorageChoiceDialogState extends State<StorageChoiceDialog> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'You can switch between Cloud and Local anytime in Settings.',
+                      'Applies to personal expenses only. You can change storage & schedule anytime in Settings.',
                       style: TextStyle(fontSize: 11, color: Color(0xFF3D4A42), fontWeight: FontWeight.w500),
                     ),
                   ),

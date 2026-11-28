@@ -166,7 +166,10 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchExpenses({bool showLoading = true}) async {
+  Future<void> fetchExpenses({
+    bool showLoading = true,
+    bool forceCloudRefresh = false,
+  }) async {
     // 1. FAST PATH: Instant local retrieval (<5ms) to prevent empty / 0-data flash
     try {
       final local = await DatabaseService.instance.getLocalExpenses();
@@ -190,9 +193,12 @@ class ExpenseProvider with ChangeNotifier {
       debugPrint('Instant local load error in fetchExpenses: $e');
     }
 
-    // 2. CLOUD & RECONCILIATION PATH: Refresh and reconcile without blocking the UI
+    // 2. LOCAL-FIRST HYDRATION PATH: Only hits Supabase if user opted into Cloud
+    //    and local cache is unhydrated (or user explicitly requested a cloud sync).
     try {
-      final allExpenses = await DatabaseService.instance.getAllExpenses();
+      final allExpenses = await DatabaseService.instance.getAllExpenses(
+        forceCloudRefresh: forceCloudRefresh,
+      );
       final allCats = await DatabaseService.instance.getCategories();
       final allIncCats = await DatabaseService.instance.getIncomeCategories();
       final allPms = await DatabaseService.instance.getPaymentMethods();
@@ -215,6 +221,9 @@ class ExpenseProvider with ChangeNotifier {
       _incomeCategories = allIncCats;
       _paymentMethods = allPms;
       _errorMessage = null;
+
+      // If user selected Weekly / 2-Weekly / Monthly Cloud Backup, check due schedule silently
+      await DatabaseService.instance.runScheduledBackupIfDue();
     } catch (e, st) {
       ErrorHandler.log('ExpenseProvider.fetchExpenses', e, st);
       _errorMessage = ErrorHandler.getUserMessage(e);
@@ -224,8 +233,44 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
+  /// Called on app foreground resume: reloads local SQLite (picks up background
+  /// SMS / QuickAdd inserts) without querying Supabase unless a scheduled backup is due.
+  Future<void> syncLocalOnResume() async {
+    try {
+      final local = await DatabaseService.instance.getLocalExpenses();
+      final localCats = await DatabaseService.instance.getCategories();
+      final localIncCats = await DatabaseService.instance.getIncomeCategories();
+      final localPms = await DatabaseService.instance.getPaymentMethods();
+
+      _expenses = local;
+      _categories = localCats;
+      _incomeCategories = localIncCats;
+      _paymentMethods = localPms;
+      notifyListeners();
+
+      final ranBackup = await DatabaseService.instance.runScheduledBackupIfDue();
+      if (ranBackup) {
+        _expenses = await DatabaseService.instance.getLocalExpenses();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('syncLocalOnResume error: $e');
+    }
+  }
+
+  /// Explicit pull-to-refresh or manual backup/restore action.
+  Future<void> refreshFromPull() async {
+    await fetchExpenses(showLoading: false, forceCloudRefresh: true);
+  }
+
   Future<void> reloadForStorageMode() async {
     await fetchExpenses();
+  }
+
+  Future<int> syncAndReconcileCloud() async {
+    final count = await DatabaseService.instance.syncAndReconcileCloud();
+    await fetchExpenses(showLoading: false);
+    return count;
   }
 
   Future<int> syncLocalToCloud() async {
@@ -478,8 +523,24 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   Future<void> deleteExpense(int id, {int? createdAt}) async {
-    await DatabaseService.instance.deleteExpense(id, createdAt: createdAt);
-    _expenses.removeWhere((e) => e.id == id || (createdAt != null && e.createdAt == createdAt));
+    int? resolvedCreatedAt = createdAt;
+    if (resolvedCreatedAt == null) {
+      for (final e in _expenses) {
+        if (e.id == id) {
+          resolvedCreatedAt = e.createdAt;
+          break;
+        }
+      }
+    }
+    await DatabaseService.instance.deleteExpense(
+      id,
+      createdAt: resolvedCreatedAt,
+    );
+    _expenses.removeWhere(
+      (e) =>
+          e.id == id ||
+          (resolvedCreatedAt != null && e.createdAt == resolvedCreatedAt),
+    );
     notifyListeners();
     _notifyWidgetUpdate();
   }

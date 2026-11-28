@@ -21,7 +21,6 @@ import 'screens/auth/onboarding_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
 import 'services/push_notification_service.dart';
-import 'services/storage_preference_service.dart';
 import 'utils/session_manager.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -127,7 +126,6 @@ class _AppRootState extends State<AppRoot> {
         : (isGuest ? 'guest' : null);
 
     if (isAuth) {
-      await StoragePreferenceService.setMode(StorageMode.cloud);
       unawaited(PushNotificationService.instance.syncDeviceToken());
     }
 

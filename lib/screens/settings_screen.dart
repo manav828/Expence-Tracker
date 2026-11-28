@@ -633,6 +633,7 @@ class _StorageModeTile extends StatefulWidget {
 
 class _StorageModeTileState extends State<_StorageModeTile> {
   StorageMode _mode = StorageMode.local;
+  CloudBackupSchedule _schedule = CloudBackupSchedule.weekly;
 
   @override
   void initState() {
@@ -642,9 +643,11 @@ class _StorageModeTileState extends State<_StorageModeTile> {
 
   Future<void> _load() async {
     final m = await StoragePreferenceService.getMode();
+    final sched = await StoragePreferenceService.getBackupSchedule();
     if (mounted) {
       setState(() {
         _mode = m;
+        _schedule = sched;
       });
     }
   }
@@ -657,13 +660,35 @@ class _StorageModeTileState extends State<_StorageModeTile> {
   @override
   Widget build(BuildContext context) {
     final isCloud = _mode == StorageMode.cloud;
+    final badgeText = isCloud ? 'Cloud • ${_schedule.shortLabel}' : 'Local';
     return ListTile(
       leading: Icon(
         isCloud ? Icons.cloud_done_outlined : Icons.sd_storage_outlined,
         color: isCloud ? AppColors.primary : const Color(0xFF4B41E1),
       ),
       title: const Text('Personal Expense Storage', style: TextStyle(fontWeight: FontWeight.w600)),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: isCloud ? AppColors.primaryLight : const Color(0xFFF2F4F7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              badgeText,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isCloud ? AppColors.primaryDark : const Color(0xFF475569),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
       onTap: () => _showStorageDialog(context),
     );
   }
