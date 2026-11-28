@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../models/split_models.dart';
 import '../../../providers/split_provider.dart';
 import '../../../services/auth_service.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/app_colors.dart';
 
 
@@ -225,6 +226,11 @@ class _SplitMembersViewState extends State<SplitMembersView> {
           currentUid = Supabase.instance.client.auth.currentUser?.id;
         } catch (_) {}
         final currentMemberName = sp.currentMemberName ?? AuthService.instance.userDisplayName;
+        final placeholders = members.where((member) => member.userId == null).toList();
+        final guests = members.where((member) =>
+            member.userId != null && member.userId != widget.group.userId).toList();
+        final canLinkAccount = sp.ownsGroup(widget.group) &&
+            placeholders.isNotEmpty && guests.isNotEmpty;
 
         // Unified display groups
         final List<_MemberDisplayGroup> displayGroups = [];
@@ -456,6 +462,16 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                         ),
                         const SizedBox(height: 10),
 
+                        if (canLinkAccount)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () => _showLinkAccountDialog(context, sp, placeholders, guests),
+                              icon: const Icon(Icons.link),
+                              label: const Text('Link guest to placeholder'),
+                            ),
+                          ),
+
                         // E. Combined Units (Families / Couples)
                         if (_selectedFilterIndex != 0 || filteredDisplayGroups.isNotEmpty) ...[
                           ...filteredDisplayGroups.map((group) {
@@ -515,6 +531,101 @@ class _SplitMembersViewState extends State<SplitMembersView> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _showLinkAccountDialog(
+    BuildContext context,
+    SplitProvider sp,
+    List<SplitMember> placeholders,
+    List<SplitMember> guests,
+  ) async {
+    String? placeholderId;
+    String? guestId;
+    String? error;
+    var saving = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => PopScope(
+          canPop: !saving,
+          child: AlertDialog(
+            title: const Text('Link guest to placeholder'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'The guest will take over the placeholder’s expenses, '
+                    'settlements, and household membership.',
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Placeholder'),
+                    isExpanded: true,
+                    items: [
+                      for (final member in placeholders)
+                        DropdownMenuItem(value: member.id, child: Text(member.name)),
+                    ],
+                    onChanged: saving ? null : (id) => setDialogState(() => placeholderId = id),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Joined guest'),
+                    isExpanded: true,
+                    items: [
+                      for (final member in guests)
+                        DropdownMenuItem(value: member.id, child: Text(member.name)),
+                    ],
+                    onChanged: saving ? null : (id) => setDialogState(() => guestId = id),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(error!, style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: saving || placeholderId == null || guestId == null ? null : () async {
+                  setDialogState(() {
+                    saving = true;
+                    error = null;
+                  });
+                  try {
+                    await sp.assignPlaceholder(
+                      groupId: widget.group.id,
+                      placeholderId: placeholderId!,
+                      joinedMemberId: guestId!,
+                    );
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Guest linked to placeholder')),
+                      );
+                    }
+                  } catch (exception) {
+                    if (dialogContext.mounted) {
+                      setDialogState(() {
+                        saving = false;
+                        error = ErrorHandler.getUserMessage(exception);
+                      });
+                    }
+                  }
+                },
+                child: Text(saving ? 'Linking…' : 'Link account'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

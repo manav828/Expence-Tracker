@@ -376,6 +376,52 @@ void main() {
       );
     });
 
+    testWidgets('Only the owner can open placeholder linking and submit the selected IDs', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final linkingProvider = LinkingTestProvider();
+      splitProvider = linkingProvider;
+      final guest = SplitMember(
+        id: 'qa-guest-member', groupId: group.id, userId: 'qa-guest-user',
+        name: 'QA Guest', joinedAt: now,
+      );
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+      linkingProvider.setGroupDetailForTesting(
+        groupId: group.id,
+        members: [me, bob, charlie, guest],
+        settlementGroups: [sg1],
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Members'));
+      await tester.pumpAndSettle();
+
+      final linkAction = find.text('Link guest to placeholder');
+      expect(linkAction, findsNothing);
+      linkingProvider.allowLinking();
+      await tester.pumpAndSettle();
+      await tester.tap(linkAction);
+      await tester.pumpAndSettle();
+
+      final selectors = find.byType(DropdownButtonFormField<String>);
+      await tester.tap(selectors.at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bob').last);
+      await tester.pumpAndSettle();
+      await tester.tap(selectors.at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('QA Guest').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Link account'));
+      await tester.pumpAndSettle();
+
+      expect(linkingProvider.linkedIds, (group.id, bob.id, guest.id));
+      expect(find.text('Guest linked to placeholder'), findsOneWidget);
+    });
+
     testWidgets('Combine Members button opens Combine Settlement showing only individual members', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -409,4 +455,26 @@ void main() {
       expect(find.descendant(of: find.byType(CheckboxListTile), matching: find.text('Eve')), findsNothing);
     });
   });
+}
+
+class LinkingTestProvider extends SplitProvider {
+  bool _canLink = false;
+  (String, String, String)? linkedIds;
+
+  void allowLinking() {
+    _canLink = true;
+    notifyListeners();
+  }
+
+  @override
+  bool ownsGroup(SplitGroup group) => _canLink;
+
+  @override
+  Future<void> assignPlaceholder({
+    required String groupId,
+    required String placeholderId,
+    required String joinedMemberId,
+  }) async {
+    linkedIds = (groupId, placeholderId, joinedMemberId);
+  }
 }

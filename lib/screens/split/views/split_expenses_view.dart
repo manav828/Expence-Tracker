@@ -41,11 +41,8 @@ class SplitExpensesView extends StatelessWidget {
         final expenses = sp.getExpensesForGroup(group.id);
         final members = sp.getMembersForGroup(group.id);
         final memberMap = {for (final m in members) m.id: m.name};
-        final currentMemberName = sp.currentMemberName ?? '';
-        final currentMember = members.firstWhere(
-          (m) => m.name.toLowerCase().trim() == currentMemberName.toLowerCase().trim(),
-          orElse: () => members.isNotEmpty ? members.first : SplitMember(id: '', groupId: group.id, name: 'You', joinedAt: DateTime.now()),
-        );
+        final currentMember = sp.getCurrentMemberForGroup(group.id) ?? members.firstOrNull ??
+            SplitMember(id: '', groupId: group.id, name: 'You', joinedAt: DateTime.now());
 
         final combinedResult = sp.getCombinedBalancesResult(group.id);
         final isHousehold = combinedResult.memberToGroupMap.containsKey(currentMember.id);

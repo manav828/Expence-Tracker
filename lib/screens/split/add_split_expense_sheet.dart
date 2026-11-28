@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 class AddSplitExpenseSheet extends StatefulWidget {
   final String groupId;
   final List<SplitMember> members;
+  final String? currentMemberId;
   final String? currentMemberName;
   final SplitExpense? expenseToEdit;
 
@@ -17,6 +18,7 @@ class AddSplitExpenseSheet extends StatefulWidget {
     super.key,
     required this.groupId,
     required this.members,
+    this.currentMemberId,
     this.currentMemberName,
     this.expenseToEdit,
   });
@@ -68,17 +70,10 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
       _addedByMemberId = exp.addedByMemberId;
       _loadExistingShares(exp.id, exp.totalAmount);
     } else {
-      // Default payer and adder: current user (by name match) or first member
-      if (widget.currentMemberName != null) {
-        final match = widget.members
-            .where((m) => m.name.toLowerCase() == widget.currentMemberName!.toLowerCase())
-            .firstOrNull;
-        _paidByMemberId = match?.id ?? widget.members.first.id;
-        _addedByMemberId = match?.id ?? widget.members.first.id;
-      } else {
-        _paidByMemberId = widget.members.first.id;
-        _addedByMemberId = widget.members.first.id;
-      }
+      final currentMember = widget.members.where((m) => m.id == widget.currentMemberId).firstOrNull ??
+          widget.members.where((m) => m.name.toLowerCase() == widget.currentMemberName?.toLowerCase()).firstOrNull;
+      _paidByMemberId = currentMember?.id ?? widget.members.first.id;
+      _addedByMemberId = _paidByMemberId;
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/split_provider.dart';
 import '../../services/auth_service.dart';
+import '../../core/errors/error_handler.dart';
 import 'split_group_detail_screen.dart';
 
 class JoinGroupScreen extends StatefulWidget {
@@ -52,7 +53,6 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     setState(() => _isLoading = true);
     try {
       final sp = context.read<SplitProvider>();
-      await sp.setCurrentMemberName(name);
       final group = await sp.joinGroupByInviteCode(code, name);
       if (mounted) {
         if (group == null) {
@@ -67,7 +67,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(ErrorHandler.getUserMessage(e)), backgroundColor: Colors.red),
         );
       }
     }

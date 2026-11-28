@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- SUPABASE SCHEMA FOR EXPENCIRCLE EXPENSE TRACKER & SPLITWISE
 -- Run this script in your Supabase SQL Editor (Dashboard -> SQL Editor -> New Query)
+-- Then apply supabase/migrations/20261128000000_split_invite_membership.sql.
 -- ==============================================================================
 
 -- 1. Split Groups Table

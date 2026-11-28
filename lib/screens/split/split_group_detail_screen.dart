@@ -493,7 +493,8 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
   }
 
   void _openAddExpenseSheet() async {
-    final members = context.read<SplitProvider>().getMembersForGroup(_group.id);
+    final splitProvider = context.read<SplitProvider>();
+    final members = splitProvider.getMembersForGroup(_group.id);
     if (members.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add members first')),
@@ -507,7 +508,8 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
       builder: (_) => AddSplitExpenseSheet(
         groupId: _group.id,
         members: members,
-        currentMemberName: context.read<SplitProvider>().currentMemberName,
+        currentMemberId: splitProvider.getCurrentMemberForGroup(_group.id)?.id,
+        currentMemberName: splitProvider.currentMemberName,
       ),
     );
   }
@@ -588,7 +590,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
             builder: (ctx) {
               final content = TripPhotoVaultTab(
                 group: _group,
-                currentMemberName: sp.currentMemberName ?? 'Member',
+                currentMemberName: sp.getCurrentMemberForGroup(_group.id)?.name ?? sp.currentMemberName ?? 'Member',
               );
               final wrapped = photoProv != null
                   ? content

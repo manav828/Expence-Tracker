@@ -93,10 +93,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         if (currentUser != null && mounted) {
           final group = await SplitService.instance.getGroupByInviteCode(cleanCode);
           if (group != null) {
-            final members = await SplitService.instance.getMembers(group.id);
-            final alreadyMember = members.any((m) => m.userId == currentUser.id);
+            final alreadyMember = await SplitService.instance.hasConfirmedMembership(group.id, currentUser.id);
 
-            if (alreadyMember) {
+            if (alreadyMember && mounted) {
               try {
                 await prefs.remove(AppConstants.keyPendingInviteCode);
               } catch (_) {}

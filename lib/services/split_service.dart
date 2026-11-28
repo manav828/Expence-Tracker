@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../core/errors/app_exception.dart';
 import '../models/split_models.dart';
 import 'database_service.dart';
 import 'auth_service.dart';
@@ -631,6 +632,60 @@ class SplitService {
 
   // --- Members ---
 
+  Future<SplitGroup?> joinGroupByInviteCode(String code, String name) async {
+    try {
+      final row = await _db.rpc<Map<String, dynamic>>(
+        'join_split_group_by_invite',
+        params: {'p_code': code, 'p_name': name},
+      );
+      return SplitGroup.fromMap(row);
+    } on PostgrestException catch (error) {
+      if (error.code == 'P0002') return null;
+      if (error.code == '42501') {
+        throw const ValidationException('Sign in again to join a group.');
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> hasConfirmedMembership(String groupId, String userId) async {
+    try {
+      final rows = await _db.from('split_members').select('id')
+          .eq('group_id', groupId).eq('user_id', userId).limit(1);
+      return rows.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> assignPlaceholder({
+    required String groupId,
+    required String placeholderId,
+    required String joinedMemberId,
+  }) async {
+    try {
+      await _db.rpc(
+        'assign_split_placeholder',
+        params: {
+          'p_group_id': groupId,
+          'p_placeholder_id': placeholderId,
+          'p_joined_member_id': joinedMemberId,
+        },
+      );
+    } on PostgrestException catch (error) {
+      if (error.code == '42501') {
+        throw const ValidationException('Only the group owner can link an account.');
+      }
+      if (error.code == 'PT409') {
+        final message = error.message == 'Guest already has split activity'
+            ? 'This guest already has split activity. Their records were kept unchanged.'
+            : 'These members can no longer be linked. Refresh and try again.';
+        throw ValidationException(message);
+      }
+      rethrow;
+    }
+  }
+
   Future<SplitMember> addMember({
     required String groupId,
     required String name,
@@ -728,6 +783,19 @@ class SplitService {
           .order('joined_at', ascending: true);
       final rawCloudMembers = (res as List).map((m) => SplitMember.fromMap(m)).toList();
 
+      // An assigned account now appears on the original placeholder ID.
+      // Remove only superseded cached identities and retain pending offline members.
+      final cloudIds = rawCloudMembers.map((member) => member.id).toSet();
+      final cloudUserIds = rawCloudMembers.map((member) => member.userId).nonNulls.toSet();
+      final supersededIds = [
+        for (final cached in memberMap.values)
+          if (!cloudIds.contains(cached.id) && cloudUserIds.contains(cached.userId))
+            cached.id,
+      ];
+      for (final id in supersededIds) {
+        memberMap.remove(id);
+      }
+
       for (final cm in rawCloudMembers) {
         memberMap[cm.id] = cm;
       }
@@ -737,6 +805,9 @@ class SplitService {
         try {
           final db = await _localDb;
           final batch = db.batch();
+          for (final id in supersededIds) {
+            batch.delete('split_members', where: 'id = ?', whereArgs: [id]);
+          }
           for (final m in rawCloudMembers) {
             batch.insert('split_members', m.toMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
           }

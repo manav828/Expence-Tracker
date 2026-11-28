@@ -210,11 +210,8 @@ class _SplitSettleViewState extends State<SplitSettleView> {
         final settlementGroups = sp.getSettlementGroupsForGroup(widget.group.id);
         final combinedResult = sp.getCombinedBalancesResult(widget.group.id);
 
-        final currentMemberName = sp.currentMemberName ?? '';
-        final currentMember = members.firstWhere(
-          (m) => m.name.toLowerCase().trim() == currentMemberName.toLowerCase().trim(),
-          orElse: () => members.isNotEmpty ? members.first : SplitMember(id: '', groupId: widget.group.id, name: 'You', joinedAt: DateTime.now()),
-        );
+        final currentMember = sp.getCurrentMemberForGroup(widget.group.id) ?? members.firstOrNull ??
+            SplitMember(id: '', groupId: widget.group.id, name: 'You', joinedAt: DateTime.now());
 
         final household = combinedResult.memberToGroupMap[currentMember.id];
         final netBalance = combinedResult.getSettlementBalanceForMember(currentMember.id);

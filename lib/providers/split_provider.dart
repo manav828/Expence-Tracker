@@ -90,6 +90,16 @@ class SplitProvider with ChangeNotifier {
   }
 
   List<SplitMember> getMembersForGroup(String groupId) => _members[groupId] ?? [];
+
+  SplitMember? getCurrentMemberForGroup(String groupId) {
+    final members = getMembersForGroup(groupId);
+    final userId = _currentAuthUser?.id;
+    final name = _currentMemberName?.trim().toLowerCase();
+    return members.where((member) => userId != null && member.userId == userId).firstOrNull ??
+        members.where((member) => member.userId == null && member.name.trim().toLowerCase() == name).firstOrNull;
+  }
+
+  bool ownsGroup(SplitGroup group) => group.userId != null && group.userId == _currentAuthUser?.id;
   List<SplitExpense> getExpensesForGroup(String groupId) => _expenses[groupId] ?? [];
   List<Settlement> getSettlementsForGroup(String groupId) => _settlements[groupId] ?? [];
   Map<String, double> getBalancesForGroup(String groupId) => _balances[groupId] ?? {};
@@ -348,38 +358,9 @@ class SplitProvider with ChangeNotifier {
   }
 
   Future<SplitGroup?> _joinGroupByInviteCodeInternal(String code, String memberName) async {
-    final group = await SplitService.instance.getGroupByInviteCode(code);
+    final group = await SplitService.instance.joinGroupByInviteCode(code, memberName);
     if (group == null) return null;
-    final existingMembers = await SplitService.instance.getMembers(group.id);
-    final currentUser = _currentAuthUser;
-
-    // STRICT USER ID BASED JOIN:
-    // Check if user is already enrolled by auth user_id
-    final matchingUidMembers = currentUser?.id != null
-        ? existingMembers.where((m) => m.userId == currentUser!.id).toList()
-        : <SplitMember>[];
-
-    if (matchingUidMembers.isNotEmpty) {
-      // User is ALREADY a member with their user_id!
-      final primary = matchingUidMembers.first;
-      // If multiple duplicate rows exist with the same user_id, clean them up:
-      if (matchingUidMembers.length > 1) {
-        for (int i = 1; i < matchingUidMembers.length; i++) {
-          unawaited(SplitService.instance.mergeMembers(group.id, matchingUidMembers[i].id, primary.id));
-        }
-      }
-      // If user chose a new name (e.g. "akshay"), update their existing member record!
-      if (memberName.trim().isNotEmpty && memberName.trim() != primary.name.trim()) {
-        await SplitService.instance.updateMemberName(primary.id, memberName.trim());
-      }
-    } else {
-      // Add EXACTLY ONE new member with their auth user_id!
-      await SplitService.instance.addMember(
-        groupId: group.id,
-        name: memberName.trim(),
-        userId: currentUser?.id,
-      );
-    }
+    await setCurrentMemberName(memberName.trim());
 
     // Save group ID in user-scoped preferences
     final prefs = await SharedPreferences.getInstance();
@@ -745,6 +726,19 @@ class SplitProvider with ChangeNotifier {
     }
     await loadGroupDetail(groupId);
     _checkPendingSync();
+  }
+
+  Future<void> assignPlaceholder({
+    required String groupId,
+    required String placeholderId,
+    required String joinedMemberId,
+  }) async {
+    await SplitService.instance.assignPlaceholder(
+      groupId: groupId,
+      placeholderId: placeholderId,
+      joinedMemberId: joinedMemberId,
+    );
+    await loadGroupDetail(groupId);
   }
 
   Future<void> removeMember(String groupId, String memberId) async {
