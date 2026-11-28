@@ -921,6 +921,8 @@ CREATE TABLE IF NOT EXISTS public.app_notifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE public.app_notifications ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'Everyone';
+
 CREATE INDEX IF NOT EXISTS idx_app_notifications_active
 ON public.app_notifications(is_active, starts_at DESC);
 
@@ -931,4 +933,4 @@ CREATE POLICY "Anyone signed in or anon can read active notifications"
 ON public.app_notifications
 FOR SELECT
 TO anon, authenticated
-USING (is_active = TRUE AND starts_at <= NOW() AND (expires_at IS NULL OR expires_at > NOW()));
+USING (audience = 'Everyone' AND is_active = TRUE AND starts_at <= NOW() AND (expires_at IS NULL OR expires_at > NOW()));

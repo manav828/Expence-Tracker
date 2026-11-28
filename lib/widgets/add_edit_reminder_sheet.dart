@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../models/payment_reminder.dart';
+import '../services/membership_access.dart';
 import '../providers/expense_provider.dart';
 import '../providers/reminder_provider.dart';
 import '../utils/category_icons.dart';
@@ -233,6 +234,11 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
     );
 
     final provider = context.read<ReminderProvider>();
+    final addsRecurring = reminder.frequency != ReminderFrequency.oneTime &&
+        (widget.reminderToEdit == null || widget.reminderToEdit!.frequency == ReminderFrequency.oneTime);
+    if (addsRecurring && provider.activeReminders.where((r) => r.frequency != ReminderFrequency.oneTime).length >= 3) {
+      if (!await MembershipAccess.allowPlus(context) || !mounted) return;
+    }
     if (widget.reminderToEdit == null) {
       await provider.addReminder(reminder);
     } else {

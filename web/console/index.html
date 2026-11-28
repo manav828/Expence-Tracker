@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="icon" href="/favicon.png" />
+    <title>ExpenCircle · Admin</title>
+    <link rel="stylesheet" href="/console/style.css" />
+  </head>
+  <body>
+    <aside>
+      <strong class="brand"><i>e</i> ExpenCircle</strong
+      ><small id="workspace">ADMIN WORKSPACE</small>
+      <nav></nav>
+      <button id="logout" hidden>Sign out</button>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <small id="eyebrow">WORKSPACE</small>
+          <h1 id="title">Sign in</h1>
+        </div>
+        <span id="identity"></span>
+      </header>
+      <p id="notice" role="status" hidden></p>
+      <section id="content"></section>
+    </main>
+    <dialog>
+      <form method="dialog" id="editor">
+        <h2></h2>
+        <div id="fields"></div>
+        <p id="formError" role="alert"></p>
+        <footer>
+          <button type="button" id="cancel">Cancel</button
+          ><button class="primary" id="submit">Save</button>
+        </footer>
+      </form>
+    </dialog>
+    <script type="module" src="/console/app.js"></script>
+  </body>
+</html>

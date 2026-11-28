@@ -5,7 +5,15 @@
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/admin",
+      "destination": "/console/index.html"
+    },
+    {
+      "source": "/membership",
+      "destination": "/console/index.html"
+    },
+    {
+      "source": "/((?!console/).*)",
       "destination": "/index.html"
     }
   ],

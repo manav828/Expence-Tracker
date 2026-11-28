@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../services/membership_access.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -74,6 +76,12 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 const _StorageModeTile(),
+                if (kIsWeb)
+                  ListTile(
+                    leading: const Icon(Icons.account_circle_outlined, color: AppColors.primary),
+                    title: const Text('Membership & support'),
+                    onTap: MembershipAccess.open,
+                  ),
                 const Divider(height: 1, indent: 56),
                 ListTile(
                   leading: const Icon(Icons.category_outlined, color: AppColors.primary),

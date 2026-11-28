@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense.dart';
+import '../services/membership_access.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../utils/category_icons.dart';
 
@@ -91,11 +92,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void _onExternalViewModeChanged() {
     final nextMode = widget.viewModeNotifier?.value;
     if (nextMode != null && nextMode != _viewMode && mounted) {
-      setState(() => _viewMode = nextMode);
+      _setViewMode(nextMode);
     }
   }
 
-  void _setViewMode(String mode) {
+  void _setViewMode(String mode) async {
+    if (mode == 'calendar' && (!await MembershipAccess.allowPlus(context) || !mounted)) return;
     setState(() => _viewMode = mode);
     if (widget.viewModeNotifier != null && widget.viewModeNotifier!.value != mode) {
       widget.viewModeNotifier!.value = mode;
@@ -350,6 +352,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> _pickCustomDateOrRange(BuildContext context) async {
+    if (!await MembershipAccess.allowPlus(context) || !context.mounted) return;
     final now = DateTime.now();
 
     final choice = await showModalBottomSheet<String>(

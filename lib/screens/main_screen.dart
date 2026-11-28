@@ -325,24 +325,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           letterSpacing: -0.3,
                         ),
                       ),
-                    ] else ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentMint,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'PRO',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.onAccentMint,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
                     ],
                   ],
                 ),
