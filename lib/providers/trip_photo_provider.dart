@@ -197,6 +197,16 @@ class TripPhotoProvider with ChangeNotifier {
     return false;
   }
 
+  void clearStateOnLogout() {
+    _photos = [];
+    _likedPhotoIds = {};
+    _selectedFilter = 'all';
+    _isLoading = false;
+    _isUploading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   /// Downloads all personal liked photos in one click.
   Future<int> downloadAllLikedPhotos(String groupName) async {
     final likedUrls = _photos

@@ -599,8 +599,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       _buildSearchAndFilterBar(),
                       const SizedBox(height: 10),
 
-                      // Category Filter Chips
-                      _buildCategoryChipsRow(categorySpendMap, rangeExpenses.length),
+                      // Category Filter Chips (count reflects all ledger items: expenses + incomes)
+                      _buildCategoryChipsRow(categorySpendMap, rangeAllTransactions.length),
                       const SizedBox(height: 12),
 
                       // Active Filters Indicator (if any)

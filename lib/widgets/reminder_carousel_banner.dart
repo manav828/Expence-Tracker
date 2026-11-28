@@ -79,7 +79,7 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
 
     return Container(
       margin: widget.margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      height: hasMultiple ? 128 : 118,
+      height: hasMultiple ? 136 : 126,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -164,6 +164,27 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
     const accentGreen = Color(0xFF00B16A);
 
+    final String dueLabel;
+    final Color dueBg;
+    final Color dueFg;
+    if (reminder.isOverdue) {
+      dueLabel = reminder.dueStatusText;
+      dueBg = const Color(0xFFFFEDED);
+      dueFg = const Color(0xFFD92D20);
+    } else if (reminder.isDueToday) {
+      dueLabel = 'Due today';
+      dueBg = const Color(0xFFFFF4E5);
+      dueFg = const Color(0xFFB45309);
+    } else if (reminder.isDueTomorrow) {
+      dueLabel = 'Due tomorrow';
+      dueBg = const Color(0xFFFFF4E5);
+      dueFg = const Color(0xFFB45309);
+    } else {
+      dueLabel = reminder.dueStatusText;
+      dueBg = const Color(0xFFE8F7F0);
+      dueFg = const Color(0xFF047857);
+    }
+
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -174,12 +195,12 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
         },
         borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(18, 14, 16, hasMultiple ? 22 : 14),
+          padding: EdgeInsets.fromLTRB(18, 13, 16, hasMultiple ? 20 : 13),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Row: Circular Icon + Title + Amount only
+              // Top Row: Circular Icon + Title + Amount + Due Urgency Badge
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -213,14 +234,38 @@ class _ReminderCarouselBannerState extends State<ReminderCarouselBanner> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    currencyFmt.format(reminder.amount),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        currencyFmt.format(reminder.amount),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: dueBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          dueLabel,
+                          style: TextStyle(
+                            color: dueFg,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../utils/session_manager.dart';
 import 'register_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/common/google_logo_icon.dart';
@@ -43,6 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
+        await SessionManager.reloadAllProviders(context);
+      }
+      if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }
     } catch (e) {
@@ -62,6 +66,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await AuthService.instance.signInWithGoogle();
+      if (mounted) {
+        await SessionManager.reloadAllProviders(context);
+      }
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }

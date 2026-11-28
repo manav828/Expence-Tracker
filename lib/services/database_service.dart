@@ -62,21 +62,47 @@ class DatabaseService {
     // Clean initial state: no dummy data
   }
 
-  /// Clears only local SQLite tables (or Web in-memory stores) for expenses and
-  /// payment reminders on logout/switch-user without wiping cloud Supabase data.
+  /// Clears local SQLite tables, Web in-memory stores, and user-scoped UI prefs
+  /// on logout or account switch without wiping cloud Supabase data.
   Future<void> clearLocalDatabaseOnly() async {
     if (kIsWeb) {
       _webExpenses.clear();
+      _nextWebId = 1;
       _webReminders.clear();
-      return;
+      _webBudgets.clear();
+      _nextWebBudgetId = 1;
+      _webCategories
+        ..clear()
+        ..addAll(defaultCategories);
+      _webIncomeCategories
+        ..clear()
+        ..addAll(defaultIncomeCategories);
+      _webPaymentMethods
+        ..clear()
+        ..addAll(defaultPaymentMethods);
+    } else {
+      try {
+        final db = await instance.database;
+        await db.delete('expenses');
+        await db.delete('payment_reminders');
+        await db.delete('budgets');
+      } catch (e) {
+        debugPrint('Local clearLocalDatabaseOnly error: $e');
+      }
     }
+
     try {
-      final db = await instance.database;
-      await db.delete('expenses');
-      await db.delete('payment_reminders');
-    } catch (e) {
-      debugPrint('Local clearLocalDatabaseOnly error: $e');
-    }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_categoryOrderPrefKey);
+      await prefs.remove(_incomeCategoryOrderPrefKey);
+      await prefs.remove(_paymentMethodOrderPrefKey);
+      await prefs.remove('reminder_banner_dismissed_date');
+      for (final key in prefs.getKeys().toList()) {
+        if (key.startsWith('budget_safeguards_dismissed_')) {
+          await prefs.remove(key);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> clearAllExpenses() async {
@@ -1563,20 +1589,24 @@ class DatabaseService {
         final res = await client
             .from('payment_reminders')
             .select()
+            .eq('user_id', currentUser.id)
             .order('next_due_date', ascending: true);
         final cloudList = (res as List).map((m) => PaymentReminder.fromMap(m)).toList();
 
-        if (!kIsWeb && cloudList.isNotEmpty) {
+        if (!kIsWeb) {
           final db = await instance.database;
-          final batch = db.batch();
-          for (final rem in cloudList) {
-            batch.insert(
-              'payment_reminders',
-              rem.toMap(),
-              conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
-            );
+          await db.delete('payment_reminders');
+          if (cloudList.isNotEmpty) {
+            final batch = db.batch();
+            for (final rem in cloudList) {
+              batch.insert(
+                'payment_reminders',
+                rem.toMap(),
+                conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+              );
+            }
+            await batch.commit(noResult: true);
           }
-          await batch.commit(noResult: true);
         }
 
         if (kIsWeb) {
@@ -1584,9 +1614,7 @@ class DatabaseService {
           _webReminders.addAll(cloudList);
         }
 
-        if (cloudList.isNotEmpty) {
-          return cloudList;
-        }
+        return cloudList;
       } catch (e) {
         debugPrint('Cloud getPaymentReminders error: $e');
       }

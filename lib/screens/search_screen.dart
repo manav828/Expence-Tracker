@@ -126,7 +126,10 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<ExpenseProvider>();
     final results = provider.searchExpenses(_filter);
-    final totalAmount = results.fold(0.0, (sum, item) => sum + item.amount);
+    final expenseItems = results.where((item) => item.isExpense).toList();
+    final incomeItems = results.where((item) => item.isIncome).toList();
+    final expenseTotal = expenseItems.fold(0.0, (sum, item) => sum + item.amount);
+    final incomeTotal = incomeItems.fold(0.0, (sum, item) => sum + item.amount);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF8FF),
@@ -136,7 +139,13 @@ class _SearchScreenState extends State<SearchScreen> {
             _buildSearchHeader(context),
             _buildDatePresetBar(),
             if (_filter.hasActiveFilters) _buildActiveFiltersBar(),
-            _buildSummaryRow(results.length, totalAmount),
+            _buildSummaryRow(
+              count: results.length,
+              expenseTotal: expenseTotal,
+              incomeTotal: incomeTotal,
+              hasExpenses: expenseItems.isNotEmpty,
+              hasIncome: incomeItems.isNotEmpty,
+            ),
             Expanded(
               child: results.isEmpty
                   ? _buildEmptyState()
@@ -398,42 +407,89 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSummaryRow(int count, double total) {
+  Widget _buildSummaryRow({
+    required int count,
+    required double expenseTotal,
+    required double incomeTotal,
+    required bool hasExpenses,
+    required bool hasIncome,
+  }) {
+    final inrFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 2, locale: 'en_IN');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(
-                '$count ${count == 1 ? 'result' : 'results'} found',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF131B2E),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$count ${count == 1 ? 'result' : 'results'} found',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF131B2E),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFBCCAC0),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Total: ₹${total.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
+                const SizedBox(height: 3),
+                if (count == 0)
+                  const Text(
+                    'Total: ₹0.00',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6D7A72),
+                    ),
+                  )
+                else if (hasExpenses && hasIncome)
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 2,
+                    children: [
+                      Text(
+                        'Spent: ${inrFmt.format(expenseTotal)}',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFE11D48),
+                        ),
+                      ),
+                      Text(
+                        'Income: +${inrFmt.format(incomeTotal)}',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (hasIncome)
+                  Text(
+                    'Income: +${inrFmt.format(incomeTotal)}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  )
+                else
+                  Text(
+                    'Spent: ${inrFmt.format(expenseTotal)}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           PopupMenuButton<ExpenseSortOption>(
             initialValue: _filter.sortBy,
             tooltip: 'Sort Options',

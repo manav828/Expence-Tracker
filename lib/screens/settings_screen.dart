@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../utils/session_manager.dart';
 import '../services/app_permission_service.dart';
 import '../services/cloudflare_r2_service.dart';
 import '../services/file_picker_stub.dart';
@@ -206,6 +207,7 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () async {
                     await AuthService.instance.signOut();
                     if (context.mounted) {
+                      SessionManager.clearAllProviders(context);
                       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
                     }
                   },

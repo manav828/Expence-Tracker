@@ -22,6 +22,7 @@ import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/storage_preference_service.dart';
+import 'utils/session_manager.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -95,6 +96,7 @@ class _AppRootState extends State<AppRoot> {
   bool _isLoading = true;
   bool _hasSeenOnboarding = false;
   bool _isAuthenticatedOrGuest = false;
+  String? _lastSessionIdentity;
 
   StreamSubscription<AuthState>? _authSubscription;
 
@@ -120,15 +122,31 @@ class _AppRootState extends State<AppRoot> {
     final isGuest = await AuthService.instance.isGuest();
     final isAuth = AuthService.instance.isAuthenticated;
 
+    final nextIdentity = isAuth
+        ? (AuthService.instance.currentUser?.id ?? 'authenticated')
+        : (isGuest ? 'guest' : null);
+
     if (isAuth) {
       await StoragePreferenceService.setMode(StorageMode.cloud);
       unawaited(PushNotificationService.instance.syncDeviceToken());
+    }
+
+    if (!mounted) return;
+
+    final identityChanged = !_isLoading && nextIdentity != _lastSessionIdentity;
+    if (identityChanged) {
+      if (nextIdentity == null) {
+        SessionManager.clearAllProviders(context);
+      } else {
+        await SessionManager.reloadAllProviders(context);
+      }
     }
 
     if (mounted) {
       setState(() {
         _hasSeenOnboarding = seen;
         _isAuthenticatedOrGuest = isAuth || isGuest;
+        _lastSessionIdentity = nextIdentity;
         _isLoading = false;
       });
     }
@@ -153,6 +171,9 @@ class _AppRootState extends State<AppRoot> {
       return const LoginScreen();
     }
 
-    return MainScreen(navigatorKey: appNavigatorKey);
+    return KeyedSubtree(
+      key: ValueKey(_lastSessionIdentity ?? 'session'),
+      child: MainScreen(navigatorKey: appNavigatorKey),
+    );
   }
 }

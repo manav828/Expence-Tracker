@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/payment_reminder.dart';
 import '../models/expense.dart';
 import '../models/split_models.dart';
@@ -12,12 +14,58 @@ class ReminderProvider extends ChangeNotifier {
   List<PaymentReminder> _reminders = [];
   bool _isLoading = false;
   bool _isBannerDismissedForSession = false;
+  StreamSubscription<AuthState>? _authSub;
+  String? _lastAuthUserId;
 
   static const String _bannerDismissedKey = 'reminder_banner_dismissed_date';
 
   List<PaymentReminder> get reminders => _reminders;
   bool get isLoading => _isLoading;
   bool get isBannerDismissed => _isBannerDismissedForSession;
+
+  ReminderProvider({bool autoFetch = false}) {
+    if (autoFetch) {
+      loadReminders();
+    }
+    _initAuthListener(autoFetch: autoFetch);
+  }
+
+  void _initAuthListener({required bool autoFetch}) {
+    try {
+      _lastAuthUserId = Supabase.instance.client.auth.currentUser?.id;
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        final event = data.event;
+        if (event == AuthChangeEvent.signedOut) {
+          _lastAuthUserId = null;
+          clearStateOnLogout();
+        } else if (event == AuthChangeEvent.signedIn ||
+            event == AuthChangeEvent.tokenRefreshed ||
+            event == AuthChangeEvent.initialSession ||
+            event == AuthChangeEvent.userUpdated) {
+          final uid = data.session?.user.id;
+          if (!autoFetch && event == AuthChangeEvent.initialSession) return;
+          if (uid != _lastAuthUserId) {
+            _lastAuthUserId = uid;
+            clearStateOnLogout();
+            loadReminders();
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  void clearStateOnLogout() {
+    _reminders = [];
+    _isBannerDismissedForSession = false;
+    _isLoading = false;
+    notifyListeners();
+  }
 
   /// Active (not paused, not completed) reminders sorted by due date
   List<PaymentReminder> get activeReminders {

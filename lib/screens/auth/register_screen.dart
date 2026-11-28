@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../utils/session_manager.dart';
 import '../../widgets/legal_sheets.dart';
 import '../../widgets/common/google_logo_icon.dart';
 import '../../core/theme/app_colors.dart';
@@ -73,6 +74,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (mounted) {
+        await SessionManager.reloadAllProviders(context);
+      }
+      if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }
     } catch (e) {
@@ -92,6 +96,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       await AuthService.instance.signInWithGoogle();
+      if (mounted) {
+        await SessionManager.reloadAllProviders(context);
+      }
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }

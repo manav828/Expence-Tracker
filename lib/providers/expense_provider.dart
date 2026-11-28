@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/errors/error_handler.dart';
 import '../models/expense.dart';
 import '../models/search_filter.dart';
@@ -13,6 +15,8 @@ class ExpenseProvider with ChangeNotifier {
   List<String> _categories = [];
   List<String> _incomeCategories = [];
   List<String> _paymentMethods = [];
+  StreamSubscription<AuthState>? _authSub;
+  String? _lastAuthUserId;
 
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
@@ -98,6 +102,47 @@ class ExpenseProvider with ChangeNotifier {
     if (autoFetch) {
       fetchExpenses();
     }
+    _initAuthListener(autoFetch: autoFetch);
+  }
+
+  void _initAuthListener({required bool autoFetch}) {
+    try {
+      _lastAuthUserId = Supabase.instance.client.auth.currentUser?.id;
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        final event = data.event;
+        if (event == AuthChangeEvent.signedOut) {
+          _lastAuthUserId = null;
+          clearStateOnLogout();
+        } else if (event == AuthChangeEvent.signedIn ||
+            event == AuthChangeEvent.tokenRefreshed ||
+            event == AuthChangeEvent.initialSession ||
+            event == AuthChangeEvent.userUpdated) {
+          final uid = data.session?.user.id;
+          if (!autoFetch && event == AuthChangeEvent.initialSession) return;
+          if (uid != _lastAuthUserId) {
+            _lastAuthUserId = uid;
+            clearStateOnLogout();
+            fetchExpenses();
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  void clearStateOnLogout() {
+    _expenses = [];
+    _categories = [];
+    _incomeCategories = [];
+    _paymentMethods = [];
+    _errorMessage = null;
+    _isLoading = false;
+    notifyListeners();
   }
 
   @visibleForTesting

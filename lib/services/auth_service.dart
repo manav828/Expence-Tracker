@@ -175,10 +175,21 @@ class AuthService {
     await prefs.setBool(_onboardingKey, true);
   }
 
+  Future<void> _clearCachedProfilePrefs() async {
+    _cachedDisplayName = null;
+    _cachedPhotoUrl = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userNameKey);
+      await prefs.remove(_userPhotoKey);
+    } catch (_) {}
+  }
+
   Future<AuthResponse> signInWithEmail({
     required String email,
     required String password,
   }) async {
+    await _clearCachedProfilePrefs();
     await setGuestMode(false);
     final response = await _client.auth.signInWithPassword(
       email: email.trim(),
@@ -196,6 +207,7 @@ class AuthService {
     required String password,
     required String fullName,
   }) async {
+    await _clearCachedProfilePrefs();
     await setGuestMode(false);
     final response = await _client.auth.signUp(
       email: email.trim(),
@@ -221,6 +233,7 @@ class AuthService {
   /// - On Mobile (Android/iOS): Uses native Google Play Services bottom sheet (`GoogleSignIn` + `signInWithIdToken`)
   Future<dynamic> signInWithGoogle() async {
     try {
+      await _clearCachedProfilePrefs();
       await setGuestMode(false);
 
       if (kIsWeb) {

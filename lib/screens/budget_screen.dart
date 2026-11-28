@@ -312,12 +312,16 @@ class BudgetScreen extends StatelessWidget {
     Color healthBadgeBg;
     Color healthBadgeText;
 
-    if (isExceeded) {
+    if (totalBudget <= 0) {
+      healthLabel = 'No Budgets';
+      healthBadgeBg = const Color(0xFFF1F5F9);
+      healthBadgeText = const Color(0xFF64748B);
+    } else if (isExceeded) {
       healthLabel = 'Over Budget';
       healthBadgeBg = const Color(0xFFFFDAD6);
       healthBadgeText = const Color(0xFFBA1A1A);
-    } else if (overallPercentage >= 75) {
-      healthLabel = 'Near Ceiling';
+    } else if (overallPercentage >= 80) {
+      healthLabel = 'Near Limit';
       healthBadgeBg = const Color(0xFFFEF3C7);
       healthBadgeText = const Color(0xFFB45309);
     } else {
@@ -619,7 +623,7 @@ class BudgetScreen extends StatelessWidget {
       iconColor = const Color(0xFFBA1A1A);
       badgeBg = const Color(0xFFFFDAD6).withValues(alpha: 0.7);
       badgeText = const Color(0xFFBA1A1A);
-      badgeLabel = 'Overspend (${_formatPercent(percent)}%)';
+      badgeLabel = 'Over Budget (${_formatPercent(percent)}%)';
       meterFill = const Color(0xFFBA1A1A);
       footerLeftText = 'Exceeded by ₹${excess.toStringAsFixed(0)}';
       footerLeftColor = const Color(0xFFBA1A1A);
@@ -635,7 +639,7 @@ class BudgetScreen extends StatelessWidget {
       meterFill = const Color(0xFFF59E0B);
       footerLeftText = '₹${left.toStringAsFixed(0)} left to spend';
       footerLeftColor = const Color(0xFFB45309);
-      footerRightText = '$daysRemaining days left';
+      footerRightText = 'Near Limit • ${daysRemaining}d left';
     } else {
       final left = progress.limit - progress.spentThisMonth;
       cardBorder = AppColors.primaryBorder;
@@ -643,11 +647,11 @@ class BudgetScreen extends StatelessWidget {
       iconColor = AppColors.primary;
       badgeBg = AppColors.primaryLight;
       badgeText = AppColors.primaryDark;
-      badgeLabel = 'Safe (${_formatPercent(percent)}%)';
+      badgeLabel = 'On Track (${_formatPercent(percent)}%)';
       meterFill = AppColors.primary;
       footerLeftText = '₹${left.toStringAsFixed(0)} left';
       footerLeftColor = AppColors.primaryDark;
-      footerRightText = percent < 35 ? 'Low activity' : 'Well paced';
+      footerRightText = '$daysRemaining days left';
     }
 
     return Container(
