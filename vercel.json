@@ -6,15 +6,15 @@
   "rewrites": [
     {
       "source": "/admin",
-      "destination": "/console/index.html"
+      "destination": "/console/index"
     },
     {
       "source": "/membership",
-      "destination": "/console/index.html"
+      "destination": "/console/index"
     },
     {
       "source": "/((?!console/).*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ],
   "headers": [
