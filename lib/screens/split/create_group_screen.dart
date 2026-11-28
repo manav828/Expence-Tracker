@@ -1,3 +1,4 @@
+import 'widgets/split_group_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/split_provider.dart';
@@ -160,18 +161,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               ),
               color: Colors.white,
             ),
-            child: _customBannerUrl != null
+            child: _customBannerUrl != null || _nameCtrl.text.trim().isNotEmpty
                 ? Stack(
                     fit: StackFit.expand,
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(15),
-                        child: Image.network(
-                          _customBannerUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(Icons.broken_image, color: Colors.grey),
-                          ),
+                        child: SplitGroupCover(
+                          title: _nameCtrl.text,
+                          imageUrl: _customBannerUrl,
                         ),
                       ),
                       Container(
@@ -201,7 +199,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                             children: [
                               Icon(Icons.edit, color: Colors.white, size: 13),
                               SizedBox(width: 4),
-                              Text('Change Banner', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                              Text('Change cover', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                             ],
                           ),
                         ),
@@ -276,7 +274,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               icon: Icons.notes_outlined,
             ),
             const SizedBox(height: 14),
-            _buildCoverSelector(),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _nameCtrl,
+              builder: (_, __, ___) => _buildCoverSelector(),
+            ),
             const SizedBox(height: 24),
             _SectionHeader(title: 'Your Name', icon: Icons.person),
             const SizedBox(height: 4),

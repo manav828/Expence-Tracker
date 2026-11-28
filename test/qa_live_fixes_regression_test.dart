@@ -1,7 +1,5 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -271,7 +269,7 @@ void main() {
     expect(find.textContaining('6,000.00'), findsNothing);
   });
 
-  testWidgets('Home chart labels the axes and plots cumulative expenses by date', (tester) async {
+  testWidgets('Home shows an expense-only monthly total on narrow screens', (tester) async {
     tester.view.physicalSize = const Size(320, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -308,21 +306,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Cumulative spending'), findsOneWidget);
-    expect(find.text('Running total of expenses by date'), findsOneWidget);
-    expect(find.text(DateFormat('d MMM').format(DateTime(now.year, now.month, 15))), findsOneWidget);
+    expect(find.text('Cumulative spending'), findsNothing);
+    expect(find.text("THIS MONTH'S SPEND"), findsOneWidget);
     expect(find.text('₹9,200.00'), findsOneWidget);
-
-    final chart = tester.widget<LineChart>(find.byType(LineChart)).data;
-    expect(chart.titlesData.leftTitles.sideTitles.showTitles, isTrue);
-    expect(chart.lineBarsData.single.isStepLineChart, isTrue);
-    expect(chart.lineBarsData.single.spots.take(5), [
-      const FlSpot(1, 0),
-      const FlSpot(2, 2000),
-      const FlSpot(3, 2000),
-      const FlSpot(4, 2000),
-      const FlSpot(5, 9200),
-    ]);
+    expect(find.text('3 expenses this month'), findsOneWidget);
   });
 
   testWidgets('4. ReminderCarouselBanner displays Due tomorrow urgency next to amount', (tester) async {

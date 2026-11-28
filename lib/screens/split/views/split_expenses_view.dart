@@ -707,6 +707,7 @@ class SplitExpensesView extends StatelessWidget {
   ) {
     final paidByName = memberMap[expense.paidByMemberId] ?? 'Member';
     final isPaidByMe = expense.paidByMemberId == currentUserId;
+    final canEdit = sp.canManageExpense(expense);
     final fmt = NumberFormat('#,##0.00');
 
     // Calculate share info for the user
@@ -731,31 +732,44 @@ class SplitExpensesView extends StatelessWidget {
 
     return Dismissible(
       key: Key(expense.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Delete Expense?'),
-          content: Text('Are you sure you want to delete "${expense.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFBA1A1A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      direction: canEdit ? DismissDirection.endToStart : DismissDirection.none,
+      confirmDismiss: (_) async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Delete Expense?'),
+            content: Text('Are you sure you want to delete "${expense.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
               ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-      onDismissed: (_) => sp.deleteExpense(group.id, expense.id),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFBA1A1A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true && context.mounted) {
+          try {
+            await sp.deleteExpense(group.id, expense.id);
+          } catch (_) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not delete this expense.')),
+              );
+            }
+          }
+        }
+        return false;
+      },
       background: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(color: Colors.red.shade600, borderRadius: BorderRadius.circular(16)),
@@ -781,7 +795,7 @@ class SplitExpensesView extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () async {
+            onTap: !canEdit ? null : () async {
               await showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,

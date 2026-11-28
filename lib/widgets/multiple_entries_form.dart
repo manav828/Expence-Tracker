@@ -9,11 +9,13 @@ import '../models/expense.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
 import '../services/auth_service.dart';
+import '../services/cloudflare_r2_service.dart';
 import '../utils/category_icons.dart';
+import 'receipt_attachment_sheet.dart';
 import 'searchable_selection_sheet.dart';
 
-class AddAnotherEntryButton extends StatelessWidget {
-  const AddAnotherEntryButton({super.key, required this.onPressed});
+class _AddAnotherEntryButton extends StatelessWidget {
+  const _AddAnotherEntryButton({super.key, required this.onPressed});
 
   final VoidCallback? onPressed;
 
@@ -44,14 +46,14 @@ class MultipleEntriesForm extends StatefulWidget {
     required this.firstEntry,
     required this.firstAmountText,
     required this.addCustomOption,
-    required this.onReceiptSaved,
+    required this.onInitialReceiptSaved,
   });
 
   final Expense firstEntry;
   final String firstAmountText;
   final Future<String?> Function(bool isCategory, bool isIncome, String? query)
   addCustomOption;
-  final VoidCallback onReceiptSaved;
+  final VoidCallback onInitialReceiptSaved;
 
   @override
   State<MultipleEntriesForm> createState() => _MultipleEntriesFormState();
@@ -65,6 +67,7 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
     decimalDigits: 2,
   );
   late final List<_EntryDraft> _entries;
+  final _draftReceipts = <String>{};
   bool _saving = false;
   String? _saveError;
 
@@ -81,7 +84,41 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
       paymentMethod: first.paymentMethod,
       receiptUrl: first.receiptUrl,
     );
-    _entries = [entry, _blankAfter(entry)];
+    _entries = [entry];
+  }
+
+  @override
+  void dispose() {
+    for (final url in _draftReceipts) {
+      CloudflareR2Service.instance.deleteByUrl(url);
+    }
+    super.dispose();
+  }
+
+  Future<void> _attachReceipt(_EntryDraft entry) async {
+    final url = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const ReceiptAttachmentSheet(),
+    );
+    if (url == null || url.isEmpty) return;
+    if (!mounted || !_entries.contains(entry)) {
+      CloudflareR2Service.instance.deleteByUrl(url);
+      return;
+    }
+    setState(() {
+      _draftReceipts.add(url);
+      entry.receiptUrl = url;
+    });
+  }
+
+  void _discardReceipt(_EntryDraft entry) {
+    final url = entry.receiptUrl;
+    entry.receiptUrl = null;
+    if (url != null && _draftReceipts.remove(url)) {
+      CloudflareR2Service.instance.deleteByUrl(url);
+    }
   }
 
   _EntryDraft _blankAfter(_EntryDraft previous) => _EntryDraft(
@@ -227,7 +264,12 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
         break;
       }
       savedCount++;
-      if (entry.receiptUrl != null) widget.onReceiptSaved();
+      final receipt = expense.receiptUrl;
+      if (receipt != null) {
+        _draftReceipts.remove(receipt);
+        if (receipt == widget.firstEntry.receiptUrl)
+          widget.onInitialReceiptSaved();
+      }
       if (mounted &&
           budgets?.checkForOverspend(expense, provider.expenses) != null) {
         exceededCategories.add(expense.category);
@@ -366,7 +408,7 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                                     _buildEntry(entry, index),
                                     const SizedBox(height: 8),
                                   ],
-                                  AddAnotherEntryButton(
+                                  _AddAnotherEntryButton(
                                     onPressed: _saving ? null : _addEntry,
                                   ),
                                 ],
@@ -545,7 +587,10 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                         _saving || _entries.length == 1
                             ? null
                             : () {
-                              setState(() => _entries.remove(entry));
+                              setState(() {
+                                _discardReceipt(entry);
+                                _entries.remove(entry);
+                              });
                             },
                     icon: const Icon(Icons.delete_outline_rounded, size: 19),
                   ),
@@ -578,12 +623,35 @@ class _MultipleEntriesFormState extends State<MultipleEntriesForm> {
                 const SizedBox(height: 6),
                 note,
               ],
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed:
+                      _saving
+                          ? null
+                          : entry.receiptUrl == null
+                          ? () => _attachReceipt(entry)
+                          : () => FullScreenReceiptViewer.show(
+                            context,
+                            imageUrl: entry.receiptUrl!,
+                          ),
+                  icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                  label: Text(
+                    entry.receiptUrl == null
+                        ? 'Attach receipt'
+                        : 'View receipt',
+                  ),
+                ),
+              ),
               if (entry.receiptUrl != null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text(
-                    'Receipt attached',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton(
+                    onPressed:
+                        _saving
+                            ? null
+                            : () => setState(() => _discardReceipt(entry)),
+                    child: const Text('Remove receipt'),
                   ),
                 ),
             ],
@@ -680,7 +748,7 @@ class _EntryDraft {
   TransactionType type;
   String category;
   String paymentMethod;
-  final String? receiptUrl;
+  String? receiptUrl;
 
   double? get parsedAmount {
     final value = double.tryParse(amount.trim().replaceAll(',', ''));

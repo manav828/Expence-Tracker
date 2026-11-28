@@ -35,7 +35,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
   String? _paidByMemberId;
   String? _addedByMemberId;
   Set<String> _includedMembers = {};
-  final Set<String> _collapsedExpenseGroups = {};
+  final Set<String> _expandedExpenseGroups = {};
   final Map<String, TextEditingController> _customAmountCtrls = {};
   final Map<String, TextEditingController> _percentCtrls = {};
   String? _receiptUrl;
@@ -73,7 +73,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
       final currentMember = widget.members.where((m) => m.id == widget.currentMemberId).firstOrNull ??
           widget.members.where((m) => m.name.toLowerCase() == widget.currentMemberName?.toLowerCase()).firstOrNull;
       _paidByMemberId = currentMember?.id ?? widget.members.first.id;
-      _addedByMemberId = _paidByMemberId;
+      _addedByMemberId = currentMember?.id;
     }
   }
 
@@ -198,6 +198,10 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
       _showError('Enter a valid amount');
       return;
     }
+    if (widget.expenseToEdit == null && _addedByMemberId == null) {
+      _showError('Join the group before adding an expense');
+      return;
+    }
     if (_paidByMemberId == null) {
       _showError('Select who paid');
       return;
@@ -226,6 +230,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
               paidByMemberId: _paidByMemberId!,
               splitType: _splitType,
               shares: shares,
+              category: widget.expenseToEdit!.category,
               note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
               receiptUrl: _receiptUrl,
             );
@@ -239,7 +244,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
               shares: shares,
               note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
               receiptUrl: _receiptUrl,
-              addedByMemberId: _addedByMemberId ?? _paidByMemberId!,
+              addedByMemberId: _addedByMemberId!,
             );
       }
       _isSaved = true;
@@ -516,7 +521,7 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                   ? false
                   : (selectedCount == groupMembers.length ? true : null);
 
-              final isCollapsed = _collapsedExpenseGroups.contains(group.id);
+              final isCollapsed = !_expandedExpenseGroups.contains(group.id);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 6),
@@ -539,9 +544,9 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
                       child: InkWell(
                         onTap: () => setState(() {
                           if (isCollapsed) {
-                            _collapsedExpenseGroups.remove(group.id);
+                            _expandedExpenseGroups.add(group.id);
                           } else {
-                            _collapsedExpenseGroups.add(group.id);
+                            _expandedExpenseGroups.remove(group.id);
                           }
                         }),
                         borderRadius: BorderRadius.circular(10),
@@ -958,7 +963,13 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
             const SizedBox(height: 8),
             Row(
               children: SplitType.values.map((t) => GestureDetector(
-                onTap: () => setState(() => _splitType = t),
+                onTap: () => setState(() {
+                  _splitType = t;
+                  _expandedExpenseGroups.clear();
+                  if (t != SplitType.equal) {
+                    _expandedExpenseGroups.addAll(allFolderGroups.map((group) => group.id));
+                  }
+                }),
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -984,29 +995,8 @@ class _AddSplitExpenseSheetState extends State<AddSplitExpenseSheet> {
             // Bill & Receipt Attachment
             _buildReceiptSection(),
             const SizedBox(height: 24),
-            // Added by
-            const Text('Added by', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF131B2E))),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: widget.members.map((m) => GestureDetector(
-                  onTap: () => setState(() => _addedByMemberId = m.id),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _addedByMemberId == m.id ? const Color(0xFF008096) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _addedByMemberId == m.id ? const Color(0xFF008096) : const Color(0xFFBCCAC0)),
-                    ),
-                    child: Text(m.name, style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13,
-                      color: _addedByMemberId == m.id ? Colors.white : const Color(0xFF131B2E),
-                    )),
-                  ),
-                )).toList(),
-              ),
+            Text(
+              'Added by: ${widget.members.where((member) => member.id == _addedByMemberId).firstOrNull?.name ?? 'Member'}',
             ),
             const SizedBox(height: 28),
             SizedBox(

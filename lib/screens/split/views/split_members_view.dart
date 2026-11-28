@@ -472,7 +472,20 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                             ),
                           ),
 
-                        // E. Combined Units (Families / Couples)
+                        // E. Individual Members List
+                        if (_selectedFilterIndex != 1) ...[
+                          ...filteredUngrouped.map((member) {
+                            final isCreator = (widget.group.userId != null && currentUid != null && widget.group.userId == currentUid && member.name.toLowerCase() == currentMemberName.toLowerCase()) ||
+                                (member.name.trim().toLowerCase() == widget.group.createdBy.trim().toLowerCase());
+                            return _buildIndividualMemberCard(
+                              context,
+                              member: member,
+                              isCreator: isCreator,
+                              sp: sp,
+                            );
+                          }),
+                        ],
+                        // F. Combined Units (Families / Couples)
                         if (_selectedFilterIndex != 0 || filteredDisplayGroups.isNotEmpty) ...[
                           ...filteredDisplayGroups.map((group) {
                             final isCollapsed = _collapsedGroupIds.contains(group.id);
@@ -486,19 +499,6 @@ class _SplitMembersViewState extends State<SplitMembersView> {
                           }),
                         ],
 
-                        // F. Individual Members List
-                        if (_selectedFilterIndex != 1) ...[
-                          ...filteredUngrouped.map((member) {
-                            final isCreator = (widget.group.userId != null && currentUid != null && widget.group.userId == currentUid && member.name.toLowerCase() == currentMemberName.toLowerCase()) ||
-                                (member.name.trim().toLowerCase() == widget.group.createdBy.trim().toLowerCase());
-                            return _buildIndividualMemberCard(
-                              context,
-                              member: member,
-                              isCreator: isCreator,
-                              sp: sp,
-                            );
-                          }),
-                        ],
                       ]),
                     ),
                   ),

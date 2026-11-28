@@ -62,6 +62,37 @@ void main() {
       );
     }
 
+    testWidgets('Expense permissions follow the author rather than the payer', (tester) async {
+      await tester.pumpAndSettle();
+      final expense = SplitExpense(
+        id: 'shared-bill',
+        groupId: group.id,
+        title: 'Shared bill',
+        totalAmount: 150,
+        paidByMemberId: bob.id,
+        addedByMemberId: me.id,
+        splitType: SplitType.equal,
+        createdAt: now,
+      );
+      splitProvider.setGroupDetailForTesting(
+        groupId: group.id,
+        members: [me, bob],
+        settlementGroups: [],
+        expenses: [expense],
+      );
+
+      await tester.runAsync(() async {
+        await splitProvider.setCurrentMemberName(bob.name);
+        expect(splitProvider.canManageExpense(expense), isFalse);
+        await expectLater(
+          splitProvider.deleteExpense(group.id, expense.id),
+          throwsStateError,
+        );
+        await splitProvider.setCurrentMemberName(me.name);
+        expect(splitProvider.canManageExpense(expense), isTrue);
+      });
+    });
+
     testWidgets('Members Tab displays settlement groups WITH their 2 members each and individual creator', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -94,6 +125,8 @@ void main() {
 
       // 3. Verify Group 1 header and member names are visible
       expect(find.text('Couple A'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Alex')).dy,
+          lessThan(tester.getTopLeft(find.text('Couple A')).dy));
       expect(find.text('Bob'), findsOneWidget);
       expect(find.text('Charlie'), findsOneWidget);
 

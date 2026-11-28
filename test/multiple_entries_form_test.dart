@@ -80,7 +80,11 @@ void main() {
     addTearDown(provider.dispose);
     await _openEntrySheet(tester, provider);
 
-    await _enterVisible(tester, _input('Spend Amount'), '320');
+    expect(find.text('Entries (1)'), findsOneWidget);
+    expect(find.text('Add Spend'), findsNothing);
+    expect(_input('Amount'), findsOneWidget);
+    expect(find.text('₹0.00'), findsOneWidget);
+    await _enterVisible(tester, _input('Amount'), '320');
     await _tapVisible(tester, find.text('Add Another Entry'));
     expect(find.byType(AddExpenseSheet), findsOneWidget);
     expect(find.text('Entries (2)'), findsOneWidget);
@@ -144,7 +148,7 @@ void main() {
     addTearDown(provider.dispose);
     await _openEntrySheet(tester, provider);
 
-    await _enterVisible(tester, _input('Spend Amount'), '50');
+    await _enterVisible(tester, _input('Amount'), '50');
     await _tapVisible(tester, find.text('Add Another Entry'));
     await _enterVisible(tester, _input('Amount').at(1), '75');
     await _tapVisible(tester, find.text('Add Another Entry'));
@@ -168,6 +172,23 @@ void main() {
       provider.saved.map((expense) => expense.createdAt).toSet(),
       hasLength(2),
     );
+    expect(find.byType(AddExpenseSheet), findsNothing);
+  });
+
+  testWidgets('Saves directly from the default single entry card', (
+    tester,
+  ) async {
+    final provider = _RecordingExpenseProvider();
+    addTearDown(provider.dispose);
+    await _openEntrySheet(tester, provider);
+
+    expect(find.text('Entries (1)'), findsOneWidget);
+    expect(find.text('Attach receipt'), findsOneWidget);
+    await _enterVisible(tester, _input('Amount'), '450');
+    await tester.tap(find.text('Save Entry'));
+    await tester.pumpAndSettle();
+
+    expect(provider.saved.single.amount, 450);
     expect(find.byType(AddExpenseSheet), findsNothing);
   });
 }

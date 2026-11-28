@@ -84,6 +84,22 @@ void main() {
         amount,
       );
       await tester.tap(find.text(payer).first);
+      expect(memberRow('Arun'), findsNothing);
+      if (type == 'Equal') {
+        for (final household in households) {
+          final header = find.text(household.name);
+          await tester.ensureVisible(header);
+          await tester.tap(header);
+          await tester.pumpAndSettle();
+        }
+      } else {
+        final typeControl = find.text(type);
+        await tester.ensureVisible(typeControl);
+        await tester.tap(typeControl);
+        await tester.pumpAndSettle();
+        expect(memberRow('Arun'), findsOneWidget);
+        expect(memberRow('Diya'), findsOneWidget);
+      }
       for (final guest in guests.where(
         (guest) => !expectedShares.containsKey(guest),
       )) {
@@ -99,12 +115,6 @@ void main() {
         find.text('${expectedShares.length} of 8 selected'),
         findsOneWidget,
       );
-      if (type != 'Equal') {
-        final typeControl = find.text(type);
-        await tester.ensureVisible(typeControl);
-        await tester.tap(typeControl);
-        await tester.pumpAndSettle();
-      }
       for (final entry in allocation.entries) {
         final field = find.descendant(
           of: memberRow(entry.key),

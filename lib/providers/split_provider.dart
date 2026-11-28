@@ -100,6 +100,21 @@ class SplitProvider with ChangeNotifier {
   }
 
   bool ownsGroup(SplitGroup group) => group.userId != null && group.userId == _currentAuthUser?.id;
+  bool canManageExpense(SplitExpense expense) {
+    final userId = _currentAuthUser?.id;
+    if (expense.authorUserId != null) return expense.authorUserId == userId;
+    final member = getCurrentMemberForGroup(expense.groupId);
+    return member != null &&
+        member.id == expense.addedByMemberId &&
+        (userId == null || member.userId == userId);
+  }
+
+  void _requireExpenseAuthor(String groupId, String expenseId) {
+    final expense = getExpensesForGroup(groupId).where((item) => item.id == expenseId).firstOrNull;
+    if (expense == null || !canManageExpense(expense)) {
+      throw StateError('Only the person who added this expense can change it.');
+    }
+  }
   List<SplitExpense> getExpensesForGroup(String groupId) => _expenses[groupId] ?? [];
   List<Settlement> getSettlementsForGroup(String groupId) => _settlements[groupId] ?? [];
   Map<String, double> getBalancesForGroup(String groupId) => _balances[groupId] ?? {};
@@ -296,7 +311,7 @@ class SplitProvider with ChangeNotifier {
     required String createdByName,
     required List<String> memberNames,
   }) async {
-    final finalImageUrl = imageUrl ??
+    final finalImageUrl = imageUrl?.trim().isNotEmpty == true ? imageUrl :
         await PixabayService.fetchImageForGroup(
           name: name,
           description: description,
@@ -554,6 +569,7 @@ class SplitProvider with ChangeNotifier {
     String? note,
     String? receiptUrl,
   }) async {
+    _requireExpenseAuthor(groupId, expenseId);
     await SplitService.instance.updateExpense(
       expenseId: expenseId,
       title: title,
@@ -570,9 +586,10 @@ class SplitProvider with ChangeNotifier {
   }
 
   Future<void> deleteExpense(String groupId, String expenseId) async {
-    _expenses[groupId]?.removeWhere((e) => e.id == expenseId);
-    notifyListeners();
+    _requireExpenseAuthor(groupId, expenseId);
     await SplitService.instance.deleteExpense(expenseId, groupId);
+    _expenses[groupId]?.removeWhere((expense) => expense.id == expenseId);
+    notifyListeners();
     await loadGroupDetail(groupId);
     _checkPendingSync();
   }

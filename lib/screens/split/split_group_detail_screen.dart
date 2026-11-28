@@ -1,3 +1,4 @@
+import 'widgets/split_group_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -84,7 +85,7 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
   Future<void> _showEditGroupDialog() async {
     final nameCtrl = TextEditingController(text: _group.name);
     final descCtrl = TextEditingController(text: _group.description ?? '');
-    String currentCoverUrl = _group.imageUrl ?? _getCoverImageUrl(_group.name);
+    String currentCoverUrl = _group.imageUrl ?? PixabayService.getCuratedFallback(_group.name);
     bool isRefreshingCover = false;
 
     await showDialog(
@@ -124,13 +125,9 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
                     child: SizedBox(
                       width: 56,
                       height: 40,
-                      child: Image.network(
-                        currentCoverUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: _primaryColor.withValues(alpha: 0.1),
-                          child: const Icon(Icons.image, size: 20, color: _primaryColor),
-                        ),
+                      child: SplitGroupCover(
+                        title: _group.name,
+                        imageUrl: currentCoverUrl,
                       ),
                     ),
                   ),
@@ -221,28 +218,6 @@ class _SplitGroupDetailScreenState extends State<SplitGroupDetailScreen>
         ),
       ),
     );
-  }
-
-  String _getCoverImageUrl(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('udaipur') || lower.contains('rajasthan') || lower.contains('palace') || lower.contains('lake') || lower.contains('jaipur')) {
-      return 'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('bali') || lower.contains('temple') || lower.contains('indonesia')) {
-      return 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('trip') || lower.contains('tour') || lower.contains('travel') || lower.contains('vacation')) {
-      return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('goa') || lower.contains('beach') || lower.contains('sea')) {
-      return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('trek') || lower.contains('mountain') || lower.contains('manali') || lower.contains('hike') || lower.contains('camp')) {
-      return 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('flat') || lower.contains('room') || lower.contains('house') || lower.contains('rent') || lower.contains('home')) {
-      return 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('food') || lower.contains('dinner') || lower.contains('lunch') || lower.contains('party') || lower.contains('cafe')) {
-      return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80';
-    } else if (lower.contains('office') || lower.contains('work') || lower.contains('project')) {
-      return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80';
-    }
-    return 'https://images.unsplash.com/photo-1595846519845-68e298c2edd8?auto=format&fit=crop&w=1200&q=80';
   }
 
   void _showAddMemberDialog() {

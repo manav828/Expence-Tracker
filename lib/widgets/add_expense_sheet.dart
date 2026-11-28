@@ -60,7 +60,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String? _newlyUploadedReceiptUrl;
   bool _isSaved = false;
   bool _routeToActiveTrip = true;
-  Expense? _firstBatchEntry;
+  bool _entryCardsOpened = false;
   late DateTime _selectedDate;
   late TransactionType _type;
 
@@ -501,22 +501,6 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final firstBatchEntry = _firstBatchEntry;
-    if (firstBatchEntry != null) {
-      return MultipleEntriesForm(
-        firstEntry: firstBatchEntry,
-        firstAmountText: _amountController.text,
-        addCustomOption: (kind, isIncome, query) => _promptAddCustom(
-          context,
-          kind,
-          isIncome: isIncome,
-          initialText: query,
-          updateSelection: false,
-        ),
-        onReceiptSaved: () => _isSaved = true,
-      );
-    }
-
     final provider = Provider.of<ExpenseProvider>(context);
     final categories = _type == TransactionType.income
         ? provider.incomeCategories
@@ -532,7 +516,33 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     final split = context.watch<SplitProvider?>();
     final routingToTrip = _routeToActiveTrip &&
         split?.isTripModeActive == true && split?.activeTripGroup != null;
-    final canAddAnother = !isEditing && !widget.isAutoDetected && !routingToTrip;
+    if (!isEditing && !widget.isAutoDetected &&
+        (_entryCardsOpened || !routingToTrip)) {
+      _entryCardsOpened = true;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      return MultipleEntriesForm(
+        firstEntry: Expense(
+          amount: 0,
+          category: effectiveCategory,
+          paymentMethod: effectivePayment,
+          comment: _commentController.text,
+          receiptUrl: _receiptUrl,
+          expenseDate: _selectedDate.millisecondsSinceEpoch,
+          createdAt: now,
+          updatedAt: now,
+          type: _type,
+        ),
+        firstAmountText: _amountController.text,
+        addCustomOption: (kind, isIncome, query) => _promptAddCustom(
+          context,
+          kind,
+          isIncome: isIncome,
+          initialText: query,
+          updateSelection: false,
+        ),
+        onInitialReceiptSaved: () => _isSaved = true,
+      );
+    }
 
     return PopScope(
       canPop: true,
@@ -1151,29 +1161,6 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               // Bill & Receipt Attachment
               _buildReceiptSection(),
               const SizedBox(height: 24),
-
-              if (canAddAnother) ...[
-                AddAnotherEntryButton(
-                  onPressed: () {
-                    FocusScope.of(context).unfocus();
-                    final now = DateTime.now().millisecondsSinceEpoch;
-                    setState(() {
-                      _firstBatchEntry = Expense(
-                        amount: 0,
-                        category: effectiveCategory,
-                        paymentMethod: effectivePayment,
-                        comment: _commentController.text,
-                        receiptUrl: _receiptUrl,
-                        expenseDate: _selectedDate.millisecondsSinceEpoch,
-                        createdAt: now,
-                        updatedAt: now,
-                        type: _type,
-                      );
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
 
               // Cancel + Submit Buttons
               if (widget.isAutoDetected) ...[

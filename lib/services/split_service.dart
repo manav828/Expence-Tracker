@@ -1094,24 +1094,9 @@ class SplitService {
       shareAmount: e.value,
     )).toList();
 
-    if (!kIsWeb) {
-      try {
-        final db = await _localDb;
-        await db.update('split_expenses', updateData, where: 'id = ?', whereArgs: [expenseId]);
-        await db.delete('split_shares', where: 'expense_id = ?', whereArgs: [expenseId]);
-        final batch = db.batch();
-        for (final s in sharesObjects) {
-          batch.insert('split_shares', s.toSqliteMap(), conflictAlgorithm: sqflite.ConflictAlgorithm.replace);
-        }
-        await batch.commit(noResult: true);
-      } catch (e) {
-        debugPrint('Local updateExpense error: $e');
-      }
-    }
-
     try {
       try {
-        await _db.from('split_expenses').update(updateData).eq('id', expenseId);
+        await _db.from('split_expenses').update(updateData).eq('id', expenseId).select('id').single();
       } catch (updateErr) {
         final errStr = updateErr.toString().toLowerCase();
         final fallbackData = Map<String, dynamic>.from(updateData);
@@ -1129,7 +1114,7 @@ class SplitService {
           handled = true;
         }
         if (handled) {
-          await _db.from('split_expenses').update(fallbackData).eq('id', expenseId);
+          await _db.from('split_expenses').update(fallbackData).eq('id', expenseId).select('id').single();
         } else {
           rethrow;
         }
@@ -1139,6 +1124,8 @@ class SplitService {
       if (sharesList.isNotEmpty) {
         await _db.from('split_shares').insert(sharesList);
       }
+    } on PostgrestException {
+      rethrow;
     } catch (e) {
       debugPrint('Cloud updateExpense error: $e');
       if (!kIsWeb) {
@@ -1150,6 +1137,18 @@ class SplitService {
       } else {
         rethrow;
       }
+    }
+    if (!kIsWeb) {
+      final db = await _localDb;
+      await db.transaction((txn) async {
+        await txn.update('split_expenses', updateData, where: 'id = ?', whereArgs: [expenseId]);
+        await txn.delete('split_shares', where: 'expense_id = ?', whereArgs: [expenseId]);
+        final batch = txn.batch();
+        for (final share in sharesObjects) {
+          batch.insert('split_shares', share.toSqliteMap());
+        }
+        await batch.commit(noResult: true);
+      });
     }
   }
 
@@ -1211,6 +1210,16 @@ class SplitService {
   }
 
   Future<void> deleteExpense(String expenseId, [String? groupId]) async {
+    try {
+      await _db.from('split_expenses').delete().eq('id', expenseId).select('id').single();
+    } on PostgrestException {
+      rethrow;
+    } catch (e) {
+      debugPrint('Cloud deleteExpense error, queued offline: $e');
+      await _enqueue('DELETE', 'split_shares', expenseId, null);
+      await _enqueue('DELETE', 'split_expenses', expenseId, null);
+    }
+
     if (kIsWeb) {
       if (groupId != null) {
         _webExpenses[groupId]?.removeWhere((e) => e.id == expenseId);
@@ -1232,14 +1241,6 @@ class SplitService {
       }
     }
 
-    try {
-      await _db.from('split_shares').delete().eq('expense_id', expenseId);
-      await _db.from('split_expenses').delete().eq('id', expenseId);
-    } catch (e) {
-      debugPrint('Cloud deleteExpense error, queued offline: $e');
-      await _enqueue('DELETE', 'split_shares', expenseId, null);
-      await _enqueue('DELETE', 'split_expenses', expenseId, null);
-    }
   }
 
   Future<List<SplitShare>> getSharesForExpense(String expenseId) async {

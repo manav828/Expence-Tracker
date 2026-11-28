@@ -86,7 +86,7 @@ void main() {
       expect(addTransaction, findsOneWidget);
       await tester.tap(addTransaction);
       await tester.pumpAndSettle();
-      expect(find.text('Add Spend'), findsOneWidget);
+      expect(find.text('Entries (1)'), findsOneWidget);
     });
   });
 }

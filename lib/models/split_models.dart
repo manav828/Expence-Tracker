@@ -137,6 +137,7 @@ class SplitExpense {
   final String? note;
   final String? receiptUrl;
   final String addedByMemberId;
+  final String? authorUserId;
   final DateTime createdAt;
 
   SplitExpense({
@@ -150,6 +151,7 @@ class SplitExpense {
     this.note,
     this.receiptUrl,
     required this.addedByMemberId,
+    this.authorUserId,
     required this.createdAt,
   });
 
@@ -177,7 +179,8 @@ class SplitExpense {
         category: m['category'] as String?,
         note: m['note'] as String?,
         receiptUrl: m['receipt_url'] as String?,
-        addedByMemberId: m['added_by_member_id'] as String,
+        addedByMemberId: m['added_by_member_id'] as String? ?? '',
+        authorUserId: m['author_user_id'] as String?,
         createdAt: DateTime.parse(m['created_at'] as String),
       );
 
@@ -202,6 +205,7 @@ class SplitExpense {
         note: note ?? this.note,
         receiptUrl: receiptUrl ?? this.receiptUrl,
         addedByMemberId: addedByMemberId ?? this.addedByMemberId,
+        authorUserId: authorUserId,
         createdAt: createdAt,
       );
 }

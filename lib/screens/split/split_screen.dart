@@ -1,3 +1,4 @@
+import 'widgets/split_group_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -729,62 +730,11 @@ class _SplitScreenState extends State<SplitScreen> {
 
   // ─── Group Thumbnail (Curated & Contextual) ────────────────────────────────
   Widget _buildGroupThumbnail(SplitGroup group) {
-    final l = group.name.toLowerCase();
-    String? imageUrl = group.imageUrl;
-    IconData fallbackIcon = Icons.groups;
-    Color iconColor = AppColors.primary;
-    Color bgColor = const Color(0xFFE6F4EA);
-
-    if (imageUrl == null || imageUrl.isEmpty) {
-      if (l.contains('trip') || l.contains('travel') || l.contains('tour') || l.contains('bali') || l.contains('goa') || l.contains('flight')) {
-        imageUrl = 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=200&q=80';
-        fallbackIcon = Icons.flight;
-        iconColor = const Color(0xFF0284C7);
-        bgColor = const Color(0xFFE0F2FE);
-      } else if (l.contains('flat') || l.contains('room') || l.contains('house') || l.contains('rent') || l.contains('home')) {
-        imageUrl = 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=200&q=80';
-        fallbackIcon = Icons.home;
-        iconColor = const Color(0xFFD97706);
-        bgColor = const Color(0xFFFEF3C7);
-      } else if (l.contains('office') || l.contains('work') || l.contains('commute') || l.contains('cab')) {
-        imageUrl = 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=200&q=80';
-        fallbackIcon = Icons.directions_car;
-        iconColor = const Color(0xFFDC2626);
-        bgColor = const Color(0xFFFEE2E2);
-      } else if (l.contains('food') || l.contains('dinner') || l.contains('lunch') || l.contains('cafe') || l.contains('restaurant')) {
-        imageUrl = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=200&q=80';
-        fallbackIcon = Icons.restaurant;
-        iconColor = const Color(0xFFE11D48);
-        bgColor = const Color(0xFFFFE4E6);
-      }
-    }
-
-    return Container(
-      width: 68,
-      height: 68,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: imageUrl != null
-            ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildFallbackThumbnail(group, fallbackIcon, iconColor, bgColor),
-              )
-            : _buildFallbackThumbnail(group, fallbackIcon, iconColor, bgColor),
-      ),
-    );
-  }
-
-  Widget _buildFallbackThumbnail(SplitGroup group, IconData icon, Color iconColor, Color bgColor) {
-    return Container(
-      color: bgColor,
-      child: Center(
-        child: Icon(icon, color: iconColor, size: 28),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox.square(
+        dimension: 68,
+        child: SplitGroupCover(title: group.name, imageUrl: group.imageUrl),
       ),
     );
   }
