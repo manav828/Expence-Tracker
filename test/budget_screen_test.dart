@@ -34,8 +34,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No Category Budgets Set'), findsOneWidget);
-    expect(find.text('Active Categories'), findsOneWidget);
+    expect(find.text('Active Categories'), findsNothing);
+    expect(find.text('OVERALL HEALTH'), findsNothing);
+    expect(
+      find.image(const AssetImage('assets/illustrations/first-budget.webp')),
+      findsOneWidget,
+    );
     expect(find.text('Add Budget'), findsOneWidget);
+
+    await tester.tap(find.text('Add Budget'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save Budget'), findsOneWidget);
   });
 
   testWidgets('BudgetScreen renders populated budgets and overspend without unbudgeted outflows', (tester) async {

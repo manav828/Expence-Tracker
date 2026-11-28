@@ -78,6 +78,15 @@ void main() {
       expect(find.text(expectedGreeting), findsOneWidget);
       expect(find.textContaining('Manav'), findsNothing);
       expect(find.textContaining('Alex'), findsNothing);
+      expect(
+        find.image(const AssetImage('assets/illustrations/first-transaction.webp')),
+        findsOneWidget,
+      );
+      final addTransaction = find.text('Add your first transaction');
+      expect(addTransaction, findsOneWidget);
+      await tester.tap(addTransaction);
+      await tester.pumpAndSettle();
+      expect(find.text('Add Spend'), findsOneWidget);
     });
   });
 }

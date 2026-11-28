@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
+import '../utils/category_icons.dart';
 import '../models/budget.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
@@ -44,44 +45,6 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
   void dispose() {
     _amountController.dispose();
     super.dispose();
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'dining':
-      case 'dining & restaurants':
-      case 'food & dining':
-      case 'food':
-        return Icons.restaurant;
-      case 'groceries':
-      case 'groceries & essentials':
-        return Icons.shopping_cart;
-      case 'housing':
-      case 'housing & utilities':
-      case 'rent':
-        return Icons.roofing;
-      case 'health':
-      case 'health & wellness':
-      case 'wellness':
-        return Icons.favorite_border;
-      case 'transport':
-      case 'transport & fuel':
-        return Icons.directions_car;
-      case 'entertainment':
-      case 'entertainment & streaming':
-        return Icons.tv;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'tech & gear':
-      case 'tech':
-        return Icons.devices;
-      case 'bills & utilities':
-        return Icons.receipt;
-      case 'investment':
-        return Icons.trending_up;
-      default:
-        return Icons.category;
-    }
   }
 
   void _addQuickAmount(double delta) {
@@ -274,7 +237,7 @@ class _SetBudgetSheetState extends State<SetBudgetSheet> {
               itemBuilder: (context, index) {
                 final cat = categories[index];
                 final isSelected = _selectedCategory == cat;
-                final catIcon = _getCategoryIcon(cat);
+                final catIcon = CategoryIcons.get(cat);
 
                 return InkWell(
                   onTap: () {

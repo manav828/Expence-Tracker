@@ -113,7 +113,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('No Budgets'), findsOneWidget);
+    expect(find.text('No Category Budgets Set'), findsOneWidget);
     expect(find.text('On Track'), findsNothing);
   });
 

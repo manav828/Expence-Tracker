@@ -150,8 +150,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
 
               // 2. Top Spend Summary & Trend Graph Hero Card
-              _buildTopSpendHeroCard(context, provider),
-              const SizedBox(height: 10),
+              if (provider.expenses.isNotEmpty) ...[
+                _buildTopSpendHeroCard(context, provider),
+                const SizedBox(height: 10),
+              ],
 
               // 3. Payment Reminders & Upcoming Bills Carousel Banner
               const ReminderCarouselBanner(margin: EdgeInsets.only(bottom: 10)),
@@ -159,12 +161,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // 4. Monthly Category Budget Snapshot Card
               _buildBudgetSnapshotCard(context, provider),
 
-              // 5. Compact "Where you spend" Segmented Category Card
-              _buildWhereYouSpendCard(context, provider),
-              const SizedBox(height: 16),
-
-              // 6. Recent Transactions Ledger
-              _buildVerifiedLedgerSection(context, provider),
+              if (provider.expenses.isEmpty)
+                _buildFirstTransactionCard(context)
+              else ...[
+                _buildWhereYouSpendCard(context, provider),
+                const SizedBox(height: 16),
+                _buildVerifiedLedgerSection(context, provider),
+              ],
             ],
           ),
         );
@@ -1043,6 +1046,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildFirstTransactionCard(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        children: [
+          Image.asset(
+            'assets/illustrations/first-transaction.webp',
+            width: 136,
+            height: 136,
+            excludeFromSemantics: true,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No transactions yet',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Start with something simple, like a coffee, a bill, or your salary.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const AddExpenseSheet(),
+            ),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add your first transaction'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- 4. Recent Transactions Ledger ---
   Widget _buildVerifiedLedgerSection(BuildContext context, ExpenseProvider provider) {
     final recentItems = provider.expenses.take(5).toList();
@@ -1113,42 +1161,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 14),
 
-          if (provider.expenses.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF2F3FF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.receipt_long_outlined, size: 24, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'No transactions yet',
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF131B2E)),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Tap + to log your first expense or income.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else ...[
-            for (int i = 0; i < recentItems.length; i++) ...[
-              if (i > 0)
-                const Divider(height: 16, thickness: 0.7, color: Color(0xFFF1F5F9)),
-              _buildTransactionRow(context, recentItems[i]),
-            ],
+          for (int i = 0; i < recentItems.length; i++) ...[
+            if (i > 0)
+              const Divider(height: 16, thickness: 0.7, color: Color(0xFFF1F5F9)),
+            _buildTransactionRow(context, recentItems[i]),
           ],
         ],
         ),

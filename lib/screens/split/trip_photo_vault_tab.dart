@@ -355,39 +355,47 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                               // Row 1: Timer Pill, Photo Count & Gallery Density Switcher
                               Row(
                                 children: [
-                                  // Timer Badge Pill
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                                    decoration: BoxDecoration(
-                                      color: isUrgent ? const Color(0xFFD97706) : _primaryColor,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                  Expanded(
+                                    child: Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 6,
                                       children: [
-                                        const Icon(Icons.timer_outlined, size: 12, color: Colors.white),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          countdownText,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
+                                          // Timer Badge Pill
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                            decoration: BoxDecoration(
+                                              color: isUrgent ? const Color(0xFFD97706) : _primaryColor,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.timer_outlined, size: 12, color: Colors.white),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  countdownText,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
+                                          Text(
+                                            '$totalCount photos',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    '$totalCount photos',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                  const Spacer(),
 
                                   // Samsung Gallery Density Switcher (Icons)
                                   Container(
@@ -416,15 +424,17 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                                 children: [
                                   const Icon(Icons.cloud_outlined, size: 12, color: Color(0xFF64748B)),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'Storage: ${provider.formattedUsedStorage} / ${provider.formattedStorageCapacity}',
-                                    style: const TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF64748B),
+                                  Expanded(
+                                    child: Text(
+                                      'Storage: ${provider.formattedUsedStorage} / ${provider.formattedStorageCapacity}',
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
                                   ),
-                                  const Spacer(),
+                                  const SizedBox(width: 8),
                                   Text(
                                     '${(provider.storageUsageRatio * 100).toStringAsFixed(1)}% used',
                                     style: const TextStyle(
@@ -544,43 +554,56 @@ class _TripPhotoVaultTabState extends State<TripPhotoVaultTab> {
                     if (photos.isEmpty)
                       SliverFillRemaining(
                         hasScrollBody: false,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE8F7F0),
-                                  shape: BoxShape.circle,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (totalCount == 0 &&
+                                    provider.selectedFilter == 'all' &&
+                                    provider.errorMessage == null)
+                                  Image.asset(
+                                    'assets/illustrations/empty-photo-vault.webp',
+                                    width: 120,
+                                    height: 120,
+                                    excludeFromSemantics: true,
+                                  )
+                                else
+                                  const CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor: Color(0xFFE8F7F0),
+                                    child: Icon(
+                                      Icons.photo_library_outlined,
+                                      color: _primaryColor,
+                                      size: 28,
+                                    ),
+                                  ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  provider.selectedFilter == 'liked'
+                                      ? 'No liked photos yet'
+                                      : 'No trip photos in this vault',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1E293B),
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.photo_library_outlined,
-                                  color: _primaryColor,
-                                  size: 28,
+                                const SizedBox(height: 4),
+                                Text(
+                                  provider.selectedFilter == 'liked'
+                                      ? 'Tap the heart icon on any photo to save your favorites.'
+                                      : 'Photos are available for 48 hours after upload.',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                provider.selectedFilter == 'liked'
-                                    ? 'No liked photos yet'
-                                    : 'No trip photos in this vault',
-                                style: const TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                provider.selectedFilter == 'liked'
-                                    ? 'Tap the heart icon on any photo to save your favorites.'
-                                    : 'Upload memories before the 48-hour vault expires!',
-                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       )

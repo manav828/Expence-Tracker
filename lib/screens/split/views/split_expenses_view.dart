@@ -714,24 +714,19 @@ class SplitExpensesView extends StatelessWidget {
     final myShareAmount = expense.totalAmount / memberCount;
 
     Color themeColor;
-    IconData categoryIcon;
+    final categoryIcon = CategoryIcons.get(expense.title);
     final lowerTitle = expense.title.toLowerCase();
 
     if (lowerTitle.contains('hotel') || lowerTitle.contains('stay') || lowerTitle.contains('resort') || lowerTitle.contains('room')) {
       themeColor = const Color(0xFF4F46E5);
-      categoryIcon = Icons.hotel_rounded;
     } else if (lowerTitle.contains('cab') || lowerTitle.contains('uber') || lowerTitle.contains('ola') || lowerTitle.contains('taxi') || lowerTitle.contains('petrol')) {
       themeColor = const Color(0xFF059669);
-      categoryIcon = Icons.directions_car_rounded;
     } else if (lowerTitle.contains('food') || lowerTitle.contains('dinner') || lowerTitle.contains('lunch') || lowerTitle.contains('cafe') || lowerTitle.contains('restaurant')) {
       themeColor = const Color(0xFFD97706);
-      categoryIcon = Icons.restaurant_rounded;
     } else if (lowerTitle.contains('shopping') || lowerTitle.contains('mall') || lowerTitle.contains('market')) {
       themeColor = const Color(0xFFEA580C);
-      categoryIcon = Icons.shopping_bag_rounded;
     } else {
       themeColor = _cheqGreenDark;
-      categoryIcon = CategoryIcons.get(expense.title);
     }
 
     return Dismissible(

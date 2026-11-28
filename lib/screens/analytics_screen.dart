@@ -2559,7 +2559,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             final catColor = isIncome
                 ? AppColors.primary
                 : _getCategoryColor(entry.key);
-            final catIcon = isIncome ? Icons.payments_rounded : CategoryIcons.get(entry.key);
+            final catIcon = CategoryIcons.get(entry.key);
             final txCount = transactions.where((e) => e.category == entry.key).length;
 
             return InkWell(

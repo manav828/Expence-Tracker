@@ -105,7 +105,7 @@ void main() {
       final now = DateTime.now();
       final tomorrow = now.add(const Duration(days: 1));
 
-      reminderProvider.setRemindersForTesting([
+      final reminders = [
         PaymentReminder(
           id: 'rem-1',
           title: 'Electricity Bill',
@@ -137,7 +137,7 @@ void main() {
           isActive: true,
           isCompleted: true, // Completed
         ),
-      ]);
+      ];
 
       await tester.pumpWidget(
         MultiProvider(
@@ -153,6 +153,16 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+
+      final emptyArtwork = find.image(
+        const AssetImage('assets/illustrations/first-payment-reminder.webp'),
+      );
+      expect(emptyArtwork, findsOneWidget);
+      expect(find.text('Add Reminder'), findsOneWidget);
+
+      reminderProvider.setRemindersForTesting(reminders);
+      await tester.pumpAndSettle();
+      expect(emptyArtwork, findsNothing);
 
       // Verify Header committed card
       expect(find.text('Monthly Fixed Bills Commitment'), findsOneWidget);

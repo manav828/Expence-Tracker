@@ -36,20 +36,13 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
 
   void _promptAdd(BuildContext context, bool isCategory, {bool isIncome = false}) {
     final controller = TextEditingController();
-    String selectedIconKey = isCategory ? (isIncome ? 'payments' : 'category') : '';
+    String? selectedIconKey;
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final selectedIconData = isCategory
-              ? (CategoryIcons.availableIcons.firstWhere(
-                  (opt) => opt.key == selectedIconKey,
-                  orElse: () => CategoryIconOption(
-                    key: isIncome ? 'payments' : 'category',
-                    label: isIncome ? 'Income' : 'General',
-                    icon: isIncome ? Icons.payments : Icons.category,
-                  ),
-                ).icon)
+              ? CategoryIcons.optionForKey(selectedIconKey ?? CategoryIcons.getKeyForCategory(controller.text)).icon
               : Icons.category;
 
           return AlertDialog(
@@ -68,6 +61,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                 TextField(
                   controller: controller,
                   autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
                     labelText: isCategory
@@ -87,7 +81,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                     onTap: () async {
                       final picked = await CategoryIconPickerDialog.show(
                         context,
-                        currentIconKey: selectedIconKey,
+                        currentIconKey: selectedIconKey ?? CategoryIcons.getKeyForCategory(controller.text),
                       );
                       if (picked != null) {
                         setDialogState(() {
@@ -150,7 +144,8 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
                   if (text.isNotEmpty) {
                     final provider = Provider.of<ExpenseProvider>(context, listen: false);
                     if (isCategory) {
-                      await CategoryIcons.setCustomIcon(text, selectedIconKey);
+                      final iconKey = selectedIconKey;
+                      if (iconKey != null) await CategoryIcons.setCustomIcon(text, iconKey);
                       if (isIncome) {
                         await provider.addIncomeCategory(text);
                       } else {
@@ -186,14 +181,7 @@ class _CategoryPaymentManagerSheetState extends State<CategoryPaymentManagerShee
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final selectedIconData = isCategory
-              ? (CategoryIcons.availableIcons.firstWhere(
-                  (opt) => opt.key == selectedIconKey,
-                  orElse: () => CategoryIconOption(
-                    key: isIncome ? 'payments' : 'category',
-                    label: isIncome ? 'Income' : 'General',
-                    icon: isIncome ? Icons.payments : Icons.category,
-                  ),
-                ).icon)
+              ? CategoryIcons.optionForKey(selectedIconKey).icon
               : Icons.category;
 
           return AlertDialog(

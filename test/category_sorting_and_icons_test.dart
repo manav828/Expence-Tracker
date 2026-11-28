@@ -6,6 +6,7 @@ import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/providers/expense_provider.dart';
 import 'package:expense_tracker/services/database_service.dart';
 import 'package:expense_tracker/utils/category_icons.dart';
+import 'package:expense_tracker/widgets/category_icon_picker_dialog.dart';
 import 'package:expense_tracker/widgets/category_payment_manager_sheet.dart';
 import 'package:expense_tracker/widgets/searchable_selection_sheet.dart';
 
@@ -19,42 +20,83 @@ void main() {
 
   group('CategoryIcons Registry & Custom Icons', () {
     test('Default keyword icon matching works accurately', () {
-      expect(CategoryIcons.get('Food & Dining'), Icons.restaurant);
-      expect(CategoryIcons.get('Fast food'), Icons.restaurant);
-      expect(CategoryIcons.get('Coffee & snacks'), Icons.coffee);
-      expect(CategoryIcons.get('Groceries supermarket'), Icons.shopping_cart);
-      expect(CategoryIcons.get('Shopping clothes'), Icons.shopping_bag);
-      expect(CategoryIcons.get('Petrol fuel'), Icons.directions_car);
-      expect(CategoryIcons.get('Electricity bill'), Icons.receipt);
-      expect(CategoryIcons.get('Cinema movie tickets'), Icons.tv);
+      expect(CategoryIcons.get('Food & Dining'), Icons.restaurant_outlined);
+      expect(CategoryIcons.get('Fast food'), Icons.fastfood_outlined);
+      expect(CategoryIcons.get('Coffee & snacks'), Icons.coffee_outlined);
+      expect(CategoryIcons.get('Groceries supermarket'), Icons.shopping_cart_outlined);
+      expect(CategoryIcons.get('Shopping clothes'), Icons.shopping_bag_outlined);
+      expect(CategoryIcons.get('Petrol fuel'), Icons.local_gas_station_outlined);
+      expect(CategoryIcons.get('Electricity bill'), Icons.bolt_outlined);
+      expect(CategoryIcons.get('Cinema movie tickets'), Icons.movie_outlined);
+      expect(CategoryIcons.getKeyForCategory('Car insurance renewal'), 'insurance');
+      expect(CategoryIcons.getKeyForCategory('Rental income'), 'rental_income');
+      expect(CategoryIcons.getKeyForCategory('Daycare'), 'category');
     });
 
     test('Payment method icon matching works accurately', () {
-      expect(CategoryIcons.getPaymentMethodIcon('UPI'), Icons.qr_code_2);
-      expect(CategoryIcons.getPaymentMethodIcon('Google Pay (UPI)'), Icons.qr_code_2);
-      expect(CategoryIcons.getPaymentMethodIcon('Credit Card'), Icons.credit_card);
-      expect(CategoryIcons.getPaymentMethodIcon('Debit Card'), Icons.credit_card);
+      expect(CategoryIcons.getPaymentMethodIcon('UPI'), Icons.qr_code_2_rounded);
+      expect(CategoryIcons.getPaymentMethodIcon('Google Pay (UPI)'), Icons.qr_code_2_rounded);
+      expect(CategoryIcons.getPaymentMethodIcon('Credit Card'), Icons.credit_card_outlined);
+      expect(CategoryIcons.getPaymentMethodIcon('Debit Card'), Icons.credit_card_outlined);
       expect(CategoryIcons.getPaymentMethodIcon('Cash'), Icons.payments_outlined);
-      expect(CategoryIcons.getPaymentMethodIcon('Bank Transfer'), Icons.account_balance);
+      expect(CategoryIcons.getPaymentMethodIcon('Bank Transfer'), Icons.account_balance_outlined);
     });
 
     test('Custom icon assignment overrides default icon', () async {
-      expect(CategoryIcons.get('Gardening'), Icons.category);
+      expect(CategoryIcons.get('Gardening'), Icons.category_outlined);
 
       await CategoryIcons.setCustomIcon('Gardening', 'brush');
-      expect(CategoryIcons.get('Gardening'), Icons.brush);
+      await CategoryIcons.init();
+      expect(CategoryIcons.getKeyForCategory('Gardening'), 'brush');
+      expect(CategoryIcons.get('Gardening'), Icons.brush_outlined);
     });
 
     test('Custom icon rename and deletion work properly', () async {
       await CategoryIcons.setCustomIcon('My Pets', 'pets');
-      expect(CategoryIcons.get('My Pets'), Icons.pets);
+      expect(CategoryIcons.get('My Pets'), Icons.pets_outlined);
 
       await CategoryIcons.renameCategory('My Pets', 'Adopted Animals');
-      expect(CategoryIcons.get('Adopted Animals'), Icons.pets);
+      expect(CategoryIcons.get('Adopted Animals'), Icons.pets_outlined);
 
       await CategoryIcons.deleteCategory('Adopted Animals');
-      expect(CategoryIcons.get('Adopted Animals'), Icons.category);
+      expect(CategoryIcons.get('Adopted Animals'), Icons.category_outlined);
     });
+  });
+
+  testWidgets('Icon picker filters by group and searches related words', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    CategoryIconOption? selected;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                selected = await CategoryIconPickerDialog.show(context);
+              },
+              child: const Text('Open picker'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open picker'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Food & drink'));
+    await tester.enterText(find.byType(TextField), 'subway');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No icons match'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Train & Metro'));
+    await tester.pumpAndSettle();
+    expect(selected?.key, 'train');
   });
 
   group('ExpenseProvider Category & Payment Method Sorting', () {

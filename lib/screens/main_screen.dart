@@ -406,17 +406,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                _buildNavItem(1, Icons.bar_chart_outlined, Icons.bar_chart, 'Analytics'),
+                _buildNavItem(0, Icons.home_outlined, 'Home'),
+                _buildNavItem(1, Icons.insert_chart_outlined_rounded, 'Analytics'),
                 const SizedBox(width: 54),
-                _buildNavItem(2, Icons.group_outlined, Icons.group, 'Split'),
-                _buildNavItem(3, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Budgets'),
+                _buildNavItem(2, Icons.group_outlined, 'Split'),
+                _buildNavItem(3, Icons.account_balance_wallet_outlined, 'Budgets'),
               ],
             ),
           ),
           Positioned(
             top: -14,
             child: GestureDetector(
+              key: const ValueKey('main-add-transaction'),
               onTap: () => _openAddExpenseSheet(context),
               child: Container(
                 width: 54,
@@ -432,7 +433,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.add, color: Colors.white, size: 28),
+                child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
               ),
             ),
           ),
@@ -441,7 +442,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
     return InkWell(
       onTap: () {
@@ -452,14 +453,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       },
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? AppColors.primary : AppColors.textMuted,
-              size: 22,
+            Container(
+              width: 42,
+              height: 28,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primaryLight : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
+                size: 21,
+              ),
             ),
             const SizedBox(height: 2),
             Text(

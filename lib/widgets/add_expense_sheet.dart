@@ -154,8 +154,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   }) async {
     final controller = TextEditingController(text: initialText ?? '');
     final isInc = isIncome || _type == TransactionType.income;
-    String selectedIconKey = isCategory ? (isInc ? 'payments' : 'category') : '';
-    IconData selectedIconData = isCategory ? (isInc ? Icons.payments : Icons.category) : Icons.payment;
+    String? selectedIconKey;
 
     return await showDialog<String>(
       context: context,
@@ -175,6 +174,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               TextField(
                 controller: controller,
                 autofocus: true,
+                onChanged: (_) => setDialogState(() {}),
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   hintText: isCategory
@@ -191,11 +191,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 const SizedBox(height: 14),
                 InkWell(
                   onTap: () async {
-                    final picked = await CategoryIconPickerDialog.show(ctx, currentIconKey: selectedIconKey);
+                    final picked = await CategoryIconPickerDialog.show(
+                      ctx,
+                      currentIconKey: selectedIconKey ?? CategoryIcons.getKeyForCategory(controller.text),
+                    );
                     if (picked != null) {
                       setDialogState(() {
                         selectedIconKey = picked.key;
-                        selectedIconData = picked.icon;
                       });
                     }
                   },
@@ -219,7 +221,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                                 color: AppColors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(selectedIconData, color: AppColors.primary, size: 18),
+                              child: Icon(
+                                CategoryIcons.optionForKey(
+                                  selectedIconKey ?? CategoryIcons.getKeyForCategory(controller.text),
+                                ).icon,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             const Text(
@@ -255,7 +263,8 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 if (text.isNotEmpty) {
                   final provider = Provider.of<ExpenseProvider>(context, listen: false);
                   if (isCategory) {
-                    await CategoryIcons.setCustomIcon(text, selectedIconKey);
+                    final iconKey = selectedIconKey;
+                    if (iconKey != null) await CategoryIcons.setCustomIcon(text, iconKey);
                     if (isInc) {
                       await provider.addIncomeCategory(text);
                     } else {

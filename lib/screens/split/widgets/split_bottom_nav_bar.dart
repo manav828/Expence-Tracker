@@ -172,16 +172,6 @@ class SplitBottomNavBar extends StatelessWidget {
                   letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(height: 2),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: isActive ? 4 : 0,
-                height: isActive ? 4 : 0,
-                decoration: const BoxDecoration(
-                  color: _activeGreen,
-                  shape: BoxShape.circle,
-                ),
-              ),
             ],
           ),
         ),

@@ -6,6 +6,7 @@ import '../models/payment_reminder.dart';
 import '../providers/expense_provider.dart';
 import '../providers/reminder_provider.dart';
 import '../utils/category_icons.dart';
+import 'category_icon_picker_dialog.dart';
 import 'searchable_selection_sheet.dart';
 
 class AddEditReminderSheet extends StatefulWidget {
@@ -65,7 +66,7 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
     String? initialText,
   }) async {
     final controller = TextEditingController(text: initialText ?? '');
-    String selectedIconKey = isCategory ? 'category' : '';
+    String? selectedIconKey;
 
     return await showDialog<String>(
       context: context,
@@ -85,6 +86,7 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
                 TextField(
                   controller: controller,
                   autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
                     hintText: isCategory ? 'e.g. Wi-Fi, Rent' : 'e.g. Credit Card, Wallet',
@@ -98,46 +100,24 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
                 ),
                 if (isCategory) ...[
                   const SizedBox(height: 12),
-                  const Text(
-                    'Icon',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 112,
-                    width: double.maxFinite,
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 6,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
-                      itemCount: CategoryIcons.availableIcons.length,
-                      itemBuilder: (context, idx) {
-                        final item = CategoryIcons.availableIcons[idx];
-                        final isSel = selectedIconKey == item.key;
-                        return InkWell(
-                          onTap: () {
-                            setDialogState(() {
-                              selectedIconKey = item.key;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSel ? AppColors.primary : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              item.icon,
-                              size: 18,
-                              color: isSel ? Colors.white : const Color(0xFF334155),
-                            ),
-                          ),
-                        );
-                      },
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final suggestion = selectedIconKey ??
+                          CategoryIcons.getKeyForCategory(controller.text);
+                      final picked = await CategoryIconPickerDialog.show(
+                        ctx,
+                        currentIconKey: suggestion,
+                      );
+                      if (picked != null && ctx.mounted) {
+                        setDialogState(() => selectedIconKey = picked.key);
+                      }
+                    },
+                    icon: Icon(
+                      CategoryIcons.optionForKey(
+                        selectedIconKey ?? CategoryIcons.getKeyForCategory(controller.text),
+                      ).icon,
                     ),
+                    label: const Text('Choose icon'),
                   ),
                 ],
               ],
@@ -158,7 +138,8 @@ class _AddEditReminderSheetState extends State<AddEditReminderSheet> {
                   if (text.isNotEmpty) {
                     final provider = ctx.read<ExpenseProvider>();
                     if (isCategory) {
-                      await CategoryIcons.setCustomIcon(text, selectedIconKey);
+                      final iconKey = selectedIconKey;
+                      if (iconKey != null) await CategoryIcons.setCustomIcon(text, iconKey);
                       await provider.addCategory(text);
                     } else {
                       await provider.addPaymentMethod(text);

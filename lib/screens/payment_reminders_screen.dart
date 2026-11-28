@@ -183,21 +183,35 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
     bool isPausedTab = false,
   }) {
     if (list.isEmpty) {
+      if (provider.isLoading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final isFirstReminder =
+          !isCompletedTab && !isPausedTab && provider.reminders.isEmpty;
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 80),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isCompletedTab
-                    ? Icons.task_alt_rounded
-                    : isPausedTab
-                        ? Icons.pause_circle_outline_rounded
-                        : Icons.notifications_off_outlined,
-                size: 54,
-                color: AppColors.textMuted.withValues(alpha: 0.5),
-              ),
+              if (isFirstReminder)
+                Image.asset(
+                  'assets/illustrations/first-payment-reminder.webp',
+                  width: 120,
+                  height: 120,
+                  excludeFromSemantics: true,
+                )
+              else
+                Icon(
+                  isCompletedTab
+                      ? Icons.task_alt_rounded
+                      : isPausedTab
+                          ? Icons.pause_circle_outline_rounded
+                          : Icons.notifications_off_outlined,
+                  size: 54,
+                  color: AppColors.textMuted.withValues(alpha: 0.5),
+                ),
               const SizedBox(height: 14),
               Text(
                 isCompletedTab
@@ -205,6 +219,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
                     : isPausedTab
                         ? 'No paused reminders'
                         : 'No pending reminders scheduled',
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -215,7 +230,9 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen>
               Text(
                 isCompletedTab
                     ? 'When you mark a reminder as paid, it will show up here.'
-                    : 'Add recurring bills like Rent, Wi-Fi, Recharge to stay on top of payments.',
+                    : isPausedTab
+                        ? 'Reminders you pause will appear here.'
+                        : 'Set a reminder for rent, internet, or another upcoming bill.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
               ),

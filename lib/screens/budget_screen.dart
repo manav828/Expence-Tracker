@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
+import '../utils/category_icons.dart';
 import '../models/budget.dart';
 import '../models/expense.dart';
 import '../providers/budget_provider.dart';
@@ -21,44 +22,6 @@ class BudgetScreen extends StatelessWidget {
         initialAmount: initialAmount,
       ),
     );
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'dining':
-      case 'dining & restaurants':
-      case 'food & dining':
-      case 'food':
-        return Icons.restaurant;
-      case 'groceries':
-      case 'groceries & essentials':
-        return Icons.shopping_cart;
-      case 'housing':
-      case 'housing & utilities':
-      case 'rent':
-        return Icons.roofing;
-      case 'health':
-      case 'health & wellness':
-      case 'wellness':
-        return Icons.favorite_border;
-      case 'transport':
-      case 'transport & fuel':
-        return Icons.directions_car;
-      case 'entertainment':
-      case 'entertainment & streaming':
-        return Icons.tv;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'tech & gear':
-      case 'tech':
-        return Icons.devices;
-      case 'bills & utilities':
-        return Icons.receipt;
-      case 'investment':
-        return Icons.trending_up;
-      default:
-        return Icons.category;
-    }
   }
 
   Color _getCategoryBaseColor(String category) {
@@ -125,14 +88,6 @@ class BudgetScreen extends StatelessWidget {
     }
 
     final budgets = budgetProvider.budgets;
-    final List<Expense> expenses = expenseProvider.expenses;
-    final allProgress = budgetProvider.getAllBudgetProgress(expenses);
-    final overspentList = budgetProvider.getOverspentBudgets(expenses);
-
-    final totalBudget = budgetProvider.getTotalBudgetLimit();
-    final totalSpent = budgetProvider.getTotalBudgetSpent(expenses);
-    final overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0.0;
-
     // Remaining days in month
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
@@ -141,6 +96,27 @@ class BudgetScreen extends StatelessWidget {
     // Month display string (e.g. Sep 2026)
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final currentMonthStr = '${monthNames[now.month - 1]} ${now.year}';
+
+    if (budgets.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+          children: [
+            _buildCycleHeader(context, currentMonthStr, daysRemaining, showAdd: false),
+            const SizedBox(height: 16),
+            _buildNoBudgetsPlaceholder(context),
+          ],
+        ),
+      );
+    }
+
+    final List<Expense> expenses = expenseProvider.expenses;
+    final allProgress = budgetProvider.getAllBudgetProgress(expenses);
+    final overspentList = budgetProvider.getOverspentBudgets(expenses);
+    final totalBudget = budgetProvider.getTotalBudgetLimit();
+    final totalSpent = budgetProvider.getTotalBudgetSpent(expenses);
+    final overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0.0;
 
     // Sort active budget progress by risk: overspent first, then near limit, then safe
     final sortedProgress = List<BudgetProgress>.from(allProgress)..sort((a, b) {
@@ -220,21 +196,22 @@ class BudgetScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // 4b. Category Budget Cards or Empty State
-          if (budgets.isEmpty)
-            _buildNoBudgetsPlaceholder(context)
-          else
-            for (var progress in sortedProgress) ...[
-              _buildEnvelopeCard(context, progress, daysRemaining),
-              const SizedBox(height: 10),
-            ],
+          for (final progress in sortedProgress) ...[
+            _buildEnvelopeCard(context, progress, daysRemaining),
+            const SizedBox(height: 10),
+          ],
         ],
       ),
     );
   }
 
   // 1. Cycle Pill Selector & Add Button
-  Widget _buildCycleHeader(BuildContext context, String currentMonthStr, int daysRemaining) {
+  Widget _buildCycleHeader(
+    BuildContext context,
+    String currentMonthStr,
+    int daysRemaining, {
+    bool showAdd = true,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -279,21 +256,22 @@ class BudgetScreen extends StatelessWidget {
             ),
           ],
         ),
-        ElevatedButton.icon(
-          onPressed: () => _openSetBudgetSheet(context),
-          icon: const Icon(Icons.add, size: 16, color: Colors.white),
-          label: const Text(
-            'Add Budget',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+        if (showAdd)
+          ElevatedButton.icon(
+            onPressed: () => _openSetBudgetSheet(context),
+            icon: const Icon(Icons.add, size: 16, color: Colors.white),
+            label: const Text(
+              'Add Budget',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              elevation: 2,
+              shadowColor: AppColors.primary.withValues(alpha: 0.25),
+            ),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            elevation: 2,
-            shadowColor: AppColors.primary.withValues(alpha: 0.25),
-          ),
-        ),
       ],
     );
   }
@@ -614,7 +592,7 @@ class BudgetScreen extends StatelessWidget {
     Color footerLeftColor;
     String footerRightText;
 
-    final categoryIcon = _getCategoryIcon(progress.category);
+    final categoryIcon = CategoryIcons.get(progress.category);
 
     if (isOver) {
       final excess = progress.spentThisMonth - progress.limit;
@@ -794,24 +772,29 @@ class BudgetScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-              color: AppColors.primaryLight,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.account_balance_wallet_outlined, size: 32, color: AppColors.primary),
+          Image.asset(
+            'assets/illustrations/first-budget.webp',
+            width: 112,
+            height: 112,
+            excludeFromSemantics: true,
           ),
           const SizedBox(height: 12),
           const Text(
             'No Category Budgets Set',
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF131B2E)),
           ),
           const SizedBox(height: 6),
           const Text(
-            'Tap "+ Add Budget" above to set a monthly limit for any category.',
+            'Set a monthly spending limit for a category you want to keep an eye on.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: Color(0xFF6D7A72)),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () => _openSetBudgetSheet(context),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add Budget'),
           ),
         ],
       ),

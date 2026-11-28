@@ -84,6 +84,7 @@ flutter:
     - screen/logos/
     - screen/split/
     - screen/split/member/
+    - assets/illustrations/
     - shorebird.yaml
 
   # An image asset can refer to one or more resolution-specific "variants", see

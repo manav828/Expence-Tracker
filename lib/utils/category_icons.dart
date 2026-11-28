@@ -1,222 +1,214 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+enum CategoryIconGroup {
+  food('Food & drink'),
+  shopping('Shopping'),
+  travel('Transport & travel'),
+  home('Home & bills'),
+  lifestyle('Health & lifestyle'),
+  money('Money');
+
+  const CategoryIconGroup(this.label);
+  final String label;
+}
 
 class CategoryIconOption {
   final String key;
   final String label;
   final IconData icon;
+  final List<String> aliases;
 
-  const CategoryIconOption({
-    required this.key,
-    required this.label,
-    required this.icon,
-  });
+  const CategoryIconOption(this.key, this.label, this.icon, this.aliases);
+
+  bool matches(String query) {
+    final words = _normalizeIconText(query).split(' ');
+    final searchable = _normalizeIconText('$label $key ${aliases.join(' ')}');
+    return words.every(searchable.contains);
+  }
 }
+
+String _normalizeIconText(String text) => text
+    .toLowerCase()
+    .replaceAll('é', 'e')
+    .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+    .trim();
 
 class CategoryIcons {
   static const String _prefKey = 'custom_category_icons_v1';
+  static const String _defaultKey = 'category';
   static final Map<String, String> _customIcons = {};
 
-  static const List<CategoryIconOption> availableIcons = [
-    CategoryIconOption(key: 'restaurant', label: 'Food & Dining', icon: Icons.restaurant),
-    CategoryIconOption(key: 'fastfood', label: 'Fast Food', icon: Icons.fastfood),
-    CategoryIconOption(key: 'coffee', label: 'Cafe / Coffee', icon: Icons.coffee),
-    CategoryIconOption(key: 'local_bar', label: 'Drinks / Nightlife', icon: Icons.local_bar),
-    CategoryIconOption(key: 'shopping_bag', label: 'Shopping', icon: Icons.shopping_bag),
-    CategoryIconOption(key: 'shopping_cart', label: 'Groceries', icon: Icons.shopping_cart),
-    CategoryIconOption(key: 'storefront', label: 'Market / Store', icon: Icons.storefront),
-    CategoryIconOption(key: 'directions_car', label: 'Transport / Car', icon: Icons.directions_car),
-    CategoryIconOption(key: 'two_wheeler', label: 'Bike / Scooter', icon: Icons.two_wheeler),
-    CategoryIconOption(key: 'local_gas_station', label: 'Fuel / Petrol', icon: Icons.local_gas_station),
-    CategoryIconOption(key: 'flight', label: 'Travel / Flight', icon: Icons.flight),
-    CategoryIconOption(key: 'receipt', label: 'Bills & Utilities', icon: Icons.receipt),
-    CategoryIconOption(key: 'flash_on', label: 'Electricity', icon: Icons.flash_on),
-    CategoryIconOption(key: 'water_drop', label: 'Water', icon: Icons.water_drop),
-    CategoryIconOption(key: 'wifi', label: 'Internet / Wifi', icon: Icons.wifi),
-    CategoryIconOption(key: 'phone_android', label: 'Mobile Recharge', icon: Icons.phone_android),
-    CategoryIconOption(key: 'tv', label: 'Entertainment / OTT', icon: Icons.tv),
-    CategoryIconOption(key: 'sports_esports', label: 'Gaming', icon: Icons.sports_esports),
-    CategoryIconOption(key: 'movie', label: 'Movies / Cinema', icon: Icons.movie),
-    CategoryIconOption(key: 'favorite', label: 'Health & Wellness', icon: Icons.favorite),
-    CategoryIconOption(key: 'medication', label: 'Pharmacy / Medicine', icon: Icons.medication),
-    CategoryIconOption(key: 'fitness_center', label: 'Gym / Fitness', icon: Icons.fitness_center),
-    CategoryIconOption(key: 'trending_up', label: 'Investment / Stocks', icon: Icons.trending_up),
-    CategoryIconOption(key: 'savings', label: 'Savings', icon: Icons.savings),
-    CategoryIconOption(key: 'payments', label: 'Salary / Income', icon: Icons.payments),
-    CategoryIconOption(key: 'account_balance', label: 'Bank / Transfer', icon: Icons.account_balance),
-    CategoryIconOption(key: 'school', label: 'Education / Courses', icon: Icons.school),
-    CategoryIconOption(key: 'home', label: 'Housing / Rent', icon: Icons.home),
-    CategoryIconOption(key: 'card_giftcard', label: 'Gifts & Donations', icon: Icons.card_giftcard),
-    CategoryIconOption(key: 'pets', label: 'Pets', icon: Icons.pets),
-    CategoryIconOption(key: 'brush', label: 'Personal Care', icon: Icons.brush),
-    CategoryIconOption(key: 'build', label: 'Maintenance / Repair', icon: Icons.build),
-    CategoryIconOption(key: 'category', label: 'General / Other', icon: Icons.category),
-  ];
+  // Keys are stored in preferences. Keep them stable when changing labels or glyphs.
+  static const groups = <CategoryIconGroup, List<CategoryIconOption>>{
+    CategoryIconGroup.food: [
+      CategoryIconOption('restaurant', 'Food & Dining', Icons.restaurant_outlined, ['restaurant', 'dining', 'food', 'lunch', 'dinner', 'breakfast']),
+      CategoryIconOption('fastfood', 'Fast Food', Icons.fastfood_outlined, ['fast food', 'burger', 'pizza', 'takeaway']),
+      CategoryIconOption('coffee', 'Coffee & Cafés', Icons.coffee_outlined, ['coffee', 'cafe', 'café', 'tea']),
+      CategoryIconOption('shopping_cart', 'Groceries', Icons.shopping_cart_outlined, ['grocery', 'groceries', 'supermarket']),
+      CategoryIconOption('bakery', 'Bakery', Icons.bakery_dining_outlined, ['bakery', 'bread', 'pastry', 'cake']),
+      CategoryIconOption('local_bar', 'Drinks & Nightlife', Icons.local_bar_outlined, ['bar', 'drinks', 'nightlife']),
+      CategoryIconOption('food_delivery', 'Food Delivery', Icons.delivery_dining_outlined, ['food delivery', 'swiggy', 'zomato']),
+    ],
+    CategoryIconGroup.shopping: [
+      CategoryIconOption('shopping_bag', 'Shopping', Icons.shopping_bag_outlined, ['shopping', 'retail']),
+      CategoryIconOption('storefront', 'Markets', Icons.storefront_outlined, ['market', 'store']),
+      CategoryIconOption('clothing', 'Clothes & Shoes', Icons.checkroom_outlined, ['clothing', 'clothes', 'shoes', 'fashion']),
+      CategoryIconOption('electronics', 'Electronics', Icons.devices_outlined, ['electronics', 'tech', 'gadgets']),
+      CategoryIconOption('furniture', 'Furniture', Icons.chair_outlined, ['furniture', 'decor', 'sofa']),
+      CategoryIconOption('books', 'Books & Stationery', Icons.menu_book_outlined, ['books', 'stationery', 'bookstore']),
+      CategoryIconOption('online_orders', 'Online Orders', Icons.inventory_2_outlined, ['online orders', 'package', 'parcel']),
+    ],
+    CategoryIconGroup.travel: [
+      CategoryIconOption('directions_car', 'Transport & Car', Icons.directions_car_outlined, ['transport', 'car', 'car rental']),
+      CategoryIconOption('rideshare', 'Taxi & Rideshare', Icons.local_taxi_outlined, ['taxi', 'rideshare', 'cab', 'uber', 'ola']),
+      CategoryIconOption('two_wheeler', 'Bike & Scooter', Icons.two_wheeler_outlined, ['bike', 'scooter', 'motorcycle']),
+      CategoryIconOption('local_gas_station', 'Fuel', Icons.local_gas_station_outlined, ['fuel', 'petrol', 'diesel', 'gas station']),
+      CategoryIconOption('train', 'Train & Metro', Icons.train_outlined, ['train', 'railway', 'metro', 'subway']),
+      CategoryIconOption('bus', 'Bus', Icons.directions_bus_outlined, ['bus', 'coach']),
+      CategoryIconOption('bicycle', 'Bicycle', Icons.directions_bike_outlined, ['bicycle', 'cycling']),
+      CategoryIconOption('parking', 'Parking', Icons.local_parking_outlined, ['parking', 'parking fee']),
+      CategoryIconOption('tolls', 'Tolls', Icons.toll_outlined, ['toll', 'tolls', 'fastag']),
+      CategoryIconOption('flight', 'Travel & Flights', Icons.flight_outlined, ['travel', 'flight', 'airfare', 'airplane']),
+      CategoryIconOption('hotel', 'Hotel & Stay', Icons.hotel_outlined, ['hotel', 'stay', 'resort', 'accommodation']),
+      CategoryIconOption('luggage', 'Luggage', Icons.luggage_outlined, ['luggage', 'baggage', 'suitcase']),
+    ],
+    CategoryIconGroup.home: [
+      CategoryIconOption('receipt', 'Bills & Utilities', Icons.receipt_long_outlined, ['bill', 'bills', 'utility', 'utilities']),
+      CategoryIconOption('home', 'Housing & Rent', Icons.home_outlined, ['housing', 'rent', 'house', 'home']),
+      CategoryIconOption('flash_on', 'Electricity', Icons.bolt_outlined, ['electricity', 'electricity bill', 'power']),
+      CategoryIconOption('water_drop', 'Water', Icons.water_drop_outlined, ['water', 'water bill']),
+      CategoryIconOption('wifi', 'Internet & Wi-Fi', Icons.wifi, ['internet', 'wifi', 'wi fi', 'broadband']),
+      CategoryIconOption('phone_android', 'Mobile Recharge', Icons.phone_android_outlined, ['mobile', 'recharge', 'mobile recharge', 'phone']),
+      CategoryIconOption('build', 'Repairs & Maintenance', Icons.build_outlined, ['repair', 'repairs', 'maintenance']),
+      CategoryIconOption('cleaning', 'Cleaning', Icons.cleaning_services_outlined, ['cleaning', 'housekeeping', 'laundry']),
+    ],
+    CategoryIconGroup.lifestyle: [
+      CategoryIconOption('favorite', 'Health & Wellness', Icons.favorite_border, ['health', 'wellness']),
+      CategoryIconOption('hospital', 'Doctors & Hospital', Icons.local_hospital_outlined, ['doctor', 'hospital', 'clinic', 'medical']),
+      CategoryIconOption('medication', 'Medicine', Icons.medication_outlined, ['medicine', 'medicines', 'pharmacy', 'medication']),
+      CategoryIconOption('fitness_center', 'Gym & Fitness', Icons.fitness_center_outlined, ['gym', 'fitness', 'workout']),
+      CategoryIconOption('brush', 'Personal Care', Icons.brush_outlined, ['personal care', 'beauty', 'salon', 'skincare']),
+      CategoryIconOption('spa', 'Spa & Relaxation', Icons.spa_outlined, ['spa', 'massage', 'relaxation']),
+      CategoryIconOption('tv', 'Entertainment & Streaming', Icons.tv_outlined, ['entertainment', 'streaming', 'ott', 'subscription', 'subscriptions']),
+      CategoryIconOption('movie', 'Movies & Cinema', Icons.movie_outlined, ['movie', 'movies', 'cinema']),
+      CategoryIconOption('sports_esports', 'Gaming', Icons.sports_esports_outlined, ['gaming', 'game', 'games', 'esports']),
+      CategoryIconOption('sports', 'Sports', Icons.sports_soccer_outlined, ['sport', 'sports', 'football', 'cricket']),
+      CategoryIconOption('music', 'Music & Concerts', Icons.headphones_outlined, ['music', 'concert', 'concerts']),
+      CategoryIconOption('school', 'Education & Courses', Icons.school_outlined, ['education', 'course', 'courses', 'school', 'tuition']),
+      CategoryIconOption('family', 'Family & Childcare', Icons.child_care_outlined, ['family', 'childcare', 'baby', 'kids']),
+      CategoryIconOption('pets', 'Pets', Icons.pets_outlined, ['pet', 'pets', 'vet']),
+      CategoryIconOption('card_giftcard', 'Gifts', Icons.card_giftcard_outlined, ['gift', 'gifts', 'present']),
+      CategoryIconOption('donations', 'Donations', Icons.volunteer_activism_outlined, ['donations', 'donation', 'charity']),
+    ],
+    CategoryIconGroup.money: [
+      CategoryIconOption('payments', 'Salary & Income', Icons.payments_outlined, ['salary', 'payroll', 'income', 'stipend']),
+      CategoryIconOption('freelance', 'Freelance', Icons.laptop_chromebook_outlined, ['freelance', 'freelancing', 'consulting', 'contract', 'gig']),
+      CategoryIconOption('bonus', 'Bonus', Icons.stars_outlined, ['bonus', 'commission', 'incentive']),
+      CategoryIconOption('refund', 'Refund & Cashback', Icons.replay_outlined, ['refund', 'cashback', 'reimbursement']),
+      CategoryIconOption('rental_income', 'Rental Income', Icons.key_outlined, ['rental income', 'rent received']),
+      CategoryIconOption('trending_up', 'Investments', Icons.show_chart_outlined, ['investment', 'investments', 'stocks', 'mutual fund']),
+      CategoryIconOption('interest', 'Interest & Dividends', Icons.percent_outlined, ['interest', 'dividend', 'dividends']),
+      CategoryIconOption('savings', 'Savings', Icons.savings_outlined, ['savings', 'saving']),
+      CategoryIconOption('account_balance', 'Bank Transfer', Icons.account_balance_outlined, ['bank', 'transfer', 'bank transfer', 'netbanking']),
+      CategoryIconOption('loan', 'Loans & EMI', Icons.request_quote_outlined, ['loan', 'loans', 'emi']),
+      CategoryIconOption('taxes', 'Taxes', Icons.calculate_outlined, ['tax', 'taxes', 'gst']),
+      CategoryIconOption('insurance', 'Insurance', Icons.verified_user_outlined, ['insurance', 'car insurance', 'insurance premium']),
+      CategoryIconOption('category', 'General', Icons.category_outlined, ['general', 'other', 'miscellaneous']),
+    ],
+  };
+
+  static final availableIcons = List<CategoryIconOption>.unmodifiable(
+    groups.values.expand((options) => options),
+  );
+
+  static final _byKey = {for (final option in availableIcons) option.key: option};
+
+  static final _byAlias = {
+    for (final option in availableIcons)
+      for (final alias in [option.label, ...option.aliases])
+        _normalizeIconText(alias): option.key,
+  };
+
+  // Find more specific phrases first, such as "car insurance" before "car".
+  static final _matchingAliases = _byAlias.keys.toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
+
+  static CategoryIconOption optionForKey(String key) =>
+      _byKey[key] ?? _byKey[_defaultKey]!;
 
   static Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString(_prefKey);
-      if (jsonStr != null) {
-        final decoded = jsonDecode(jsonStr);
-        if (decoded is Map) {
-          _customIcons.clear();
-          decoded.forEach((k, v) {
-            _customIcons[k.toString().toLowerCase().trim()] = v.toString();
-          });
-        }
+      final json = prefs.getString(_prefKey);
+      final decoded = json == null ? null : jsonDecode(json);
+      _customIcons.clear();
+      if (decoded is Map) {
+        decoded.forEach((key, value) {
+          _customIcons[key.toString().toLowerCase().trim()] = value.toString();
+        });
       }
     } catch (_) {}
   }
 
   static Future<void> setCustomIcon(String category, String iconKey) async {
     _customIcons[category.toLowerCase().trim()] = iconKey;
+    await _saveCustomIcons();
+  }
+
+  static IconData get(String category) =>
+      optionForKey(getKeyForCategory(category)).icon;
+
+  static String getKeyForCategory(String category) {
+    final saved = _customIcons[category.toLowerCase().trim()];
+    if (saved != null && _byKey.containsKey(saved)) return saved;
+
+    final name = _normalizeIconText(category);
+    final exact = _byAlias[name];
+    if (exact != null) return exact;
+
+    final phrase = ' $name ';
+    for (final alias in _matchingAliases) {
+      if (phrase.contains(' $alias ')) return _byAlias[alias]!;
+    }
+    return _defaultKey;
+  }
+
+  static Future<void> renameCategory(String oldName, String newName) async {
+    final saved = _customIcons.remove(oldName.toLowerCase().trim());
+    if (saved == null) return;
+    _customIcons[newName.toLowerCase().trim()] = saved;
+    await _saveCustomIcons();
+  }
+
+  static Future<void> deleteCategory(String name) async {
+    if (_customIcons.remove(name.toLowerCase().trim()) != null) {
+      await _saveCustomIcons();
+    }
+  }
+
+  static Future<void> _saveCustomIcons() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefKey, jsonEncode(_customIcons));
     } catch (_) {}
   }
 
-  static IconData get(String category) {
-    final lower = category.toLowerCase().trim();
-
-    // 1. Check user-assigned custom icon
-    final customKey = _customIcons[lower];
-    if (customKey != null) {
-      final match = availableIcons.firstWhere(
-        (opt) => opt.key == customKey,
-        orElse: () => const CategoryIconOption(key: 'category', label: 'General', icon: Icons.category),
-      );
-      return match.icon;
-    }
-
-    // 2. Default keyword matching
-    if (lower.contains('food') || lower.contains('dining') || lower.contains('restaurant')) {
-      return Icons.restaurant;
-    } else if (lower.contains('coffee') || lower.contains('cafe')) {
-      return Icons.coffee;
-    } else if (lower.contains('grocer')) {
-      return Icons.shopping_cart;
-    } else if (lower.contains('shop') || lower.contains('clothing')) {
-      return Icons.shopping_bag;
-    } else if (lower.contains('transport') || lower.contains('fuel') || lower.contains('cab') || lower.contains('car') || lower.contains('uber') || lower.contains('petrol')) {
-      return Icons.directions_car;
-    } else if (lower.contains('bill') || lower.contains('utilit') || lower.contains('recharge') || lower.contains('electric')) {
-      return Icons.receipt;
-    } else if (lower.contains('entertain') || lower.contains('stream') || lower.contains('movie') || lower.contains('ott')) {
-      return Icons.tv;
-    } else if (lower.contains('health') || lower.contains('wellness') || lower.contains('medical') || lower.contains('pharmacy')) {
-      return Icons.favorite;
-    } else if (lower.contains('fitness') || lower.contains('gym') || lower.contains('workout')) {
-      return Icons.fitness_center;
-    } else if (lower.contains('invest') || lower.contains('stock') || lower.contains('mutual')) {
-      return Icons.trending_up;
-    } else if (lower.contains('salary') || lower.contains('payroll') || lower.contains('income') || lower.contains('stipend')) {
-      return Icons.payments;
-    } else if (lower.contains('freelance') || lower.contains('contract') || lower.contains('gig')) {
-      return Icons.laptop_chromebook;
-    } else if (lower.contains('refund') || lower.contains('cashback') || lower.contains('reimburse')) {
-      return Icons.replay;
-    } else if (lower.contains('dividend') || lower.contains('interest') || lower.contains('deposit')) {
-      return Icons.account_balance;
-    } else if (lower.contains('rent') || lower.contains('house') || lower.contains('housing')) {
-      return Icons.home;
-    } else if (lower.contains('education') || lower.contains('course') || lower.contains('school')) {
-      return Icons.school;
-    } else if (lower.contains('gift')) {
-      return Icons.card_giftcard;
-    } else if (lower.contains('pet')) {
-      return Icons.pets;
-    }
-
-    return Icons.category;
-  }
-
-  static String getKeyForCategory(String category) {
-    final lower = category.toLowerCase().trim();
-    if (_customIcons.containsKey(lower)) {
-      return _customIcons[lower]!;
-    }
-    if (lower.contains('food') || lower.contains('dining') || lower.contains('restaurant')) {
-      return 'restaurant';
-    } else if (lower.contains('coffee') || lower.contains('cafe')) {
-      return 'coffee';
-    } else if (lower.contains('grocer')) {
-      return 'shopping_cart';
-    } else if (lower.contains('shop') || lower.contains('clothing')) {
-      return 'shopping_bag';
-    } else if (lower.contains('transport') || lower.contains('cab') || lower.contains('car') || lower.contains('uber')) {
-      return 'directions_car';
-    } else if (lower.contains('fuel') || lower.contains('petrol')) {
-      return 'local_gas_station';
-    } else if (lower.contains('bill') || lower.contains('utilit')) {
-      return 'receipt';
-    } else if (lower.contains('electric')) {
-      return 'flash_on';
-    } else if (lower.contains('recharge') || lower.contains('phone')) {
-      return 'phone_android';
-    } else if (lower.contains('entertain') || lower.contains('stream') || lower.contains('ott')) {
-      return 'tv';
-    } else if (lower.contains('movie')) {
-      return 'movie';
-    } else if (lower.contains('health') || lower.contains('wellness')) {
-      return 'favorite';
-    } else if (lower.contains('fitness') || lower.contains('gym') || lower.contains('workout')) {
-      return 'fitness_center';
-    } else if (lower.contains('medical') || lower.contains('pharmacy')) {
-      return 'medication';
-    } else if (lower.contains('invest') || lower.contains('stock') || lower.contains('mutual')) {
-      return 'trending_up';
-    } else if (lower.contains('salary') || lower.contains('income')) {
-      return 'payments';
-    } else if (lower.contains('rent') || lower.contains('house') || lower.contains('housing')) {
-      return 'home';
-    } else if (lower.contains('education') || lower.contains('school')) {
-      return 'school';
-    } else if (lower.contains('gift')) {
-      return 'card_giftcard';
-    } else if (lower.contains('pet')) {
-      return 'pets';
-    }
-    return 'category';
-  }
-
-  static Future<void> renameCategory(String oldName, String newName) async {
-    final oldKey = oldName.toLowerCase().trim();
-    final newKey = newName.toLowerCase().trim();
-    if (_customIcons.containsKey(oldKey)) {
-      final iconVal = _customIcons.remove(oldKey)!;
-      _customIcons[newKey] = iconVal;
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefKey, jsonEncode(_customIcons));
-      } catch (_) {}
-    }
-  }
-
-  static Future<void> deleteCategory(String name) async {
-    final key = name.toLowerCase().trim();
-    if (_customIcons.containsKey(key)) {
-      _customIcons.remove(key);
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefKey, jsonEncode(_customIcons));
-      } catch (_) {}
-    }
-  }
-
   static IconData getPaymentMethodIcon(String method) {
     final lower = method.toLowerCase().trim();
     if (lower.contains('upi') || lower.contains('gpay') || lower.contains('phonepe') || lower.contains('paytm')) {
-      return Icons.qr_code_2;
+      return Icons.qr_code_2_rounded;
     } else if (lower.contains('card') || lower.contains('credit') || lower.contains('debit')) {
-      return Icons.credit_card;
+      return Icons.credit_card_outlined;
     } else if (lower.contains('cash')) {
       return Icons.payments_outlined;
     } else if (lower.contains('transfer') || lower.contains('netbanking') || lower.contains('bank') || lower.contains('a/c')) {
-      return Icons.account_balance;
+      return Icons.account_balance_outlined;
+    } else if (lower.contains('wallet')) {
+      return Icons.account_balance_wallet_outlined;
     }
-    return Icons.payment;
+    return Icons.payment_outlined;
   }
 }
